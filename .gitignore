@@ -112,3 +112,6 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Generated during builds by Unity's performance testing tooling
+/[Aa]ssets/[Rr]esources/PerformanceTestRun*

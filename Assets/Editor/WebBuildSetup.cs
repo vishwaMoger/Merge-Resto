@@ -15,7 +15,9 @@ namespace MergeResto.EditorTools
     public static class WebBuildSetup
     {
         const string BootScenePath = "Assets/Scenes/Boot.unity";
-        const string GameScenePath = "Assets/Scenes/SampleScene.unity";
+        // The style test room stands in for the game scene until gameplay exists.
+        const string GameScenePath = "Assets/Scenes/StyleTest.unity";
+        const string WebQualityLevel = "PC";
         const string SdkLoadingScenePath = "Assets/CrazySDK/Demo/LoadingScene.unity";
 
         [MenuItem("Merge Resto/Apply Web Build Settings")]
@@ -43,6 +45,9 @@ namespace MergeResto.EditorTools
             // Startup
             PlayerSettings.SplashScreen.show = false;
             PlayerSettings.SplashScreen.showUnityLogo = false;
+
+            // PC is the main target, so Web builds start on the PC quality level.
+            SetWebDefaultQuality(WebQualityLevel);
 
             AssetDatabase.SaveAssets();
             Debug.Log("[Merge Resto] Web build settings applied.");
@@ -102,6 +107,26 @@ namespace MergeResto.EditorTools
                 return;
             }
             prop.SetValue(null, Enum.Parse(prop.PropertyType, value));
+        }
+
+        static void SetWebDefaultQuality(string levelName)
+        {
+            int level = System.Array.IndexOf(QualitySettings.names, levelName);
+            if (level < 0)
+            {
+                Debug.LogWarning($"[Merge Resto] Quality level '{levelName}' not found.");
+                return;
+            }
+            var asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/QualitySettings.asset")[0];
+            var so = new SerializedObject(asset);
+            var defaults = so.FindProperty("m_PerPlatformDefaultQuality");
+            for (int i = 0; i < defaults.arraySize; i++)
+            {
+                var entry = defaults.GetArrayElementAtIndex(i);
+                if (entry.FindPropertyRelative("first").stringValue == "WebGL")
+                    entry.FindPropertyRelative("second").intValue = level;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         static void SetWebGLBool(string name, bool value)
