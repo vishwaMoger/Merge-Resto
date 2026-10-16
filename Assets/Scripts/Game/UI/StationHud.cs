@@ -49,7 +49,12 @@ namespace MergeResto.Game.UI
             bool needsTap = sim.NeedsTap(i);
             tapPrompt.SetActive(visible && needsTap);
             if (needsTap)
-                tapPrompt.transform.localPosition = new Vector3(0f, 40f + Mathf.Abs(Mathf.Sin(Time.time * 4f)) * 14f, 0f);
+            {
+                float t = Time.time * 4f + i;
+                tapPrompt.transform.localPosition = new Vector3(0f, 30f + Mathf.Abs(Mathf.Sin(t)) * 14f, 0f);
+                float pulse = 1f + Mathf.Sin(t * 2f) * 0.05f;
+                tapPrompt.transform.localScale = new Vector3(pulse, 2f - pulse, 1f);
+            }
 
             managerBadge.SetActive(visible && sim.IsAutomated(i) && sim.Def.stations[i].kind != StationKind.Seller);
 

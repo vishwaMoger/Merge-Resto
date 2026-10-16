@@ -130,6 +130,8 @@ MonoBehaviour:
     itemsPerOrder: 2
     pricePerItem: 25
     patienceSeconds: 22
+    walkInSeconds: 3.432158
+    stepUpSeconds: 0.65
     startCoins: 200
     startGems: 20
     pricePerOutputLevel: 0.2

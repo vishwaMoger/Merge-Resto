@@ -31,6 +31,14 @@ namespace MergeResto.Game.Views
             public Transform bag;
             public Transform grump;
             public bool leaving;
+            public float leaveDelay;
+        }
+
+        static Transform FindDeep(Transform root, string name)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                if (t.name == name) return t;
+            return null;
         }
 
         readonly Dictionary<int, Walker> _active = new();
@@ -64,8 +72,10 @@ namespace MergeResto.Game.Views
             if (!_active.Remove(c.id, out var w))
                 return;
             if (w.bag != null) w.bag.gameObject.SetActive(true);
+            if (w.anim != null) w.anim.Cheer();
+            w.leaveDelay = 0.4f; // a quick cheer before walking off
             StartLeaving(w);
-            CustomerPaid?.Invoke(w.go.transform.position + Vector3.up * 2.2f, coins);
+            CustomerPaid?.Invoke(w.go.transform.position + Vector3.up * 2.6f, coins);
         }
 
         void OnLeft(CustomerState c)
@@ -74,7 +84,7 @@ namespace MergeResto.Game.Views
                 return;
             if (w.grump != null) w.grump.gameObject.SetActive(true);
             StartLeaving(w);
-            CustomerGaveUp?.Invoke(w.go.transform.position + Vector3.up * 2.2f);
+            CustomerGaveUp?.Invoke(w.go.transform.position + Vector3.up * 2.6f);
         }
 
         void Spawn(int id, bool atQueue)
@@ -89,8 +99,8 @@ namespace MergeResto.Game.Views
             {
                 go = go,
                 anim = go.GetComponent<ChibiAnimator>(),
-                bag = go.transform.Find("Body/Bag"),
-                grump = go.transform.Find("Body/Grump"),
+                bag = FindDeep(go.transform, "Bag"),
+                grump = FindDeep(go.transform, "Grump"),
             };
             if (w.bag != null) w.bag.gameObject.SetActive(false);
             if (w.grump != null) w.grump.gameObject.SetActive(false);
@@ -123,6 +133,11 @@ namespace MergeResto.Game.Views
             for (int i = _leaving.Count - 1; i >= 0; i--)
             {
                 var w = _leaving[i];
+                if (w.leaveDelay > 0f)
+                {
+                    w.leaveDelay -= Time.deltaTime;
+                    continue;
+                }
                 if (Step(w, exitPoint.position))
                 {
                     Destroy(w.go);

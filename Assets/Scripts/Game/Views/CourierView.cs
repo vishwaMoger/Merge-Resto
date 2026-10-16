@@ -15,10 +15,15 @@ namespace MergeResto.Game.Views
         public Vector3 waitOffset;
 
         ShopSim _sim;
+        ChibiAnimator _anim;
 
         void Start()
         {
             _sim = GameController.Instance.Sim;
+            _anim = GetComponent<ChibiAnimator>();
+            // Waiting staff turn towards the player so their faces read from the iso camera.
+            if (_anim != null)
+                _anim.FaceWhenIdle(new Vector3(0.5f, 0f, -1f));
             transform.position = from.workPoint.position + waitOffset;
         }
 
@@ -36,8 +41,11 @@ namespace MergeResto.Game.Views
                 CourierPhase.WalkingBack => Vector3.Lerp(b, a, t),
                 _ => a,
             };
+            bool carrying = courier.carrying > 0;
             if (carryVisual != null)
-                carryVisual.SetActive(courier.carrying > 0);
+                carryVisual.SetActive(carrying);
+            if (_anim != null)
+                _anim.SetCarrying(carrying);
         }
     }
 }

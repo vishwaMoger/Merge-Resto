@@ -24,7 +24,7 @@ namespace MergeResto.EditorTools
         const string UiFolder = "Assets/Art/UI";
         const string BakeryArt = "Assets/Art/ThirdParty/TinyTreats_BakeryInterior/Models/";
         const string GoodsArt = "Assets/Art/ThirdParty/TinyTreats_BakedGoods/Models/";
-        const float CharacterScale = 1.8f;
+        const float CharacterScale = 1f;
         const float WalkSpeed = 2.4f;
 
         [MenuItem("Merge Resto/Game/Build Bakery Scene")]
@@ -38,7 +38,7 @@ namespace MergeResto.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             // Opening a scene unloads unreferenced assets, so fetch the config afterwards.
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
-            var cam = LookSetup.CreateLookRig(new Vector3(0f, 1f, 0f), 8.6f);
+            var cam = LookSetup.CreateLookRig(new Vector3(0.6f, 1f, 0.4f), 7.9f);
 
             var world = new GameObject("Bakery").transform;
             BuildRoom(world);
@@ -54,6 +54,7 @@ namespace MergeResto.EditorTools
             UpdateCourierTimes(config, stations);
             BuildCouriers(world, stations);
             var crowd = BuildCustomers(world);
+            UpdateCustomerTimes(config, crowd);
             BuildDining(world);
 
             var game = new GameObject("Game");
@@ -62,7 +63,9 @@ namespace MergeResto.EditorTools
             var input = game.AddComponent<InputController>();
             SetPrivate(input, "worldCamera", cam);
 
-            BuildHud(stations, crowd);
+            HudBuilder.Build(stations, crowd, out var popups, out var coinFly);
+            BuildFx(world, stations, crowd, popups, coinFly);
+            BuildDecor(world);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -137,6 +140,18 @@ namespace MergeResto.EditorTools
             EditorUtility.SetDirty(config);
         }
 
+        // Customers are only served once they really stand at the counter, so the sim needs
+        // the walking times of the actual path in this room.
+        static void UpdateCustomerTimes(ShopConfig config, CustomerCrowd crowd)
+        {
+            float speed = crowd.walkSpeed;
+            float walkIn = Vector3.Distance(crowd.entryPoint.position, crowd.queueSlots[0].position) / speed;
+            float step = Vector3.Distance(crowd.queueSlots[0].position, crowd.queueSlots[1].position) / speed;
+            config.shop.walkInSeconds = walkIn + 0.15f;
+            config.shop.stepUpSeconds = step + 0.15f;
+            EditorUtility.SetDirty(config);
+        }
+
         // ------------------------------------------------------------------ Room
 
         static void BuildRoom(Transform world)
@@ -182,7 +197,7 @@ namespace MergeResto.EditorTools
 
         static StationView BuildFlourStorage(Transform world)
         {
-            var view = NewStation(world, "FlourStorage", new Vector3(-6.4f, 0f, 4.7f), new Vector3(-6.0f, 0f, 3.0f), 2.2f);
+            var view = NewStation(world, "FlourStorage", new Vector3(-6.4f, 0f, 4.7f), new Vector3(-6.0f, 0f, 3.0f), 1.5f);
             var t = view.transform;
             var slots = new List<GameObject>();
             for (int m = 0; m < 3; m++)
@@ -217,7 +232,7 @@ namespace MergeResto.EditorTools
 
         static StationView BuildOven(Transform world)
         {
-            var view = NewStation(world, "Oven", new Vector3(1f, 0f, 5f), new Vector3(1f, 0f, 3.2f), 3.4f);
+            var view = NewStation(world, "Oven", new Vector3(1f, 0f, 5f), new Vector3(1f, 0f, 3.2f), 3.2f);
             var t = view.transform;
             var slots = new List<GameObject>();
             float[] xs = { -0.2f, 2.1f, 4.4f };
@@ -239,7 +254,8 @@ namespace MergeResto.EditorTools
             light.intensity = 2.2f;
             light.shadows = LightShadows.None;
             glow.SetActive(false);
-            view.runningEffects = new[] { glow };
+            var steam = SteamEmitter(t, new Vector3(-0.2f, 3.1f, 0.2f));
+            view.runningEffects = new[] { glow, steam };
             AddClickCollider(view);
             return view;
         }
@@ -263,12 +279,10 @@ namespace MergeResto.EditorTools
             float[] xs = { 0.75f, 2f, -0.4f };
             for (int m = 0; m < 3; m++)
             {
-                var c = LookSetup.Chibi($"Cashier{m}", t, LookSetup.Hex("F58F7C"), LookSetup.Hex("F4C9A6"), chefHat: false);
+                var c = Character(CharacterLibrary.CashierLook, t, $"Cashier{m}");
                 c.transform.localPosition = new Vector3(xs[m], 0f, 1.25f);
                 c.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-                c.transform.localScale = Vector3.one * CharacterScale;
-                var anim = c.AddComponent<ChibiAnimator>();
-                anim.body = c.transform.Find("Body");
+                c.GetComponent<ChibiAnimator>().idleFacing = Vector3.back;
                 cashiers.Add(c);
             }
             view.machineVisuals = cashiers.ToArray();
@@ -284,13 +298,12 @@ namespace MergeResto.EditorTools
             Vector3[] offsets = { new(0f, 0f, -0.35f), new(0f, 0f, 0.35f), new(0f, 0f, -0.35f) };
             for (int i = 0; i < 3; i++)
             {
-                var baker = LookSetup.Chibi($"Baker{i}", staff, LookSetup.Hex("FFFFFF"), LookSetup.Hex("FFE0C2"), chefHat: true);
-                baker.transform.localScale = Vector3.one * CharacterScale;
-                var anim = baker.AddComponent<ChibiAnimator>();
-                anim.body = baker.transform.Find("Body");
+                var baker = Character(CharacterLibrary.BakerLook, staff, $"Baker{i}");
+                var anim = baker.GetComponent<ChibiAnimator>();
 
-                var carry = Place(carryModels[i], carryFolders[i], anim.body, new Vector3(0f, 0.5f, 0.32f), 0f, local: true);
-                carry.transform.localScale = Vector3.one * (i == 0 ? 0.8f : 1.1f) / 1f;
+                var carry = Place(carryModels[i], carryFolders[i], anim.carryAnchor, Vector3.zero, 0f, local: true);
+                carry.transform.localRotation = Quaternion.identity;
+                carry.transform.localScale = Vector3.one * (i == 0 ? 1.1f : 1.5f);
                 carry.name = "Carry";
                 carry.SetActive(false);
 
@@ -327,25 +340,188 @@ namespace MergeResto.EditorTools
             crowd.queueSlots = slots.ToArray();
 
             var templates = new List<GameObject>();
-            string[] outfits = { "7FA7E8", "F2C14E", "B48EE0", "8FD3C1" };
-            string[] skins = { "E8B48E", "F4C9A6", "C68B63", "FFE0C2" };
-            for (int i = 0; i < outfits.Length; i++)
+            foreach (var look in CharacterLibrary.CustomerLooks)
             {
-                var c = LookSetup.Chibi($"CustomerTemplate{i}", root, LookSetup.Hex(outfits[i]), LookSetup.Hex(skins[i]), chefHat: false);
-                c.transform.localScale = Vector3.one * CharacterScale;
-                var anim = c.AddComponent<ChibiAnimator>();
-                anim.body = c.transform.Find("Body");
-                var bag = LookSetup.Box("Bag", anim.body, new Vector3(0.28f, 0.35f, 0.12f), new Vector3(0.22f, 0.26f, 0.14f),
-                    LookSetup.Mat("PaperBag", LookSetup.Hex("D9A86C")));
-                bag.SetActive(false);
-                var grump = LookSetup.Sphere("Grump", anim.body, new Vector3(0.24f, 1.4f, 0.1f), Vector3.one * 0.16f,
-                    LookSetup.Mat("Grump", LookSetup.Hex("FF5A5A"), emission: new Color(0.6f, 0.05f, 0.05f)));
-                grump.SetActive(false);
+                var c = Character(look, root, $"Template_{look}");
                 c.SetActive(false);
                 templates.Add(c);
             }
             crowd.templates = templates.ToArray();
             return crowd;
+        }
+
+        // ------------------------------------------------------------------ Decor
+
+        const string PlantArt = "Assets/Art/ThirdParty/TinyTreats_HousePlants/Models/";
+
+        static void BuildDecor(Transform world)
+        {
+            var decor = Group("Decor", world);
+            void Plant(string model, Vector3 pos, float yaw = 0f, float scale = 1f)
+            {
+                var p = Place(model, PlantArt, decor, pos, yaw);
+                p.transform.localScale = Vector3.one * scale;
+                ApplySway(p);
+            }
+            Plant("monstera_plant_large_potted", new Vector3(-7.2f, 0f, -5.2f), 30f);
+            Plant("yucca_plant_large_potted", new Vector3(7.3f, 0f, 4.9f), -20f);
+            Plant("sansevieria_plant_medium_potted", new Vector3(-7.3f, 0f, -0.2f), 10f);
+            Plant("pothos_plant_small_potted", new Vector3(-7.55f, 2.45f, 1.0f), 90f);
+            Plant("succulent_plant_pot_small", new Vector3(-7.55f, 2.45f, 3.0f), 0f);
+            Plant("zzplant_plant_medium_potted", new Vector3(7.2f, 0f, -5.2f), -40f);
+            Plant("monstera_plant_medium_potted", new Vector3(2.2f, 0f, 5.3f), 0f);
+
+            // Welcome mat where customers come in.
+            var mat = Place("rug", decor, new Vector3(6.6f, 0f, -5.2f), 90f);
+            mat.transform.localScale = new Vector3(0.7f, 1f, 0.7f);
+        }
+
+        // Leafy parts of plants get the gentle vertex sway.
+        static void ApplySway(GameObject plant)
+        {
+            foreach (var r in plant.GetComponentsInChildren<Renderer>())
+            {
+                var src = r.sharedMaterial;
+                if (src == null)
+                    continue;
+                string path = $"Assets/Art/Materials/{src.name}_Sway.mat";
+                var sway = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (sway == null)
+                {
+                    sway = new Material(src);
+                    sway.SetFloat("_Sway", 1f);
+                    sway.EnableKeyword("_SWAY");
+                    sway.SetFloat("_SwayStrength", 0.035f);
+                    sway.SetFloat("_SwaySpeed", 1.2f);
+                    AssetDatabase.CreateAsset(sway, path);
+                }
+                r.sharedMaterial = sway;
+            }
+        }
+
+        // ------------------------------------------------------------------ FX
+
+        const string FxFolder = "Assets/Art/FX";
+
+        static void BuildFx(Transform world, StationView[] stations, CustomerCrowd crowd, FloatingTextLayer popups, CoinFlyLayer coinFly)
+        {
+            var fx = Group("FX", world);
+            var sparkle = Burst(fx, "SparkleBurst", "fx_sparkle", new Color(1f, 0.85f, 0.35f), size: (0.25f, 0.55f), speed: (2.5f, 5f), life: (0.45f, 0.8f), gravity: 0.6f);
+            var flour = Burst(fx, "FlourPuff", "fx_puff", new Color(1f, 0.98f, 0.94f, 0.85f), size: (0.5f, 1.0f), speed: (0.6f, 1.6f), life: (0.6f, 1.1f), gravity: -0.15f, grow: true);
+
+            var director = fx.gameObject.AddComponent<FxDirector>();
+            var so = new SerializedObject(director);
+            var arr = so.FindProperty("stations");
+            arr.arraySize = stations.Length;
+            for (int i = 0; i < stations.Length; i++)
+                arr.GetArrayElementAtIndex(i).objectReferenceValue = stations[i];
+            so.FindProperty("crowd").objectReferenceValue = crowd;
+            so.FindProperty("popups").objectReferenceValue = popups;
+            so.FindProperty("coinFly").objectReferenceValue = coinFly;
+            so.FindProperty("sparkleBurst").objectReferenceValue = sparkle;
+            so.FindProperty("flourPuff").objectReferenceValue = flour;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static ParticleSystem Burst(Transform parent, string name, string sprite, Color color,
+            (float min, float max) size, (float min, float max) speed, (float min, float max) life, float gravity, bool grow = false)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.duration = 1f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(life.min, life.max);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(speed.min, speed.max);
+            main.startSize = new ParticleSystem.MinMaxCurve(size.min, size.max);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = color;
+            main.gravityModifier = gravity;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 200;
+            var emission = ps.emission;
+            emission.enabled = false;
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.25f;
+            var sizeOverLife = ps.sizeOverLifetime;
+            sizeOverLife.enabled = true;
+            sizeOverLife.size = new ParticleSystem.MinMaxCurve(1f, grow ? AnimationCurve.EaseInOut(0, 0.6f, 1, 1.4f) : AnimationCurve.EaseInOut(0, 1f, 1, 0f));
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.6f), new GradientAlphaKey(0f, 1f) });
+            col.color = grad;
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = ParticleMaterial(sprite);
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.sortingFudge = -10f;
+            return ps;
+        }
+
+        static GameObject SteamEmitter(Transform parent, Vector3 localPos)
+        {
+            var go = new GameObject("Steam");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.loop = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.4f, 2.0f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.45f, 0.75f);
+            main.startColor = new Color(1f, 1f, 1f, 0.55f);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = -0.05f;
+            var emission = ps.emission;
+            emission.rateOverTime = 5f;
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 12f;
+            shape.radius = 0.15f;
+            shape.rotation = new Vector3(-90f, 0f, 0f);
+            var sizeOverLife = ps.sizeOverLifetime;
+            sizeOverLife.enabled = true;
+            sizeOverLife.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0, 0.5f, 1, 1.6f));
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.9f, 0.2f), new GradientAlphaKey(0f, 1f) });
+            col.color = grad;
+            go.GetComponent<ParticleSystemRenderer>().sharedMaterial = ParticleMaterial("fx_puff");
+            go.SetActive(false);
+            return go;
+        }
+
+        static Material ParticleMaterial(string sprite)
+        {
+            LookSetup.EnsureFolder(FxFolder);
+            string path = $"{FxFolder}/{sprite}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            var tex = UiArtGenerator.Load(sprite).texture;
+            mat.SetTexture("_BaseMap", tex);
+            mat.SetColor("_BaseColor", Color.white);
+            // Transparent, alpha blended, no depth write.
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.SetOverrideTag("RenderType", "Transparent");
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         static void BuildDining(Transform world)
@@ -365,307 +541,21 @@ namespace MergeResto.EditorTools
             Table(new Vector3(-5.5f, 0f, -4.8f));
         }
 
-        // ------------------------------------------------------------------ HUD
-
-        static TMP_FontAsset _font;
-        static Material _outlined;
-        static Sprite _rounded, _circle;
-
-        static void LoadUiAssets()
-        {
-            _font = TMP_Settings.defaultFontAsset;
-            LookSetup.EnsureFolder(UiFolder);
-            string matPath = $"{UiFolder}/TextOutlined.mat";
-            _outlined = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-            if (_outlined == null)
-            {
-                _outlined = new Material(_font.material) { name = "TextOutlined" };
-                AssetDatabase.CreateAsset(_outlined, matPath);
-            }
-            _outlined.EnableKeyword("OUTLINE_ON");
-            _outlined.SetFloat("_OutlineWidth", 0.22f);
-            _outlined.SetColor("_OutlineColor", new Color(0.29f, 0.17f, 0.13f));
-            _outlined.SetFloat("_FaceDilate", 0.1f);
-            EditorUtility.SetDirty(_outlined);
-            _rounded = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            _circle = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-        }
-
-        static void BuildHud(StationView[] stations, CustomerCrowd crowd)
-        {
-            LoadUiAssets();
-
-            var es = new GameObject("EventSystem");
-            es.AddComponent<EventSystem>();
-            es.AddComponent<InputSystemUIInputModule>();
-
-            var canvasGo = new GameObject("HUD", typeof(RectTransform));
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            var scaler = canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
-            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
-            var canvasRt = (RectTransform)canvasGo.transform;
-
-            // World-anchored markers sit behind everything else.
-            var worldLayer = Stretch(Rect("WorldLayer", canvasRt));
-            foreach (var s in stations)
-                BuildStationHud(worldLayer, s);
-
-            var popups = Stretch(Rect("Popups", canvasRt));
-            var popupTemplate = Text("PopupTemplate", popups, "+50", 54, TextAlignmentOptions.Center);
-            ((RectTransform)popupTemplate.transform).sizeDelta = new Vector2(400, 90);
-            var floating = popups.gameObject.AddComponent<FloatingTextLayer>();
-            SetPrivate(floating, "template", popupTemplate);
-            SetPrivate(floating, "crowd", crowd);
-
-            BuildTopBar(canvasRt);
-            BuildStationPanel(canvasRt);
-            BuildOfflineDialog(canvasRt);
-        }
-
-        static void BuildStationHud(RectTransform layer, StationView station)
-        {
-            var root = Rect($"Hud_{station.name}", layer);
-            root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
-            root.sizeDelta = new Vector2(10, 10);
-            var hud = root.gameObject.AddComponent<StationHud>();
-            hud.station = station;
-
-            var ring = Rect("Ring", root);
-            ring.sizeDelta = new Vector2(74, 74);
-            Img(ring, _circle, new Color(0.25f, 0.16f, 0.13f, 0.65f));
-            var fillRt = Rect("Fill", ring);
-            fillRt.sizeDelta = new Vector2(62, 62);
-            var fill = Img(fillRt, _circle, new Color(1f, 0.82f, 0.35f));
-            fill.type = UnityEngine.UI.Image.Type.Filled;
-            fill.fillMethod = UnityEngine.UI.Image.FillMethod.Radial360;
-            fill.fillOrigin = (int)UnityEngine.UI.Image.Origin360.Top;
-            fill.fillClockwise = true;
-
-            var tap = Rect("TapPrompt", root);
-            tap.sizeDelta = new Vector2(150, 64);
-            Img(tap, _rounded, new Color(1f, 0.55f, 0.35f));
-            Stretch(Text("Label", tap, "Tap!", 40, TextAlignmentOptions.Center).rectTransform);
-
-            var badge = Rect("ManagerBadge", root);
-            badge.sizeDelta = new Vector2(110, 40);
-            badge.anchoredPosition = new Vector2(0, -56);
-            Img(badge, _rounded, new Color(0.45f, 0.78f, 0.45f));
-            Stretch(Text("Label", badge, "AUTO", 26, TextAlignmentOptions.Center).rectTransform);
-
-            var stock = Text("Stock", root, "", 34, TextAlignmentOptions.Center);
-            stock.rectTransform.sizeDelta = new Vector2(120, 50);
-            stock.rectTransform.anchoredPosition = new Vector2(0, -48);
-
-            SetPrivate(hud, "ring", ring.gameObject);
-            SetPrivate(hud, "ringFill", fill);
-            SetPrivate(hud, "tapPrompt", tap.gameObject);
-            SetPrivate(hud, "managerBadge", badge.gameObject);
-            SetPrivate(hud, "stockText", stock);
-        }
-
-        static void BuildTopBar(RectTransform canvas)
-        {
-            var bar = Rect("TopBar", canvas);
-            bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0f, 1f);
-            bar.anchoredPosition = new Vector2(32, -28);
-            bar.sizeDelta = new Vector2(620, 84);
-            var view = bar.gameObject.AddComponent<TopBarView>();
-
-            var coins = Pill(bar, "Coins", new Vector2(0, 0), 330, new Color(1f, 0.83f, 0.3f), out var coinsText);
-            Pill(bar, "Gems", new Vector2(360, 0), 230, new Color(0.55f, 0.75f, 1f), out var gemsText, diamond: true);
-            SetPrivate(view, "coinsText", coinsText);
-            SetPrivate(view, "gemsText", gemsText);
-            SetPrivate(view, "coinsPill", coins);
-        }
-
-        static RectTransform Pill(RectTransform parent, string name, Vector2 pos, float width, Color iconColor, out TMP_Text label, bool diamond = false)
-        {
-            var pill = Rect(name, parent);
-            pill.anchorMin = pill.anchorMax = pill.pivot = new Vector2(0f, 1f);
-            pill.anchoredPosition = pos;
-            pill.sizeDelta = new Vector2(width, 76);
-            Img(pill, _rounded, new Color(1f, 0.98f, 0.94f, 0.95f));
-            var icon = Rect("Icon", pill);
-            icon.anchorMin = icon.anchorMax = icon.pivot = new Vector2(0f, 0.5f);
-            icon.anchoredPosition = new Vector2(10, 0);
-            icon.sizeDelta = new Vector2(58, 58);
-            Img(icon, diamond ? _rounded : _circle, iconColor);
-            if (diamond)
-            {
-                icon.sizeDelta = new Vector2(44, 44);
-                icon.anchoredPosition = new Vector2(18, 0);
-                icon.localRotation = Quaternion.Euler(0, 0, 45);
-            }
-            label = Text("Value", pill, "0", 44, TextAlignmentOptions.Left);
-            var rt = label.rectTransform;
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.offsetMin = new Vector2(82, 0);
-            rt.offsetMax = new Vector2(-12, 0);
-            return pill;
-        }
-
-        static void BuildStationPanel(RectTransform canvas)
-        {
-            var holder = Stretch(Rect("StationPanel", canvas));
-            holder.gameObject.AddComponent<UnityEngine.UI.Image>().color = new Color(0, 0, 0, 0); // layout only
-            holder.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
-            var panel = holder.gameObject.AddComponent<StationPanel>();
-
-            var sheet = Rect("Sheet", holder);
-            sheet.anchorMin = sheet.anchorMax = sheet.pivot = new Vector2(0.5f, 0f);
-            sheet.sizeDelta = new Vector2(980, 470);
-            Img(sheet, _rounded, new Color(1f, 0.96f, 0.9f, 0.98f)).raycastTarget = true;
-
-            var title = Text("Title", sheet, "Station", 50, TextAlignmentOptions.Left);
-            Place(title.rectTransform, new Vector2(40, -24), new Vector2(700, 64), top: true);
-            var info = Text("Info", sheet, "", 28, TextAlignmentOptions.Left, outlined: false, color: new Color(0.45f, 0.32f, 0.27f));
-            Place(info.rectTransform, new Vector2(42, -86), new Vector2(880, 40), top: true);
-
-            var close = Rect("Close", sheet);
-            close.anchorMin = close.anchorMax = close.pivot = new Vector2(1f, 1f);
-            close.anchoredPosition = new Vector2(-20, -20);
-            close.sizeDelta = new Vector2(70, 70);
-            var closeBtn = close.gameObject.AddComponent<UnityEngine.UI.Button>();
-            closeBtn.targetGraphic = Img(close, _circle, new Color(0.93f, 0.55f, 0.45f));
-            Stretch(Text("X", close, "X", 38, TextAlignmentOptions.Center).rectTransform);
-
-            var rows = new List<StationPanel.UpgradeRow>();
-            UpgradeTrack[] tracks = { UpgradeTrack.Speed, UpgradeTrack.Output, UpgradeTrack.Machines };
-            for (int i = 0; i < tracks.Length; i++)
-                rows.Add(BuildUpgradeRow(sheet, tracks[i], -140 - i * 82));
-
-            var mgr = BuildUpgradeRow(sheet, UpgradeTrack.Speed, -140 - 3 * 82, managerRow: true);
-
-            SetPrivate(panel, "sheet", sheet);
-            SetPrivate(panel, "stationName", title);
-            SetPrivate(panel, "stationInfo", info);
-            SetPrivate(panel, "rows", rows.ToArray());
-            SetPrivate(panel, "managerTitle", mgr.title);
-            SetPrivate(panel, "managerCost", mgr.cost);
-            SetPrivate(panel, "managerButton", mgr.button);
-            SetPrivate(panel, "managerButtonImage", mgr.buttonImage);
-            SetPrivate(panel, "closeButton", closeBtn);
-        }
-
-        static StationPanel.UpgradeRow BuildUpgradeRow(RectTransform sheet, UpgradeTrack track, float y, bool managerRow = false)
-        {
-            var row = Rect(managerRow ? "ManagerRow" : $"Row_{track}", sheet);
-            row.anchorMin = new Vector2(0f, 1f);
-            row.anchorMax = new Vector2(1f, 1f);
-            row.pivot = new Vector2(0.5f, 1f);
-            row.anchoredPosition = new Vector2(0, y);
-            row.sizeDelta = new Vector2(-60, 74);
-            Img(row, _rounded, managerRow ? new Color(0.88f, 0.95f, 0.86f) : new Color(1f, 1f, 1f, 0.9f)).raycastTarget = false;
-
-            var title = Text("Title", row, "Upgrade", 32, TextAlignmentOptions.Left, outlined: false, color: new Color(0.33f, 0.21f, 0.17f));
-            Place(title.rectTransform, new Vector2(24, -6), new Vector2(560, 38), top: true);
-            var detail = Text("Detail", row, "", 22, TextAlignmentOptions.Left, outlined: false, color: new Color(0.5f, 0.4f, 0.35f));
-            Place(detail.rectTransform, new Vector2(24, -42), new Vector2(560, 28), top: true);
-
-            var btn = Rect("Buy", row);
-            btn.anchorMin = btn.anchorMax = btn.pivot = new Vector2(1f, 0.5f);
-            btn.anchoredPosition = new Vector2(-12, 0);
-            btn.sizeDelta = new Vector2(220, 60);
-            var image = Img(btn, _rounded, new Color(0.45f, 0.78f, 0.45f));
-            var button = btn.gameObject.AddComponent<UnityEngine.UI.Button>();
-            button.targetGraphic = image;
-            var cost = Text("Cost", btn, "50", 34, TextAlignmentOptions.Center);
-            Stretch(cost.rectTransform);
-
-            return new StationPanel.UpgradeRow { track = track, title = title, detail = detail, cost = cost, button = button, buttonImage = image };
-        }
-
-        static void BuildOfflineDialog(RectTransform canvas)
-        {
-            var holder = Stretch(Rect("OfflineDialog", canvas));
-            var dialog = holder.gameObject.AddComponent<OfflineEarningsDialog>();
-            var dim = Stretch(Rect("Dim", holder));
-            Img(dim, null, new Color(0.15f, 0.08f, 0.1f, 0.55f)).raycastTarget = true;
-
-            var card = Rect("Card", dim);
-            card.sizeDelta = new Vector2(760, 470);
-            Img(card, _rounded, new Color(1f, 0.96f, 0.9f));
-            var title = Text("Title", card, "Welcome back!", 60, TextAlignmentOptions.Center);
-            Place(title.rectTransform, new Vector2(0, -36), new Vector2(700, 80), top: true, centered: true);
-            var body = Text("Body", card, "", 30, TextAlignmentOptions.Center, outlined: false, color: new Color(0.4f, 0.28f, 0.24f));
-            Place(body.rectTransform, new Vector2(0, -130), new Vector2(640, 90), top: true, centered: true);
-            var amount = Text("Amount", card, "+0", 72, TextAlignmentOptions.Center, color: new Color(1f, 0.82f, 0.3f));
-            Place(amount.rectTransform, new Vector2(0, -230), new Vector2(640, 100), top: true, centered: true);
-
-            var btn = Rect("Collect", card);
-            btn.anchorMin = btn.anchorMax = btn.pivot = new Vector2(0.5f, 0f);
-            btn.anchoredPosition = new Vector2(0, 36);
-            btn.sizeDelta = new Vector2(340, 90);
-            var button = btn.gameObject.AddComponent<UnityEngine.UI.Button>();
-            button.targetGraphic = Img(btn, _rounded, new Color(0.45f, 0.78f, 0.45f));
-            Stretch(Text("Label", btn, "Collect", 46, TextAlignmentOptions.Center).rectTransform);
-
-            SetPrivate(dialog, "root", dim.gameObject);
-            SetPrivate(dialog, "body", body);
-            SetPrivate(dialog, "amount", amount);
-            SetPrivate(dialog, "collectButton", button);
-        }
-
-        // ------------------------------------------------------------------ UI helpers
-
-        static RectTransform Rect(string name, Transform parent)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            return (RectTransform)go.transform;
-        }
-
-        static RectTransform Stretch(RectTransform rt)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-            return rt;
-        }
-
-        static void Place(RectTransform rt, Vector2 pos, Vector2 size, bool top, bool centered = false)
-        {
-            float x = centered ? 0.5f : 0f;
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(x, top ? 1f : 0f);
-            rt.anchoredPosition = pos;
-            rt.sizeDelta = size;
-        }
-
-        static UnityEngine.UI.Image Img(RectTransform rt, Sprite sprite, Color color)
-        {
-            var img = rt.gameObject.AddComponent<UnityEngine.UI.Image>();
-            img.sprite = sprite;
-            img.color = color;
-            img.type = sprite == _rounded ? UnityEngine.UI.Image.Type.Sliced : UnityEngine.UI.Image.Type.Simple;
-            img.pixelsPerUnitMultiplier = sprite == _rounded ? 0.35f : 1f;
-            img.raycastTarget = false;
-            return img;
-        }
-
-        static TextMeshProUGUI Text(string name, Transform parent, string value, float size, TextAlignmentOptions align,
-            bool outlined = true, Color? color = null)
-        {
-            var rt = Rect(name, parent);
-            var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            t.font = _font;
-            if (outlined)
-                t.fontSharedMaterial = _outlined;
-            t.text = value;
-            t.fontSize = size;
-            t.fontStyle = FontStyles.Bold;
-            t.alignment = align;
-            t.color = color ?? Color.white;
-            t.raycastTarget = false;
-            t.textWrappingMode = TextWrappingModes.Normal;
-            return t;
-        }
-
         // ------------------------------------------------------------------ World helpers
+
+        static GameObject Character(string look, Transform parent, string name)
+        {
+            var prefab = CharacterLibrary.LoadPrefab(look);
+            if (prefab == null)
+            {
+                CharacterLibrary.BuildAll();
+                prefab = CharacterLibrary.LoadPrefab(look);
+            }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.name = name;
+            go.transform.localScale = Vector3.one * CharacterScale;
+            return go;
+        }
 
         static Transform Group(string name, Transform parent)
         {

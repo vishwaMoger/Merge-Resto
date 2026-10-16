@@ -16,7 +16,7 @@ namespace MergeResto.EditorTools
         const int AtlasMaxSize = 256;
 
         // Bump to force every third-party asset to reimport with new rules.
-        public override uint GetVersion() => 1;
+        public override uint GetVersion() => 2;
 
         static bool IsThirdParty(string path) => path.Replace('\\', '/').StartsWith(Root);
 
@@ -41,6 +41,25 @@ namespace MergeResto.EditorTools
             model.importAnimation = rigged;
             if (!rigged)
                 model.animationType = ModelImporterAnimationType.None;
+        }
+
+        // KayKit clips import as one-shots; these are the ones that must loop.
+        static readonly string[] LoopingClips =
+        {
+            "Idle_A", "Idle_B", "Walking_A", "Walking_B", "Walking_C", "Running_A", "Running_B",
+            "Holding_A", "Holding_B", "Holding_C", "Working_A", "Working_B", "Working_C",
+            "Sit_Chair_Idle", "Sit_Floor_Idle", "Cheering", "Waving", "Interact", "Use_Item",
+        };
+
+        void OnPreprocessAnimation()
+        {
+            if (!IsThirdParty(assetPath) || !assetPath.Contains("CharacterAnimations"))
+                return;
+            var model = (ModelImporter)assetImporter;
+            var clips = model.defaultClipAnimations;
+            foreach (var clip in clips)
+                clip.loopTime = System.Array.IndexOf(LoopingClips, clip.name) >= 0;
+            model.clipAnimations = clips;
         }
 
         void OnPreprocessMaterialDescription(MaterialDescription description, Material material, AnimationClip[] clips)
