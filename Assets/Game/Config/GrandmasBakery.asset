@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2917ff0e61d07f640ae45e5b76ea2065, type: 3}
+  m_Name: GrandmasBakery
+  m_EditorClassIdentifier: Assembly-CSharp::MergeResto.Game.ShopConfig
+  shop:
+    id: grandmas_bakery
+    displayName: Grandma's Bakery
+    stations:
+    - id: flour
+      displayName: Flour Storage
+      kind: 0
+      baseCycleSeconds: 2.5
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 20
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Quick Unpacking
+        maxLevel: 10
+        baseCost: 50
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Sacks
+        maxLevel: 10
+        baseCost: 75
+        costGrowth: 1.7
+      - track: 2
+        displayName: Extra Storage
+        maxLevel: 2
+        baseCost: 400
+        costGrowth: 3
+    - id: mixer
+      displayName: Dough Mixer
+      kind: 1
+      baseCycleSeconds: 3
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 30
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Faster Mixing
+        maxLevel: 10
+        baseCost: 50
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Bowl
+        maxLevel: 10
+        baseCost: 75
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Mixer
+        maxLevel: 2
+        baseCost: 400
+        costGrowth: 3
+    - id: oven
+      displayName: Bread Oven
+      kind: 1
+      baseCycleSeconds: 4
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 40
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Hotter Oven
+        maxLevel: 10
+        baseCost: 50
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Trays
+        maxLevel: 10
+        baseCost: 75
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Oven
+        maxLevel: 2
+        baseCost: 400
+        costGrowth: 3
+    - id: counter
+      displayName: Front Counter
+      kind: 2
+      baseCycleSeconds: 1.2
+      baseBatch: 0
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 0
+      startsAutomated: 1
+      upgrades:
+      - track: 0
+        displayName: Friendly Service
+        maxLevel: 10
+        baseCost: 50
+        costGrowth: 1.7
+      - track: 1
+        displayName: Fancy Bread
+        maxLevel: 10
+        baseCost: 75
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Cashier
+        maxLevel: 2
+        baseCost: 400
+        costGrowth: 3
+    couriers:
+    - carry: 6
+      walkSeconds: 1.2527746
+    - carry: 6
+      walkSeconds: 1.6666666
+    - carry: 6
+      walkSeconds: 0.8700255
+    customerIntervalSeconds: 4.5
+    intervalPerShopLevel: 0.94
+    minCustomerIntervalSeconds: 0.8
+    maxQueue: 6
+    itemsPerOrder: 2
+    pricePerItem: 25
+    patienceSeconds: 22
+    startCoins: 200
+    startGems: 20
+    pricePerOutputLevel: 0.2
+    gemMilestoneEvery: 5
+    gemMilestoneReward: 10
+    offlineCapHours: 2
+    offlineEfficiency: 0.5

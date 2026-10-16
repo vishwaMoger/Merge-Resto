@@ -351,7 +351,7 @@ namespace MergeResto.EditorTools
 
         // ---------------------------------------------------------------- Builders
 
-        static GameObject Chibi(string name, Transform parent, Color outfit, Color skin, bool chefHat)
+        internal static GameObject Chibi(string name, Transform parent, Color outfit, Color skin, bool chefHat)
         {
             var root = new GameObject(name);
             root.transform.SetParent(parent, false);
@@ -451,9 +451,9 @@ namespace MergeResto.EditorTools
             return go.transform;
         }
 
-        static GameObject Box(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Cube, n, p, pos, scale, m);
-        static GameObject Sphere(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Sphere, n, p, pos, scale, m);
-        static GameObject Cylinder(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Cylinder, n, p, pos, scale, m);
+        internal static GameObject Box(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Cube, n, p, pos, scale, m);
+        internal static GameObject Sphere(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Sphere, n, p, pos, scale, m);
+        internal static GameObject Cylinder(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Cylinder, n, p, pos, scale, m);
         static GameObject Capsule(string n, Transform p, Vector3 pos, Vector3 scale, Material m) => Prim(PrimitiveType.Capsule, n, p, pos, scale, m);
 
         static GameObject Prim(PrimitiveType type, string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
@@ -468,7 +468,7 @@ namespace MergeResto.EditorTools
             return go;
         }
 
-        static Material Mat(string name, Color color, float wear = 0f, Color? emission = null, bool sway = false, float rim = 0.22f)
+        internal static Material Mat(string name, Color color, float wear = 0f, Color? emission = null, bool sway = false, float rim = 0.22f)
         {
             if (Mats.TryGetValue(name, out var cached))
                 return cached;
@@ -493,9 +493,9 @@ namespace MergeResto.EditorTools
             return mat;
         }
 
-        static Color Hex(string hex) => ColorUtility.TryParseHtmlString("#" + hex, out var c) ? c : Color.magenta;
+        internal static Color Hex(string hex) => ColorUtility.TryParseHtmlString("#" + hex, out var c) ? c : Color.magenta;
 
-        static void EnsureFolder(string path)
+        internal static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path))
                 return;
