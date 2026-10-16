@@ -152,24 +152,42 @@ namespace MergeResto.EditorTools
             Mats.Clear();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            CreateLookRig(new Vector3(0f, 1.1f, 0.3f), 5.2f);
 
-            // Camera: orthographic isometric view into the back-left corner.
+            var room = new GameObject("Bakery").transform;
+            BuildShell(room);
+            BuildKitchen(room);
+            BuildDining(room);
+            BuildRundownCorner(room);
+            BuildCharacters(room);
+
+            EditorSceneManager.SaveScene(scene, StyleScenePath);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[Merge Resto] Style test room saved to {StyleScenePath}.");
+        }
+
+        /// <summary>
+        /// Isometric orthographic camera, warm key light, toon ambient and the look volume.
+        /// Shared by every scene that should match the game's look.
+        /// </summary>
+        internal static Camera CreateLookRig(Vector3 target, float orthoSize)
+        {
             var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
             var cam = camGo.AddComponent<Camera>();
             cam.orthographic = true;
-            cam.orthographicSize = 5.2f;
+            cam.orthographicSize = orthoSize;
             cam.nearClipPlane = 0.3f;
-            cam.farClipPlane = 60f;
+            cam.farClipPlane = 80f;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.99f, 0.91f, 0.84f);
             camGo.transform.rotation = Quaternion.Euler(32f, -45f, 0f);
-            camGo.transform.position = new Vector3(0f, 1.1f, 0.3f) - camGo.transform.forward * 25f;
+            camGo.transform.position = target - camGo.transform.forward * 30f;
             var camData = camGo.AddComponent<UniversalAdditionalCameraData>();
             camData.renderPostProcessing = true;
             camData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
             camGo.AddComponent<AudioListener>();
 
-            // Light: warm key light from the front right.
+            // Warm key light from the front right.
             var sunGo = new GameObject("Sun");
             var sun = sunGo.AddComponent<Light>();
             sun.type = LightType.Directional;
@@ -188,17 +206,7 @@ namespace MergeResto.EditorTools
 
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.4f, 0.36f, 0.42f);
-
-            var room = new GameObject("Bakery").transform;
-            BuildShell(room);
-            BuildKitchen(room);
-            BuildDining(room);
-            BuildRundownCorner(room);
-            BuildCharacters(room);
-
-            EditorSceneManager.SaveScene(scene, StyleScenePath);
-            AssetDatabase.SaveAssets();
-            Debug.Log($"[Merge Resto] Style test room saved to {StyleScenePath}.");
+            return cam;
         }
 
         static void BuildShell(Transform room)
