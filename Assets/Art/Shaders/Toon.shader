@@ -27,7 +27,7 @@ Shader "MergeResto/Toon"
         [Header(Wear  Run Down)]
         _Wear ("Wear", Range(0, 1)) = 0
         _DirtColor ("Dirt Color", Color) = (0.42, 0.34, 0.26, 1)
-        _GrimeScale ("Grime Scale", Float) = 3
+        _GrimeScale ("Grime Scale", Float) = 5
 
         [Header(Sway)]
         [Toggle(_SWAY)] _Sway ("Enable Sway", Float) = 0
@@ -184,12 +184,16 @@ Shader "MergeResto/Toon"
                 half3 normalWS = normalize(input.normalWS);
                 half3 viewDirWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
 
-                // Wear: washed-out colour, dirt tint and blotchy grime.
-                half grime = ValueNoise(input.positionWS * _GrimeScale) * 0.6 + ValueNoise(input.positionWS * _GrimeScale * 3.1) * 0.4;
-                half grimeMask = saturate((grime - (1.0 - _Wear)) * 3.0 + _Wear * 0.35);
+                // Wear: faded colour, a light overall dirt tint, and soft grime patches
+                // that spread as wear rises. Kept gentle so it reads as dusty, not spotted.
+                float3 grimePos = input.positionWS * _GrimeScale;
+                half grime = ValueNoise(grimePos) * 0.55 + ValueNoise(grimePos * 2.3 + 7.1) * 0.3 + ValueNoise(grimePos * 6.1) * 0.15;
+                half grimeMask = smoothstep(0.75 - _Wear * 0.35, 0.95 - _Wear * 0.25, grime) * _Wear;
                 half grey = dot(albedo.rgb, half3(0.299, 0.587, 0.114));
-                half3 baseRgb = lerp(albedo.rgb, grey.xxx * 0.9, _Wear * 0.7);
-                baseRgb = lerp(baseRgb, baseRgb * _DirtColor.rgb, grimeMask);
+                half3 baseRgb = lerp(albedo.rgb, grey.xxx * 0.92, _Wear * 0.55);
+                half3 dirtRgb = baseRgb * lerp(1.0, _DirtColor.rgb * 1.6, 0.5);
+                baseRgb = lerp(baseRgb, dirtRgb, _Wear * 0.6);
+                baseRgb = lerp(baseRgb, baseRgb * _DirtColor.rgb * 1.3, grimeMask * 0.7);
 
                 half3 shadeRgb = baseRgb * _ShadeColor.rgb;
 

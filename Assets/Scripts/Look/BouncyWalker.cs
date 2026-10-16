@@ -36,11 +36,12 @@ namespace MergeResto.Look
 
         void Update()
         {
-            if (waypoints == null || waypoints.Length < 2)
-                return;
-
             bool moving = false;
-            if (_pauseLeft > 0f)
+            if (waypoints == null || waypoints.Length < 2)
+            {
+                // Idle character: only breathe.
+            }
+            else if (_pauseLeft > 0f)
             {
                 _pauseLeft -= Time.deltaTime;
             }
