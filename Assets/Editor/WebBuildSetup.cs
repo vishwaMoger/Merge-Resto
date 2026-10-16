@@ -15,8 +15,8 @@ namespace MergeResto.EditorTools
     public static class WebBuildSetup
     {
         const string BootScenePath = "Assets/Scenes/Boot.unity";
-        // The style test room stands in for the game scene until gameplay exists.
-        const string GameScenePath = "Assets/Scenes/StyleTest.unity";
+        // The first playable shop.
+        const string GameScenePath = "Assets/Scenes/Bakery.unity";
         const string WebQualityLevel = "PC";
         const string SdkLoadingScenePath = "Assets/CrazySDK/Demo/LoadingScene.unity";
 

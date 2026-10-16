@@ -23,6 +23,8 @@ namespace MergeResto.Sim
         public event Action<CustomerState, double> CustomerServed;
         public event Action<CustomerState> CustomerLeft;
         public event Action<int, int> GemsEarned;            // station, amount
+        public event Action<int, UpgradeTrack> UpgradePurchased;
+        public event Action<int> ManagerHired;
         public event Action CoinsChanged;
 
         int _nextCustomerId = 1;
@@ -97,6 +99,18 @@ namespace MergeResto.Sim
 
         public int Machines(int station) => 1 + State.stations[station].machineLevel;
 
+        // Previews of the value after one more level, for upgrade panels.
+        public float CycleSecondsAtLevel(int station, int speedLevel) =>
+            Def.stations[station].baseCycleSeconds * (float)Math.Pow(0.85, speedLevel);
+
+        public int BatchAtLevel(int station, int outputLevel) =>
+            Def.stations[station].kind == StationKind.Seller
+                ? Def.itemsPerOrder
+                : (int)Math.Round(Def.stations[station].baseBatch * (1 + 0.5 * outputLevel));
+
+        public double PriceAtLevel(int outputLevel) =>
+            Def.pricePerItem * (1 + Def.pricePerOutputLevel * outputLevel);
+
         public double PricePerItem =>
             Def.pricePerItem * (1 + Def.pricePerOutputLevel * State.stations[^1].outputLevel);
 
@@ -152,6 +166,7 @@ namespace MergeResto.Sim
             if (track == UpgradeTrack.Machines)
                 st.machines.Add(new MachineState());
             CheckGemMilestones(station);
+            UpgradePurchased?.Invoke(station, track);
             CoinsChanged?.Invoke();
             return true;
         }
@@ -169,6 +184,7 @@ namespace MergeResto.Sim
             var st = State.stations[station];
             st.hasManager = true;
             st.queuedStarts = 0;
+            ManagerHired?.Invoke(station);
             CoinsChanged?.Invoke();
             return true;
         }
@@ -311,7 +327,7 @@ namespace MergeResto.Sim
                 if (qi >= 0)
                 {
                     var customer = State.queue[qi];
-                    State.queue.RemoveAt(qi);
+                    RemoveCustomerAt(qi);
                     double coins = customer.items * PricePerItem;
                     AddCoins(coins);
                     CustomerServed?.Invoke(customer, coins);
@@ -384,6 +400,7 @@ namespace MergeResto.Sim
                         id = _nextCustomerId++,
                         items = Def.itemsPerOrder,
                         patienceLeft = Def.patienceSeconds,
+                        walkLeft = Def.walkInSeconds,
                     };
                     State.queue.Add(customer);
                     CustomerArrived?.Invoke(customer);
@@ -399,21 +416,41 @@ namespace MergeResto.Sim
                 var customer = State.queue[i];
                 if (customer.servedBy >= 0)
                     continue;
+                // Still walking to their place in line: not servable, and not impatient yet.
+                if (customer.walkLeft > 0f)
+                {
+                    customer.walkLeft = Math.Max(0f, customer.walkLeft - dt);
+                    continue;
+                }
                 customer.patienceLeft -= dt;
                 if (customer.patienceLeft <= 0f)
                 {
-                    State.queue.RemoveAt(i);
+                    RemoveCustomerAt(i);
                     CustomerLeft?.Invoke(customer);
                 }
             }
         }
 
+        // The first customer in line who is not being served yet, once they reach the counter.
+        // Nobody behind them can skip ahead.
         CustomerState NextWaitingCustomer()
         {
             foreach (var c in State.queue)
                 if (c.servedBy < 0)
-                    return c;
+                    return c.walkLeft <= 0f ? c : null;
             return null;
+        }
+
+        // Everyone behind a leaving customer has to step up one place before being servable.
+        void RemoveCustomerAt(int index)
+        {
+            State.queue.RemoveAt(index);
+            for (int i = index; i < State.queue.Count; i++)
+            {
+                var c = State.queue[i];
+                if (c.servedBy < 0)
+                    c.walkLeft = Math.Max(c.walkLeft, Def.stepUpSeconds);
+            }
         }
 
         void CheckGemMilestones(int station)

@@ -45,6 +45,9 @@ namespace MergeResto.Game.Views
                 _bounce = 1f;
         }
 
+        /// <summary>Squash-and-stretch pop, e.g. after an upgrade.</summary>
+        public void Bounce() => _bounce = 1f;
+
         public bool AnyRunning
         {
             get
@@ -86,6 +89,14 @@ namespace MergeResto.Game.Views
             for (int i = 0; i < stockVisuals.Length; i++)
                 if (stockVisuals[i] != null)
                     stockVisuals[i].SetActive(i < shown);
+
+            // Staff standing at the station (cashiers) play their work loop while their machine runs.
+            var machinesState = st.machines;
+            for (int i = 0; i < machineVisuals.Length && i < machinesState.Count; i++)
+            {
+                if (machineVisuals[i] != null && machineVisuals[i].TryGetComponent<ChibiAnimator>(out var worker))
+                    worker.SetWorking(machinesState[i].running);
+            }
 
             bool running = AnyRunning;
             foreach (var fx in runningEffects)

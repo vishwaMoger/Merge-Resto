@@ -111,6 +111,46 @@ namespace MergeResto.Sim.Tests
         }
 
         [Test]
+        public void Customer_IsNotServedBeforeReachingTheCounter()
+        {
+            var def = Bakery();
+            def.walkInSeconds = 3f;
+            var sim = new ShopSim(def);
+            sim.State.stations[Counter].input = 20; // bread already on display
+            bool served = false;
+            sim.CustomerServed += (_, _) => served = true;
+
+            sim.Tick(4.05f + 2.9f); // arrives at 4s, still walking until 7s
+            Assert.IsFalse(served, "served while still walking to the counter");
+            Assert.AreEqual(1, sim.State.queue.Count);
+
+            sim.Tick(0.3f + 1.5f); // reaches the counter, then 1.5s of service
+            Assert.IsTrue(served);
+        }
+
+        [Test]
+        public void Queue_StepsUpBeforeNextCustomerIsServed()
+        {
+            var def = Bakery();
+            def.walkInSeconds = 0f;
+            def.stepUpSeconds = 0.5f;
+            var sim = new ShopSim(def);
+            sim.State.stations[Counter].input = 20;
+            sim.State.queue.Add(new CustomerState { id = 100, items = 2, patienceLeft = 20f });
+            sim.State.queue.Add(new CustomerState { id = 101, items = 2, patienceLeft = 20f });
+            int servedId = -1;
+            sim.CustomerServed += (c, _) => servedId = c.id;
+
+            sim.Tick(1.75f); // first customer served (1.5s service)
+            Assert.AreEqual(100, servedId);
+            Assert.Greater(sim.State.queue[0].walkLeft, 0f, "second customer still stepping up");
+            Assert.AreEqual(-1, sim.State.queue[0].servedBy);
+
+            sim.Tick(0.6f);
+            Assert.AreEqual(0, sim.State.queue[0].servedBy, "served once at the counter");
+        }
+
+        [Test]
         public void Customer_LeavesWhenPatienceRunsOut()
         {
             var sim = new ShopSim(Bakery());

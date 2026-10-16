@@ -90,6 +90,8 @@ namespace MergeResto.Sim
         public int id;
         public int items;
         public float patienceLeft;
+        /// <summary>Seconds of walking left before this customer stands at their place in line.</summary>
+        public float walkLeft;
         /// <summary>Index of the cashier serving this customer, or -1 while queuing.</summary>
         public int servedBy = -1;
     }
