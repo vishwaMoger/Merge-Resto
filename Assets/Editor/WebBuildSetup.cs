@@ -1,0 +1,118 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using UnityEditor;
+using UnityEditor.Build;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+namespace MergeResto.EditorTools
+{
+    /// <summary>
+    /// One-click Web (CrazyGames) build configuration. Safe to re-run, e.g. after
+    /// re-importing the CrazySDK, which can reset some settings.
+    /// </summary>
+    public static class WebBuildSetup
+    {
+        const string BootScenePath = "Assets/Scenes/Boot.unity";
+        const string GameScenePath = "Assets/Scenes/SampleScene.unity";
+        const string SdkLoadingScenePath = "Assets/CrazySDK/Demo/LoadingScene.unity";
+
+        [MenuItem("Merge Resto/Apply Web Build Settings")]
+        public static void ApplyWebBuildSettings()
+        {
+            var web = NamedBuildTarget.WebGL;
+
+            // Download size
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.nameFilesAsHashes = true;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.SetIl2CppCodeGeneration(web, Il2CppCodeGeneration.OptimizeSize);
+            PlayerSettings.SetManagedStrippingLevel(web, ManagedStrippingLevel.High);
+            PlayerSettings.stripEngineCode = true;
+            PlayerSettings.stripUnusedMeshComponents = true;
+            PlayerSettings.SetApiCompatibilityLevel(web, ApiCompatibilityLevel.NET_Standard);
+            SetWasmCodeOptimization("DiskSizeLTO");
+
+            // Runtime
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.WebGL.showDiagnostics = false;
+            SetWebGLBool("wasm2023", true);
+
+            // Startup
+            PlayerSettings.SplashScreen.show = false;
+            PlayerSettings.SplashScreen.showUnityLogo = false;
+
+            AssetDatabase.SaveAssets();
+            Debug.Log("[Merge Resto] Web build settings applied.");
+        }
+
+        [MenuItem("Merge Resto/Set Up Boot Scene")]
+        public static void SetUpBootScene()
+        {
+            // Keep our own copy so re-importing the SDK never overwrites it.
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(BootScenePath) == null)
+            {
+                if (!AssetDatabase.CopyAsset(SdkLoadingScenePath, BootScenePath))
+                {
+                    Debug.LogError($"[Merge Resto] Could not copy {SdkLoadingScenePath}. Is the CrazySDK imported?");
+                    return;
+                }
+            }
+
+            var gameSceneName = System.IO.Path.GetFileNameWithoutExtension(GameScenePath);
+            var boot = EditorSceneManager.OpenScene(BootScenePath, OpenSceneMode.Additive);
+            var loader = boot.GetRootGameObjects()
+                .SelectMany(go => go.GetComponentsInChildren<CrazySDKLoadingScene>(true))
+                .FirstOrDefault();
+            if (loader == null)
+            {
+                Debug.LogError("[Merge Resto] No CrazySDKLoadingScene component found in the boot scene.");
+            }
+            else
+            {
+                loader.nextSceneName = gameSceneName;
+                EditorUtility.SetDirty(loader);
+                EditorSceneManager.MarkSceneDirty(boot);
+                EditorSceneManager.SaveScene(boot);
+            }
+            if (UnityEngine.SceneManagement.SceneManager.loadedSceneCount > 1)
+                EditorSceneManager.CloseScene(boot, true);
+
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(BootScenePath, true),
+                new EditorBuildSettingsScene(GameScenePath, true),
+            };
+            Debug.Log($"[Merge Resto] Build scenes: Boot -> {gameSceneName}.");
+        }
+
+        // UnityEditor.WebGL.UserBuildSettings lives in the Web module's editor extension,
+        // so reach it by reflection to keep this script compiling without that module.
+        static void SetWasmCodeOptimization(string value)
+        {
+            var type = AppDomain.CurrentDomain.GetAssemblies()
+                .Select(a => a.GetType("UnityEditor.WebGL.UserBuildSettings"))
+                .FirstOrDefault(t => t != null);
+            var prop = type?.GetProperty("codeOptimization", BindingFlags.Public | BindingFlags.Static);
+            if (prop == null)
+            {
+                Debug.LogWarning("[Merge Resto] Web code optimization setting not found; set it to 'Disk Size with LTO' in Build Profiles.");
+                return;
+            }
+            prop.SetValue(null, Enum.Parse(prop.PropertyType, value));
+        }
+
+        static void SetWebGLBool(string name, bool value)
+        {
+            var prop = typeof(PlayerSettings.WebGL).GetProperty(name, BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase);
+            if (prop == null || prop.PropertyType != typeof(bool))
+            {
+                Debug.LogWarning($"[Merge Resto] PlayerSettings.WebGL.{name} not found in this Unity version.");
+                return;
+            }
+            prop.SetValue(null, value);
+        }
+    }
+}
