@@ -1,0 +1,219 @@
+using NUnit.Framework;
+using UnityEngine;
+
+namespace MergeResto.Sim.Tests
+{
+    public class ShopSimTests
+    {
+        const int Flour = 0, Mixer = 1, Oven = 2, Counter = 3;
+
+        static ShopDefinition Bakery()
+        {
+            var def = new ShopDefinition
+            {
+                customerIntervalSeconds = 4f,
+                itemsPerOrder = 2,
+                pricePerItem = 25,
+                patienceSeconds = 20f,
+                startCoins = 500,
+                startGems = 20,
+            };
+            def.stations.Add(new StationDefinition { id = "flour", kind = StationKind.Source, baseCycleSeconds = 2f, baseBatch = 10, outputCapacity = 40 });
+            def.stations.Add(new StationDefinition { id = "mixer", kind = StationKind.Processor, baseCycleSeconds = 3f, baseBatch = 5 });
+            def.stations.Add(new StationDefinition { id = "oven", kind = StationKind.Processor, baseCycleSeconds = 4f, baseBatch = 5 });
+            def.stations.Add(new StationDefinition { id = "counter", kind = StationKind.Seller, baseCycleSeconds = 1.5f, startsAutomated = true, inputCapacity = 40 });
+            for (int i = 0; i < 3; i++)
+                def.couriers.Add(new CourierDefinition { carry = 5, walkSeconds = 1f });
+            return def;
+        }
+
+        static void AutomateAll(ShopSim sim)
+        {
+            for (int i = 0; i < sim.Def.stations.Count; i++)
+                sim.State.stations[i].hasManager = true;
+        }
+
+        [Test]
+        public void NewShop_StartsWithConfiguredCurrency()
+        {
+            var sim = new ShopSim(Bakery());
+            Assert.AreEqual(500, sim.State.coins);
+            Assert.AreEqual(20, sim.State.gems);
+            Assert.IsTrue(sim.IsAutomated(Counter), "the cashier always works");
+            Assert.IsFalse(sim.IsAutomated(Flour));
+        }
+
+        [Test]
+        public void ManualStation_OnlyRunsWhenTapped()
+        {
+            var sim = new ShopSim(Bakery());
+            Assert.IsTrue(sim.NeedsTap(Flour));
+            sim.Tick(5f);
+            Assert.AreEqual(0, sim.State.stations[Flour].output, "nothing happens without a tap");
+
+            Assert.IsTrue(sim.Tap(Flour));
+            sim.Tick(2.05f);
+            Assert.AreEqual(10, sim.State.stations[Flour].output + sim.State.couriers[0].carrying);
+        }
+
+        [Test]
+        public void Tap_CannotQueueMoreStartsThanMachines()
+        {
+            var sim = new ShopSim(Bakery());
+            Assert.IsTrue(sim.Tap(Flour));   // starts immediately
+            Assert.IsTrue(sim.Tap(Flour));   // queued behind the running cycle
+            Assert.IsFalse(sim.Tap(Flour));  // one machine: only one queued start
+        }
+
+        [Test]
+        public void Manager_RunsStationAutomatically()
+        {
+            var sim = new ShopSim(Bakery());
+            Assert.IsTrue(sim.HireManager(Flour));
+            Assert.AreEqual(0, sim.State.gems);
+            sim.Tick(4.1f);
+            var flour = sim.State.stations[Flour];
+            Assert.GreaterOrEqual(flour.output + sim.State.couriers[0].carrying + sim.State.stations[Mixer].input, 20);
+        }
+
+        [Test]
+        public void HireManager_FailsWithoutGems()
+        {
+            var sim = new ShopSim(Bakery());
+            sim.State.gems = 5;
+            Assert.IsFalse(sim.HireManager(Flour));
+            Assert.IsFalse(sim.IsAutomated(Flour));
+        }
+
+        [Test]
+        public void Courier_CarriesGoodsToNextStation()
+        {
+            var sim = new ShopSim(Bakery());
+            sim.State.stations[Flour].output = 10;
+            sim.Tick(0.05f);
+            Assert.AreEqual(5, sim.State.couriers[0].carrying);
+            sim.Tick(1.05f);
+            Assert.AreEqual(5, sim.State.stations[Mixer].input);
+            Assert.AreEqual(CourierPhase.WalkingBack, sim.State.couriers[0].phase);
+        }
+
+        [Test]
+        public void FullyAutomatedChain_SellsToCustomers()
+        {
+            var sim = new ShopSim(Bakery());
+            AutomateAll(sim);
+            double served = 0;
+            sim.CustomerServed += (_, coins) => served += coins;
+            sim.Tick(60f);
+            Assert.Greater(served, 0);
+            Assert.AreEqual(500 + served, sim.State.coins, 0.001);
+            Assert.AreEqual(0, served % 50, 0.001, "each order is 2 items at 25 coins");
+        }
+
+        [Test]
+        public void Customer_LeavesWhenPatienceRunsOut()
+        {
+            var sim = new ShopSim(Bakery());
+            int left = 0;
+            sim.CustomerLeft += _ => left++;
+            sim.Tick(30f); // nothing produced, so nobody gets served
+            Assert.Greater(left, 0);
+        }
+
+        [Test]
+        public void Queue_NeverExceedsMax()
+        {
+            var def = Bakery();
+            def.patienceSeconds = 1000f;
+            var sim = new ShopSim(def);
+            sim.Tick(200f);
+            Assert.AreEqual(def.maxQueue, sim.State.queue.Count);
+        }
+
+        [Test]
+        public void Upgrade_SpendsCoinsAndSpeedsUpStation()
+        {
+            var sim = new ShopSim(Bakery());
+            float before = sim.CycleSeconds(Oven);
+            double cost = sim.UpgradeCost(Oven, UpgradeTrack.Speed);
+            Assert.IsTrue(sim.BuyUpgrade(Oven, UpgradeTrack.Speed));
+            Assert.AreEqual(500 - cost, sim.State.coins, 0.001);
+            Assert.Less(sim.CycleSeconds(Oven), before);
+            Assert.Greater(sim.UpgradeCost(Oven, UpgradeTrack.Speed), cost, "next level costs more");
+        }
+
+        [Test]
+        public void Upgrade_FailsWhenTooExpensive()
+        {
+            var sim = new ShopSim(Bakery());
+            sim.State.coins = 10;
+            Assert.IsFalse(sim.BuyUpgrade(Oven, UpgradeTrack.Speed));
+            Assert.AreEqual(0, sim.State.stations[Oven].speedLevel);
+        }
+
+        [Test]
+        public void MachineUpgrade_AddsParallelMachine()
+        {
+            var sim = new ShopSim(Bakery());
+            sim.State.coins = 10000;
+            Assert.IsTrue(sim.BuyUpgrade(Mixer, UpgradeTrack.Machines));
+            Assert.AreEqual(2, sim.Machines(Mixer));
+            Assert.AreEqual(2, sim.State.stations[Mixer].machines.Count);
+        }
+
+        [Test]
+        public void GemMilestone_GrantsGemsEveryFiveLevels()
+        {
+            var sim = new ShopSim(Bakery());
+            sim.State.coins = 1e9;
+            for (int i = 0; i < 5; i++)
+                Assert.IsTrue(sim.BuyUpgrade(Flour, UpgradeTrack.Speed));
+            Assert.AreEqual(30, sim.State.gems);
+        }
+
+        [Test]
+        public void SellerOutputUpgrade_RaisesPrice()
+        {
+            var sim = new ShopSim(Bakery());
+            double before = sim.PricePerItem;
+            Assert.IsTrue(sim.BuyUpgrade(Counter, UpgradeTrack.Output));
+            Assert.Greater(sim.PricePerItem, before);
+        }
+
+        [Test]
+        public void Offline_EarnsNothingUnlessFullyAutomated()
+        {
+            var sim = new ShopSim(Bakery());
+            Assert.AreEqual(0, sim.OfflineEarnings(3600));
+        }
+
+        [Test]
+        public void Offline_UsesSlowestLinkAndCap()
+        {
+            var sim = new ShopSim(Bakery());
+            AutomateAll(sim);
+            // Demand is 2 items / 4 s = 0.5 items/s, the slowest link: 12.5 coins/s.
+            Assert.AreEqual(12.5, sim.IdleCoinsPerSecond(), 0.001);
+            Assert.AreEqual(Mathf.Floor(12.5f * 600 * 0.5f), sim.OfflineEarnings(600), 0.001);
+            Assert.AreEqual(sim.OfflineEarnings(2 * 3600), sim.OfflineEarnings(10 * 3600), 0.001, "capped at 2 hours");
+        }
+
+        [Test]
+        public void State_SurvivesJsonRoundTrip()
+        {
+            var sim = new ShopSim(Bakery());
+            AutomateAll(sim);
+            sim.State.coins = 1e6;
+            sim.BuyUpgrade(Oven, UpgradeTrack.Machines);
+            sim.Tick(37f);
+
+            string json = JsonUtility.ToJson(sim.State);
+            var restored = new ShopSim(Bakery(), JsonUtility.FromJson<ShopState>(json));
+
+            Assert.AreEqual(sim.State.coins, restored.State.coins, 0.001);
+            Assert.AreEqual(2, restored.Machines(Oven));
+            Assert.AreEqual(sim.State.queue.Count, restored.State.queue.Count);
+            Assert.AreEqual(JsonUtility.ToJson(sim.State), JsonUtility.ToJson(restored.State));
+        }
+    }
+}
