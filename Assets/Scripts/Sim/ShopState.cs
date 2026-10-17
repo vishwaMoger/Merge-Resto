@@ -17,6 +17,9 @@ namespace MergeResto.Sim
         public long lastSavedUnixSeconds;
         /// <summary>Grand Opening tutorial progress: index of the current step, or a large value once finished.</summary>
         public int tutorialStep;
+        public int customersServed;
+        /// <summary>Indices of goals whose reward has been collected.</summary>
+        public List<int> goalsClaimed = new();
         public float customerTimer;
         public List<StationState> stations = new();
         public List<CourierState> couriers = new();

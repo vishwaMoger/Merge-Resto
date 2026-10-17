@@ -26,6 +26,7 @@ namespace MergeResto.Sim
         public event Action<int, UpgradeTrack> UpgradePurchased;
         public event Action<int> ManagerHired;
         public event Action CoinsChanged;
+        public event Action<int> GoalClaimed;                // goal index
 
         int _nextCustomerId = 1;
 
@@ -60,6 +61,7 @@ namespace MergeResto.Sim
         void Normalize()
         {
             State.shopId = Def.id;
+            State.goalsClaimed ??= new List<int>();
             while (State.stations.Count < Def.stations.Count)
                 State.stations.Add(new StationState { hasManager = Def.stations[State.stations.Count].startsAutomated });
             while (State.couriers.Count < Def.couriers.Count)
@@ -189,6 +191,57 @@ namespace MergeResto.Sim
             st.queuedStarts = 0;
             ManagerHired?.Invoke(station);
             CoinsChanged?.Invoke();
+            return true;
+        }
+
+        // ------------------------------------------------------------------ Goals
+
+        /// <summary>How far along a goal is, clamped to its target.</summary>
+        public double GoalProgress(int goal)
+        {
+            var g = Def.goals[goal];
+            int s = Math.Clamp(g.station, 0, State.stations.Count - 1);
+            double value = g.kind switch
+            {
+                GoalKind.StationLevel => State.stations[s].TotalLevels,
+                GoalKind.ServeCustomers => State.customersServed,
+                GoalKind.HireManager => State.stations[s].hasManager ? 1 : 0,
+                GoalKind.AddMachines => State.stations[s].machineLevel,
+                GoalKind.LifetimeCoins => State.lifetimeCoins,
+                _ => ShopLevel,
+            };
+            return Math.Min(value, GoalTarget(goal));
+        }
+
+        public double GoalTarget(int goal) => Def.goals[goal].kind == GoalKind.HireManager ? 1 : Def.goals[goal].target;
+
+        public bool IsGoalComplete(int goal) => GoalProgress(goal) >= GoalTarget(goal);
+
+        public bool IsGoalClaimed(int goal) => State.goalsClaimed.Contains(goal);
+
+        /// <summary>The first <paramref name="count"/> goals not yet claimed, in list order.</summary>
+        public List<int> ActiveGoals(int count)
+        {
+            var list = new List<int>(count);
+            for (int i = 0; i < Def.goals.Count && list.Count < count; i++)
+                if (!IsGoalClaimed(i))
+                    list.Add(i);
+            return list;
+        }
+
+        /// <summary>Collects a finished goal's reward. Returns false if it is not finished or already claimed.</summary>
+        public bool ClaimGoal(int goal)
+        {
+            if (goal < 0 || goal >= Def.goals.Count || IsGoalClaimed(goal) || !IsGoalComplete(goal))
+                return false;
+            var g = Def.goals[goal];
+            State.goalsClaimed.Add(goal);
+            State.gems += g.rewardGems;
+            if (g.rewardCoins > 0)
+                AddCoins(g.rewardCoins);
+            else
+                CoinsChanged?.Invoke();
+            GoalClaimed?.Invoke(goal);
             return true;
         }
 
@@ -332,6 +385,7 @@ namespace MergeResto.Sim
                     var customer = State.queue[qi];
                     RemoveCustomerAt(qi);
                     double coins = customer.items * PricePerItem;
+                    State.customersServed++;
                     AddCoins(coins);
                     CustomerServed?.Invoke(customer, coins);
                 }

@@ -30,9 +30,11 @@ namespace MergeResto.Game.UI
             coinTemplate.gameObject.SetActive(false);
         }
 
-        public void Fly(Vector3 world, int count)
+        public void Fly(Vector3 world, int count) => FlyFromScreen(_cam.WorldToScreenPoint(world), count);
+
+        /// <summary>Coins burst from a screen point (e.g. a reward button) and fly to the counter.</summary>
+        public void FlyFromScreen(Vector2 screen, int count)
         {
-            Vector3 screen = _cam.WorldToScreenPoint(world);
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_rect, screen, null, out var from))
                 return;
             Vector2 to = _rect.InverseTransformPoint(target.position);

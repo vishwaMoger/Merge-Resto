@@ -137,5 +137,76 @@ MonoBehaviour:
     pricePerOutputLevel: 0.2
     gemMilestoneEvery: 5
     gemMilestoneReward: 10
+    goals:
+    - kind: 0
+      station: 2
+      target: 2
+      rewardCoins: 0
+      rewardGems: 15
+    - kind: 1
+      station: 0
+      target: 15
+      rewardCoins: 150
+      rewardGems: 0
+    - kind: 0
+      station: 1
+      target: 2
+      rewardCoins: 0
+      rewardGems: 15
+    - kind: 2
+      station: 1
+      target: 1
+      rewardCoins: 300
+      rewardGems: 0
+    - kind: 3
+      station: 2
+      target: 1
+      rewardCoins: 0
+      rewardGems: 20
+    - kind: 4
+      station: 0
+      target: 3000
+      rewardCoins: 0
+      rewardGems: 25
+    - kind: 2
+      station: 2
+      target: 1
+      rewardCoins: 600
+      rewardGems: 0
+    - kind: 0
+      station: 3
+      target: 3
+      rewardCoins: 0
+      rewardGems: 20
+    - kind: 1
+      station: 0
+      target: 100
+      rewardCoins: 0
+      rewardGems: 30
+    - kind: 5
+      station: 0
+      target: 20
+      rewardCoins: 1500
+      rewardGems: 0
+    - kind: 3
+      station: 1
+      target: 1
+      rewardCoins: 0
+      rewardGems: 30
+    - kind: 4
+      station: 0
+      target: 25000
+      rewardCoins: 0
+      rewardGems: 50
+    - kind: 1
+      station: 0
+      target: 300
+      rewardCoins: 4000
+      rewardGems: 0
+    - kind: 5
+      station: 0
+      target: 40
+      rewardCoins: 0
+      rewardGems: 75
     offlineCapHours: 2
     offlineEfficiency: 0.5
