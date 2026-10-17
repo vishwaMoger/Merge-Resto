@@ -60,6 +60,10 @@ namespace MergeResto.Game.UI
         [SerializeField] FxDirector fx;
         [SerializeField] ChibiAnimator grandma;
         [SerializeField] int rewardCoins = 250;
+        [SerializeField] CustomerCrowd crowd;
+        [SerializeField] CameraDirector cameraDirector;
+        [Tooltip("Zoom (orthographic size) while following the first customer in.")]
+        [SerializeField] float introZoom = 4.2f;
 
         [Header("UI")]
         [SerializeField] CanvasGroup group;
@@ -95,6 +99,12 @@ namespace MergeResto.Game.UI
         float _pointerShown;
         float _closing = -1f;
 
+        // Opening shot: the first customer walks in from the street before Grandma speaks.
+        enum Intro { None, Waiting, Following, Returning, Done }
+        Intro _intro = Intro.None;
+        float _introTime;
+        int _introCustomer = -1;
+
         struct Target
         {
             public bool has;
@@ -129,14 +139,30 @@ namespace MergeResto.Game.UI
             _sim.ManagerHired += OnManager;
             _fill = CompletedCount() / (float)CountedSteps;
             TutorialFocus.Active = true;
-            // Nobody walks out while a new player is still learning.
+            // Nobody walks out while a new player is still learning, and they come one at a time.
             _sim.PatienceScale = 0f;
+            _sim.QueueLimit = 1;
+            if (_sim.State.tutorialStep == 0 && _sim.State.customersServed == 0 && _sim.State.queue.Count == 0 && cameraDirector != null && crowd != null)
+            {
+                _intro = Intro.Waiting;
+                _sim.CustomerArrived += OnIntroCustomer;
+                _sim.State.customerTimer = _sim.CustomerInterval; // the first customer arrives right away
+                group.alpha = 0f;
+                cameraDirector.Focus(crowd.entryPath[0].position, introZoom);
+                cameraDirector.Snap();
+            }
+            else
+                _intro = Intro.Done;
         }
 
         void OnDestroy()
         {
             if (_sim != null)
+            {
                 _sim.PatienceScale = 1f;
+                _sim.QueueLimit = -1;
+                _sim.CustomerArrived -= OnIntroCustomer;
+            }
             TutorialFocus.Active = false;
             TutorialFocus.Station = -1;
             if (_sim == null)
@@ -228,6 +254,60 @@ namespace MergeResto.Game.UI
                 grandma.Cheer();
         }
 
+        // ------------------------------------------------------------------ Intro
+
+        void OnIntroCustomer(CustomerState customer)
+        {
+            if (_intro == Intro.Waiting)
+                _introCustomer = customer.id;
+        }
+
+        // Returns true while the opening shot is still playing (the lesson UI stays hidden).
+        bool PlayIntro(float dt)
+        {
+            if (_intro == Intro.Done)
+                return false;
+            _introTime += dt;
+            group.alpha = Mathf.MoveTowards(group.alpha, 0f, dt * 4f);
+            switch (_intro)
+            {
+                case Intro.Waiting:
+                    var who = _introCustomer >= 0 ? crowd.CharacterFor(_introCustomer) : null;
+                    if (who != null)
+                    {
+                        cameraDirector.Follow(who, introZoom);
+                        _intro = Intro.Following;
+                        _introTime = 0f;
+                    }
+                    else if (_introTime > 3f)
+                        _intro = Intro.Returning;
+                    break;
+                case Intro.Following:
+                    var c = _sim.State.queue.Find(q => q.id == _introCustomer);
+                    // Hold on them until they reach the counter (or a few seconds pass).
+                    if (c == null || c.walkLeft <= 0.3f || _introTime > 7f)
+                    {
+                        if (grandma != null)
+                            cameraDirector.Focus(grandma.transform.position + Vector3.up * 0.5f, introZoom);
+                        _intro = Intro.Returning;
+                        _introTime = 0f;
+                    }
+                    break;
+                case Intro.Returning:
+                    // A beat on Grandma, then back to the whole shop.
+                    if (_introTime > 1.1f)
+                        cameraDirector.Release();
+                    if (_introTime > 2.2f)
+                    {
+                        _intro = Intro.Done;
+                        _sim.CustomerArrived -= OnIntroCustomer;
+                        return false;
+                    }
+                    break;
+            }
+            return true;
+        }
+
         // ------------------------------------------------------------------ Frame
 
         void Update()
@@ -238,6 +318,9 @@ namespace MergeResto.Game.UI
                 Close(dt);
                 return;
             }
+            if (PlayIntro(dt))
+                return;
+            group.alpha = Mathf.MoveTowards(group.alpha, 1f, dt * 3f);
 
             int index = _sim.State.tutorialStep;
             if (index != _entered)
@@ -330,6 +413,7 @@ namespace MergeResto.Game.UI
             {
                 _closing = 0f;
                 _sim.PatienceScale = 1f;
+                _sim.QueueLimit = -1;
                 // Customers who waited through the lesson start fresh, one after another.
                 for (int i = 0; i < _sim.State.queue.Count; i++)
                     _sim.State.queue[i].patienceLeft = _sim.Def.patienceSeconds + i * 4f;

@@ -48,7 +48,8 @@ namespace MergeResto.EditorTools
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
             EnsureGoals(config);
             EnsureBoard(config);
-            var cam = LookSetup.CreateLookRig(new Vector3(0.4f, 1f, 1.0f), 9.4f);
+            var cam = LookSetup.CreateLookRig(new Vector3(0.3f, 1f, 0.6f), 7.9f);
+            var cameraDirector = cam.gameObject.AddComponent<CameraDirector>();
 
             var world = new GameObject("Bakery").transform;
             BuildRoom(world);
@@ -82,7 +83,7 @@ namespace MergeResto.EditorTools
             // Grandma guides the Grand Opening; her portrait is rendered from the 3D model.
             var portrait = PortraitRenderer.Render(CharacterLibrary.GrandmaLook, LookSetup.Hex("FFD9A8"));
             var grandma = stations[3].GetComponentsInChildren<ChibiAnimator>(true).First(a => a.name == "Grandma");
-            HudBuilder.BuildTutorial(stations, fx, coinFly, grandma, portrait);
+            HudBuilder.BuildTutorial(stations, fx, coinFly, grandma, portrait, crowd, cameraDirector);
 
             // The renovation board and the run-down spots it fixes.
             var boardIcons = RenderBoardIcons(config.shop.board);
@@ -90,6 +91,7 @@ namespace MergeResto.EditorTools
                 ?? IconRenderer.Render($"{CityArt}box_A.fbx", "renovate", yaw: 30f);
             HudBuilder.BuildBoard(config.shop.board, boardIcons.chains, boardIcons.generators, openIcon, coinFly);
             BuildRenovationSpots(world, stations);
+            BuildShopAge(world);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -721,6 +723,30 @@ namespace MergeResto.EditorTools
             }
         }
 
+        // The whole shop starts old and grimy; renovations clean it up step by step.
+        static void BuildShopAge(Transform world)
+        {
+            var spotRenderers = new HashSet<Renderer>(world.GetComponentsInChildren<RenovationSpot>(true).SelectMany(s => s.worn));
+            var renderers = new List<Renderer>();
+            foreach (string group in new[] { "Room", "Dressing", "Decor", "FlourStorage", "Mixer", "Oven", "Counter" })
+            {
+                var t = world.Find(group);
+                if (t == null)
+                    continue;
+                foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r is ParticleSystemRenderer || r.GetComponentInParent<ChibiAnimator>() != null || spotRenderers.Contains(r))
+                        continue;
+                    var mat = r.sharedMaterial;
+                    if (mat == null || mat.shader == null || mat.shader.name != "MergeResto/Toon" || mat.GetColor("_EmissionColor").maxColorComponent > 0.01f)
+                        continue;
+                    renderers.Add(r);
+                }
+            }
+            var age = world.gameObject.AddComponent<ShopAge>();
+            age.renderers = renderers.ToArray();
+        }
+
         static void WarmLight(Transform parent, Vector3 floorPos)
         {
             var lightGo = new GameObject("WarmLight");
@@ -812,18 +838,20 @@ namespace MergeResto.EditorTools
             City("streetlight", new Vector3(11.4f, 0f, 3f), 90f);
             City("streetlight", new Vector3(11.4f, 0f, 14f), 90f);
 
-            // Parked and passing cars.
-            City("car_hatchback", new Vector3(-12f, 0f, -10.6f), 90f);
-            City("car_taxi", new Vector3(18f, 0f, -10.6f), 90f);
-            var mover = City("car_sedan", new Vector3(-20f, 0f, -14.2f), 90f);
+            // Parked and passing cars. KayKit cars have their origin at the wheel centres, so
+            // they are lifted until the tyres rest on the asphalt.
+            const float CarLift = 0.175f;
+            City("car_hatchback", new Vector3(-12f, CarLift, -10.6f), 90f);
+            City("car_taxi", new Vector3(18f, CarLift, -10.6f), 90f);
+            var mover = City("car_sedan", new Vector3(-20f, CarLift, -14.1f), 90f);
             var loop = mover.AddComponent<MergeResto.Look.LoopMover>();
-            loop.from = new Vector3(-30f, 0f, -14.2f);
-            loop.to = new Vector3(34f, 0f, -14.2f);
+            loop.from = new Vector3(-30f, CarLift, -14.1f);
+            loop.to = new Vector3(34f, CarLift, -14.1f);
             loop.speed = 5f;
-            var mover2 = City("car_stationwagon", new Vector3(20f, 0f, -11f), -90f);
+            var mover2 = City("car_stationwagon", new Vector3(20f, CarLift, -12.1f), -90f);
             var loop2 = mover2.AddComponent<MergeResto.Look.LoopMover>();
-            loop2.from = new Vector3(34f, 0f, -11f);
-            loop2.to = new Vector3(-30f, 0f, -11f);
+            loop2.from = new Vector3(34f, CarLift, -12.1f);
+            loop2.to = new Vector3(-30f, CarLift, -12.1f);
             loop2.speed = 4f;
             loop2.startOffset = 0.45f;
 

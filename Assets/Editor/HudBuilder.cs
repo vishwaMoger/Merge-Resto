@@ -900,7 +900,8 @@ namespace MergeResto.EditorTools
         }
 
         /// <summary>The Grand Opening layer: spotlight, pointer, Grandma's speech box, progress bar.</summary>
-        public static void BuildTutorial(StationView[] stations, FxDirector fx, CoinFlyLayer coinFly, ChibiAnimator grandma, Sprite portraitSprite)
+        public static void BuildTutorial(StationView[] stations, FxDirector fx, CoinFlyLayer coinFly, ChibiAnimator grandma, Sprite portraitSprite,
+            CustomerCrowd crowd, CameraDirector cameraDirector)
         {
             var holder = Stretch(Rect("Tutorial", _root));
             var dialog = _root.Find("OfflineDialog");
@@ -1010,6 +1011,8 @@ namespace MergeResto.EditorTools
             Set(tutorial, "coinFly", coinFly);
             Set(tutorial, "fx", fx);
             Set(tutorial, "grandma", grandma);
+            Set(tutorial, "crowd", crowd);
+            Set(tutorial, "cameraDirector", cameraDirector);
             Set(tutorial, "group", group);
             Set(tutorial, "layer", holder);
             Set(tutorial, "dim", dimImage);
