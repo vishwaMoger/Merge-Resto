@@ -244,6 +244,7 @@ namespace MergeResto.Game.UI
 
         void GiveReward()
         {
+            AudioDirector.Play(Sfx.Celebrate);
             _sim.AddCoins(rewardCoins);
             var counter = stations[stations.Length - 1];
             if (coinFly != null)
@@ -340,6 +341,7 @@ namespace MergeResto.Game.UI
                 speechText.text = text;
                 _typed = fresh ? 0f : 9999f;
                 _speechPop = 1f;
+                AudioDirector.Play(Sfx.Blip, 1.1f, 0.6f);
             }
             _typed += dt * 60f;
             speechText.maxVisibleCharacters = Mathf.Min((int)_typed, 99999);

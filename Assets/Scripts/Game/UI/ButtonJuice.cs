@@ -17,7 +17,14 @@ namespace MergeResto.Game.UI
 
         void Awake() => _baseScale = transform.localScale;
 
-        public void OnPointerDown(PointerEventData e) => _target = pressedScale;
+        public void OnPointerDown(PointerEventData e)
+        {
+            _target = pressedScale;
+            // Pressable buttons click; locked ones (can't afford yet) give a soft "nope".
+            var selectable = GetComponent<UnityEngine.UI.Selectable>();
+            if (selectable != null)
+                AudioDirector.Play(selectable.interactable ? Sfx.Click : Sfx.Deny, 1f, selectable.interactable ? 0.9f : 0.6f);
+        }
         public void OnPointerUp(PointerEventData e) => Release();
         public void OnPointerExit(PointerEventData e) { if (_target < 1f) Release(); }
 
