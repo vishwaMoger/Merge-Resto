@@ -46,6 +46,7 @@ namespace MergeResto.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             // Opening a scene unloads unreferenced assets, so fetch the config afterwards.
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
+            EnsureGoals(config);
             var cam = LookSetup.CreateLookRig(new Vector3(0.4f, 1f, 1.0f), 9.4f);
 
             var world = new GameObject("Bakery").transform;
@@ -88,6 +89,33 @@ namespace MergeResto.EditorTools
         }
 
         // ------------------------------------------------------------------ Config
+
+        // The bakery's milestone list, shown three at a time after the tutorial. Gems from the
+        // early ones pay for the next managers, so automation keeps growing.
+        static void EnsureGoals(ShopConfig config)
+        {
+            var goals = config.shop.goals;
+            if (goals.Count > 0)
+                return;
+            GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
+                new() { kind = kind, target = target, station = station, rewardCoins = coins, rewardGems = gems };
+            goals.Add(G(GoalKind.StationLevel, 2, station: 2, gems: 15));
+            goals.Add(G(GoalKind.ServeCustomers, 15, coins: 150));
+            goals.Add(G(GoalKind.StationLevel, 2, station: 1, gems: 15));
+            goals.Add(G(GoalKind.HireManager, 1, station: 1, coins: 300));
+            goals.Add(G(GoalKind.AddMachines, 1, station: 2, gems: 20));
+            goals.Add(G(GoalKind.LifetimeCoins, 3000, gems: 25));
+            goals.Add(G(GoalKind.HireManager, 1, station: 2, coins: 600));
+            goals.Add(G(GoalKind.StationLevel, 3, station: 3, gems: 20));
+            goals.Add(G(GoalKind.ServeCustomers, 100, gems: 30));
+            goals.Add(G(GoalKind.ShopLevel, 20, coins: 1500));
+            goals.Add(G(GoalKind.AddMachines, 1, station: 1, gems: 30));
+            goals.Add(G(GoalKind.LifetimeCoins, 25000, gems: 50));
+            goals.Add(G(GoalKind.ServeCustomers, 300, coins: 4000));
+            goals.Add(G(GoalKind.ShopLevel, 40, gems: 75));
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+        }
 
         static ShopConfig LoadOrCreateConfig()
         {

@@ -266,5 +266,57 @@ namespace MergeResto.Sim.Tests
             Assert.AreEqual(sim.State.queue.Count, restored.State.queue.Count);
             Assert.AreEqual(JsonUtility.ToJson(sim.State), JsonUtility.ToJson(restored.State));
         }
+
+        static ShopDefinition WithGoals()
+        {
+            var def = Bakery();
+            def.goals.Add(new GoalDefinition { kind = GoalKind.StationLevel, station = 2, target = 2, rewardGems = 15 });
+            def.goals.Add(new GoalDefinition { kind = GoalKind.ServeCustomers, target = 3, rewardCoins = 100 });
+            def.goals.Add(new GoalDefinition { kind = GoalKind.HireManager, station = 1, rewardCoins = 50 });
+            def.goals.Add(new GoalDefinition { kind = GoalKind.LifetimeCoins, target = 1000, rewardGems = 5 });
+            return def;
+        }
+
+        [Test]
+        public void Goals_ShowFirstUnclaimedInOrder()
+        {
+            var sim = new ShopSim(WithGoals());
+            CollectionAssert.AreEqual(new[] { 0, 1, 2 }, sim.ActiveGoals(3));
+        }
+
+        [Test]
+        public void Goal_CannotBeClaimedBeforeItIsDone()
+        {
+            var sim = new ShopSim(WithGoals());
+            Assert.IsFalse(sim.ClaimGoal(0));
+            sim.BuyUpgrade(2, UpgradeTrack.Speed);
+            Assert.AreEqual(1, sim.GoalProgress(0));
+            Assert.IsFalse(sim.IsGoalComplete(0));
+        }
+
+        [Test]
+        public void Goal_ClaimPaysRewardOnceAndRevealsTheNext()
+        {
+            var sim = new ShopSim(WithGoals());
+            sim.BuyUpgrade(2, UpgradeTrack.Speed);
+            sim.BuyUpgrade(2, UpgradeTrack.Output);
+            int gems = sim.State.gems;
+            Assert.IsTrue(sim.ClaimGoal(0));
+            Assert.AreEqual(gems + 15, sim.State.gems);
+            Assert.IsFalse(sim.ClaimGoal(0));
+            CollectionAssert.AreEqual(new[] { 1, 2, 3 }, sim.ActiveGoals(3));
+        }
+
+        [Test]
+        public void Goal_CountsServedCustomersAndManagers()
+        {
+            var sim = new ShopSim(WithGoals());
+            AutomateAll(sim);
+            for (int i = 0; i < 300; i++)
+                sim.Tick(0.1f);
+            Assert.Greater(sim.State.customersServed, 0);
+            Assert.IsTrue(sim.IsGoalComplete(2)); // the mixer is automated, so its manager goal is met
+            Assert.AreEqual(sim.State.customersServed >= 3, sim.IsGoalComplete(1));
+        }
     }
 }

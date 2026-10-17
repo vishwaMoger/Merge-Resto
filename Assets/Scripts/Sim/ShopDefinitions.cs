@@ -67,6 +67,34 @@ namespace MergeResto.Sim
         public UpgradeDefinition Upgrade(UpgradeTrack track) => upgrades.Find(u => u.track == track);
     }
 
+    public enum GoalKind
+    {
+        /// <summary>A station reaches a total upgrade level.</summary>
+        StationLevel,
+        /// <summary>Serve this many customers in total.</summary>
+        ServeCustomers,
+        /// <summary>Hire the manager of a station.</summary>
+        HireManager,
+        /// <summary>A station has this many extra machines.</summary>
+        AddMachines,
+        /// <summary>Earn this many coins in total.</summary>
+        LifetimeCoins,
+        /// <summary>The whole shop reaches this many upgrade levels.</summary>
+        ShopLevel,
+    }
+
+    /// <summary>One milestone in the shop's goal list; a few are shown at a time, in order.</summary>
+    [Serializable]
+    public class GoalDefinition
+    {
+        public GoalKind kind;
+        [Tooltip("Station index, for station goals.")]
+        public int station;
+        public double target = 1;
+        public double rewardCoins;
+        public int rewardGems;
+    }
+
     [Serializable]
     public class CourierDefinition
     {
@@ -110,6 +138,10 @@ namespace MergeResto.Sim
         [Tooltip("Gems granted every this many upgrade levels on one station.")]
         public int gemMilestoneEvery = 5;
         public int gemMilestoneReward = 10;
+
+        [Header("Goals")]
+        [Tooltip("Milestones offered after the tutorial, a few at a time, in this order.")]
+        public List<GoalDefinition> goals = new();
 
         [Header("Offline")]
         public float offlineCapHours = 2f;

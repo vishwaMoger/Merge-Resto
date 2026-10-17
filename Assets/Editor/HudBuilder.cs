@@ -57,6 +57,7 @@ namespace MergeResto.EditorTools
                 "sl_medal" => "Icons/Medal",
                 "sl_disc_honey" => "Frames/250px/Frame_Circle_Honey_250px",
                 "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
+                "sl_heart" => "Icons/Heart",
                 _ => null,
             };
             return path != null ? AssetDatabase.LoadAssetAtPath<Sprite>(SweetLand + path + ".png") : UiArtGenerator.Load(key);
@@ -116,6 +117,7 @@ namespace MergeResto.EditorTools
             Set(popups, "crowd", crowd);
 
             var topBar = TopBar(root, out var coinTarget, out var coinJuice);
+            var goals = Goals(root);
             _panel = StationCard(root);
             OfflineDialog(root);
 
@@ -127,6 +129,123 @@ namespace MergeResto.EditorTools
             Set(coinFly, "coinTemplate", coin);
             Set(coinFly, "target", coinTarget);
             Set(coinFly, "targetJuice", coinJuice);
+            Set(goals, "coinFly", coinFly);
+        }
+
+        // ------------------------------------------------------------------ Goals
+
+        static GoalsPanel Goals(RectTransform root)
+        {
+            var holder = Rect("Goals", root);
+            holder.anchorMin = holder.anchorMax = holder.pivot = new Vector2(0f, 1f);
+            holder.anchoredPosition = new Vector2(30, -134);
+            holder.sizeDelta = new Vector2(440, 320);
+            var group = holder.gameObject.AddComponent<CanvasGroup>();
+            var panel = holder.gameObject.AddComponent<GoalsPanel>();
+
+            var cards = new List<GoalsPanel.Card>();
+            for (int i = 0; i < 3; i++)
+            {
+                var card = Rect($"Goal{i}", holder);
+                card.anchorMin = card.anchorMax = card.pivot = new Vector2(0f, 1f);
+                card.anchoredPosition = new Vector2(0, -i * 102);
+                card.sizeDelta = new Vector2(440, 94);
+                Window(card, 6f, 1.4f);
+
+                var disc = Rect("IconBg", card);
+                disc.anchorMin = disc.anchorMax = new Vector2(0f, 0.5f);
+                disc.anchoredPosition = new Vector2(46, 0);
+                disc.sizeDelta = new Vector2(68, 68);
+                Img(disc, "sl_disc_peach", Color.white, simple: true);
+                var icon = Rect("Icon", disc);
+                icon.sizeDelta = new Vector2(48, 48);
+                var iconImage = Img(icon, "icon_arrow", Color.white);
+
+                var title = Label("Title", card, "Goal", 25, _body, null, Brown, TextAlignmentOptions.Left);
+                title.textWrappingMode = TextWrappingModes.Normal;
+                title.fontSizeMin = 18;
+                title.fontSizeMax = 25;
+                title.enableAutoSizing = true;
+                Fill(title.rectTransform, new Vector2(90, 40), new Vector2(-128, -8));
+
+                var barBg = Rect("Bar", card);
+                barBg.anchorMin = barBg.anchorMax = barBg.pivot = new Vector2(0f, 0f);
+                barBg.anchoredPosition = new Vector2(90, 16);
+                barBg.sizeDelta = new Vector2(150, 22);
+                Img(barBg, "sl_frame_white", new Color(0.88f, 0.8f, 0.7f), 4f);
+                var fillArea = Rect("FillArea", barBg);
+                Fill(fillArea, new Vector2(3, 3), new Vector2(-3, -3));
+                fillArea.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
+                var fill = Rect("Fill", fillArea);
+                fill.anchorMin = Vector2.zero;
+                fill.anchorMax = new Vector2(0.02f, 1f);
+                fill.offsetMin = fill.offsetMax = Vector2.zero;
+                Img(fill, "sl_btn_orange", Color.white, 5f);
+                var count = Label("Count", card, "0/1", 22, _display, _shadow, SoftBrown, TextAlignmentOptions.Left);
+                count.rectTransform.anchorMin = count.rectTransform.anchorMax = count.rectTransform.pivot = new Vector2(0f, 0f);
+                count.rectTransform.anchoredPosition = new Vector2(248, 12);
+                count.rectTransform.sizeDelta = new Vector2(80, 30);
+
+                var claim = Rect("Claim", card);
+                claim.anchorMin = claim.anchorMax = claim.pivot = new Vector2(1f, 0.5f);
+                claim.anchoredPosition = new Vector2(-12, 0);
+                claim.sizeDelta = new Vector2(112, 66);
+                var claimImage = Img(claim, "sl_frame_peach", Color.white, 2.2f);
+                claimImage.raycastTarget = true;
+                var claimButton = claim.gameObject.AddComponent<UnityEngine.UI.Button>();
+                claimButton.targetGraphic = claimImage;
+                var colors = claimButton.colors;
+                colors.disabledColor = Color.white;
+                claimButton.colors = colors;
+                var juice = claim.gameObject.AddComponent<ButtonJuice>();
+                var rewardIcon = Rect("RewardIcon", claim);
+                rewardIcon.anchorMin = rewardIcon.anchorMax = new Vector2(0f, 0.5f);
+                rewardIcon.anchoredPosition = new Vector2(28, 3);
+                rewardIcon.sizeDelta = new Vector2(38, 38);
+                var rewardIconImage = Img(rewardIcon, "icon_gem", Color.white);
+                var rewardText = Label("Amount", claim, "+15", 30, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                Fill(rewardText.rectTransform, new Vector2(44, 6), new Vector2(-6, 0));
+
+                cards.Add(new GoalsPanel.Card
+                {
+                    root = card, icon = iconImage, title = title, count = count, fill = fill,
+                    claim = claimButton, claimImage = claimImage, rewardIcon = rewardIconImage,
+                    rewardText = rewardText, juice = juice,
+                });
+            }
+
+            var so = new SerializedObject(panel);
+            var prop = so.FindProperty("cards");
+            prop.arraySize = cards.Count;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var e = prop.GetArrayElementAtIndex(i);
+                var c = cards[i];
+                e.FindPropertyRelative("root").objectReferenceValue = c.root;
+                e.FindPropertyRelative("icon").objectReferenceValue = c.icon;
+                e.FindPropertyRelative("title").objectReferenceValue = c.title;
+                e.FindPropertyRelative("count").objectReferenceValue = c.count;
+                e.FindPropertyRelative("fill").objectReferenceValue = c.fill;
+                e.FindPropertyRelative("claim").objectReferenceValue = c.claim;
+                e.FindPropertyRelative("claimImage").objectReferenceValue = c.claimImage;
+                e.FindPropertyRelative("rewardIcon").objectReferenceValue = c.rewardIcon;
+                e.FindPropertyRelative("rewardText").objectReferenceValue = c.rewardText;
+                e.FindPropertyRelative("juice").objectReferenceValue = c.juice;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            Set(panel, "group", group);
+            Set(panel, "waitingMaterial", _shadow);
+            Set(panel, "claimReady", Resolve("sl_btn_orange"));
+            Set(panel, "claimWaiting", Resolve("sl_frame_peach"));
+            Set(panel, "coinIcon", Resolve("icon_coin"));
+            Set(panel, "gemIcon", Resolve("icon_gem"));
+            Set(panel, "levelIcon", Resolve("icon_arrow"));
+            Set(panel, "serveIcon", Resolve("sl_heart"));
+            Set(panel, "managerIcon", Resolve("icon_manager"));
+            Set(panel, "machineIcon", Resolve("icon_machine"));
+            Set(panel, "shopLevelIcon", Resolve("sl_medal"));
+            return panel;
         }
 
         // ------------------------------------------------------------------ Station markers
