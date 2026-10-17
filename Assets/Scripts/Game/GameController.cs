@@ -45,6 +45,7 @@ namespace MergeResto.Game
             {
                 _pendingOfflineSeconds = now - last;
                 _pendingOffline = Sim.OfflineEarnings(_pendingOfflineSeconds);
+                Sim.Board?.Tick(_pendingOfflineSeconds); // energy refills while away
             }
             if (_pendingOffline > 0)
                 OfflineEarningsReady?.Invoke(_pendingOffline, _pendingOfflineSeconds);

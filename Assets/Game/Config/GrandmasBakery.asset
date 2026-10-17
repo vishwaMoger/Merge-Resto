@@ -137,7 +137,161 @@ MonoBehaviour:
     pricePerOutputLevel: 0.2
     gemMilestoneEvery: 5
     gemMilestoneReward: 10
+    board:
+      columns: 7
+      rows: 5
+      energyMax: 100
+      energyRegenSeconds: 6
+      sellBase: 5
+      chains:
+      - id: sweets
+        displayName: Sweets
+        tiers:
+        - Cookie
+        - Macaron
+        - Cupcake
+        - Donut
+        - Cinnamon Roll
+        - Strawberry Cake
+        - Birthday Cake
+        models:
+        - TinyTreats_BakedGoods/cookie
+        - TinyTreats_BakeryInterior/macaron_pink
+        - TinyTreats_BakedGoods/cupcake
+        - TinyTreats_BakedGoods/donut_pink
+        - TinyTreats_BakedGoods/cinnamon_roll
+        - TinyTreats_BakedGoods/cake_strawberry
+        - TinyTreats_BakedGoods/cake_birthday
+      - id: kitchen
+        displayName: Kitchenware
+        tiers:
+        - Whisk
+        - Mug
+        - Plates
+        - Mixing Bowl
+        - Kitchen Scale
+        - Stand Mixer
+        models:
+        - TinyTreats_BakeryInterior/whisk
+        - TinyTreats_BakeryInterior/mug_A_pink
+        - TinyTreats_BakeryInterior/plate_stacked
+        - TinyTreats_BakeryInterior/mixing_bowl
+        - TinyTreats_BakeryInterior/scale
+        - TinyTreats_BakeryInterior/stand_mixer
+      - id: plants
+        displayName: Plants
+        tiers:
+        - Succulent
+        - Little Cactus
+        - Pothos
+        - ZZ Plant
+        - Snake Plant
+        - Monstera
+        models:
+        - TinyTreats_HousePlants/succulent_plant_pot_small
+        - TinyTreats_HousePlants/cacti_plant_pot_small
+        - TinyTreats_HousePlants/pothos_plant_small_potted
+        - TinyTreats_HousePlants/zzplant_plant_medium_potted
+        - TinyTreats_HousePlants/sansevieria_plant_large_potted
+        - TinyTreats_HousePlants/monstera_plant_large_potted
+      generators:
+      - id: cookie_jar
+        displayName: Cookie Jar
+        chain: 0
+        luckyChance: 0.12
+        model: TinyTreats_BakeryInterior/cookie_jar
+      - id: dish_rack
+        displayName: Dish Rack
+        chain: 1
+        luckyChance: 0.12
+        model: KayKit_RestaurantBits/dishrack_plates
+      - id: watering_can
+        displayName: Watering Can
+        chain: 2
+        luckyChance: 0.12
+        model: TinyTreats_HousePlants/watering_can_A
+      renovations:
+      - id: pastry_stand
+        displayName: Restock the pastry stand
+        needs:
+        - chain: 0
+          tier: 2
+        rewardCoins: 150
+        coziness: 0.05
+      - id: window_plants
+        displayName: Revive the window plants
+        needs:
+        - chain: 2
+          tier: 2
+        - chain: 2
+          tier: 1
+        rewardCoins: 200
+        coziness: 0.06
+      - id: dining
+        displayName: Set the dining tables
+        needs:
+        - chain: 1
+          tier: 2
+        - chain: 1
+          tier: 2
+        - chain: 1
+          tier: 1
+        rewardCoins: 300
+        coziness: 0.08
+      - id: display_case
+        displayName: Polish the display case
+        needs:
+        - chain: 1
+          tier: 3
+        - chain: 0
+          tier: 3
+        rewardCoins: 500
+        coziness: 0.08
+      - id: corner
+        displayName: Green up the cozy corner
+        needs:
+        - chain: 2
+          tier: 4
+        rewardCoins: 800
+        coziness: 0.08
+      - id: shop_sign
+        displayName: Light up the shop sign
+        needs:
+        - chain: 0
+          tier: 5
+        - chain: 1
+          tier: 4
+        - chain: 2
+          tier: 4
+        rewardCoins: 2000
+        coziness: 0.15
+      start:
+      - cell: 0
+        generator: 0
+        chain: 0
+        tier: 0
+      - cell: 14
+        generator: 1
+        chain: 0
+        tier: 0
+      - cell: 28
+        generator: 2
+        chain: 0
+        tier: 0
+      - cell: 9
+        generator: -1
+        chain: 0
+        tier: 0
+      - cell: 10
+        generator: -1
+        chain: 0
+        tier: 0
     goals:
+    - kind: 3
+      station: 0
+      target: 1
+      rewardCoins: 200
+      rewardGems: 0
     - kind: 0
       station: 2
       target: 2
@@ -148,6 +302,11 @@ MonoBehaviour:
       target: 15
       rewardCoins: 150
       rewardGems: 0
+    - kind: 3
+      station: 0
+      target: 3
+      rewardCoins: 0
+      rewardGems: 20
     - kind: 0
       station: 1
       target: 2
@@ -158,12 +317,12 @@ MonoBehaviour:
       target: 1
       rewardCoins: 300
       rewardGems: 0
-    - kind: 3
+    - kind: 4
       station: 2
       target: 1
       rewardCoins: 0
       rewardGems: 20
-    - kind: 4
+    - kind: 5
       station: 0
       target: 3000
       rewardCoins: 0
@@ -183,17 +342,22 @@ MonoBehaviour:
       target: 100
       rewardCoins: 0
       rewardGems: 30
-    - kind: 5
+    - kind: 6
       station: 0
       target: 20
       rewardCoins: 1500
       rewardGems: 0
     - kind: 3
+      station: 0
+      target: 6
+      rewardCoins: 0
+      rewardGems: 50
+    - kind: 4
       station: 1
       target: 1
       rewardCoins: 0
       rewardGems: 30
-    - kind: 4
+    - kind: 5
       station: 0
       target: 25000
       rewardCoins: 0
@@ -203,7 +367,7 @@ MonoBehaviour:
       target: 300
       rewardCoins: 4000
       rewardGems: 0
-    - kind: 5
+    - kind: 6
       station: 0
       target: 40
       rewardCoins: 0

@@ -39,7 +39,7 @@ namespace MergeResto.Game.UI
             new(Kind.Serve, 3, $"Fresh bread goes to the {Key("counter")}, and I'll serve our first customer. Keep that bread coming!"),
             new(Kind.Upgrade, 2, $"Look at those coins! Let's make the oven faster: open the {Key("oven's upgrades")} and buy {Key("Hotter Oven")}."),
             new(Kind.Manager, 0, $"Tapping all day is tiring, dear. Hire a {Key("manager")} for the flour sacks. They'll work all on their own!"),
-            new(Kind.Reward, -1, "Our Grand Opening is a success! Here's a little something from my savings. Keep those ovens warm!"),
+            new(Kind.Reward, -1, "Our Grand Opening is a success! Here's a little something from my savings. The place is still a bit dusty though: tap Renovate and let's fix it up!"),
         };
 
         static int CountedSteps
