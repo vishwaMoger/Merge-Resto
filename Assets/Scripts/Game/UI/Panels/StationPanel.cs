@@ -47,6 +47,19 @@ namespace MergeResto.Game.UI
         Vector2 _shownPos;
         Vector2 _hiddenPos;
 
+        /// <summary>The station whose card is fully on screen, or -1.</summary>
+        public int OpenStation => _station >= 0 && _station == _shownStation && _shown > 0.92f ? _station : -1;
+
+        public RectTransform ButtonFor(UpgradeTrack track)
+        {
+            foreach (var row in rows)
+                if (row.track == track)
+                    return (RectTransform)row.button.transform;
+            return null;
+        }
+
+        public RectTransform ManagerButton => (RectTransform)managerButton.transform;
+
         void Start()
         {
             _shownPos = sheet.anchoredPosition;

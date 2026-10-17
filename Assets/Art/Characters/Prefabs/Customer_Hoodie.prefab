@@ -1902,6 +1902,7 @@ MonoBehaviour:
   hopsPerSecond: 4
   turnSpeed: 12
   walkAnimSpeed: 1.7
+  idleFacing: {x: 0, y: 0, z: 0}
 --- !u!1 &8688859247183773460
 GameObject:
   m_ObjectHideFlags: 0

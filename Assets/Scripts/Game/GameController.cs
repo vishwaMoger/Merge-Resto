@@ -22,6 +22,7 @@ namespace MergeResto.Game
         /// <summary>Raised once after loading when offline earnings are waiting: (coins, seconds away).</summary>
         public event Action<double, double> OfflineEarningsReady;
         public event Action<int> StationSelected;
+        public event Action<int> StationTapped;
         public int SelectedStation { get; private set; } = -1;
 
         double _pendingOffline;
@@ -75,10 +76,17 @@ namespace MergeResto.Game
 
         // ------------------------------------------------------------------ Player actions
 
+        /// <summary>
+        /// A tap on a station. An idle station that is waiting for the player just starts working;
+        /// a busy or automated one also opens its upgrade card.
+        /// </summary>
         public void ClickStation(int station)
         {
+            bool waiting = Sim.NeedsTap(station);
             Sim.Tap(station);
-            SelectStation(station);
+            StationTapped?.Invoke(station);
+            if (!waiting)
+                SelectStation(station);
         }
 
         public void SelectStation(int station)

@@ -24,6 +24,7 @@ namespace MergeResto.EditorTools
 
         public const string BakerLook = "Baker";
         public const string CashierLook = "Cashier";
+        public const string GrandmaLook = "Grandma";
         public static readonly string[] CustomerLooks =
             { "Customer_Sky", "Customer_Lavender", "Customer_Teal", "Customer_Rose", "Customer_Hoodie", "Customer_Knight", "Customer_Strong" };
 
@@ -45,6 +46,10 @@ namespace MergeResto.EditorTools
             new() { name = CashierLook, model = "Rogue", texture = "rogue_texture",
                 hide = new[] { "Rogue_Cape" },
                 recolor = new[] { (0, 1, "F2817A"), (1, 1, "FFF1DE") } },
+            // Grandma runs the till and guides the tutorial: silver hair, lavender cardigan, cream apron.
+            new() { name = GrandmaLook, model = "Mage", texture = "mage_texture",
+                hide = new[] { "Mage_Hat", "Mage_Cape" },
+                recolor = new[] { (1, 0, "EFEAE6"), (0, 1, "A98BD6"), (7, 1, "7B62A8") } },
             new() { name = "Customer_Sky", model = "Rogue", texture = "rogue_texture",
                 hide = new[] { "Rogue_Cape" },
                 recolor = new[] { (0, 1, "6DB4F0"), (1, 1, "FFD25E") } },
@@ -93,7 +98,7 @@ namespace MergeResto.EditorTools
             var floor = LookSetup.Box("Floor", null, new Vector3(0f, -0.05f, 0f), new Vector3(30f, 0.1f, 8f),
                 LookSetup.Mat("LineupFloor", LookSetup.Hex("F7E7C8")));
             floor.transform.SetParent(null);
-            var names = new[] { BakerLook, CashierLook }.Concat(CustomerLooks).ToArray();
+            var names = new[] { BakerLook, CashierLook, GrandmaLook }.Concat(CustomerLooks).ToArray();
             for (int i = 0; i < names.Length; i++)
             {
                 var go = (GameObject)PrefabUtility.InstantiatePrefab(LoadPrefab(names[i]));
@@ -105,6 +110,13 @@ namespace MergeResto.EditorTools
             cam.transform.rotation = Quaternion.Euler(16f, 0f, 0f);
             cam.transform.position = new Vector3(0f, 1.25f, 0f) - cam.transform.forward * 30f;
             UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene, "Assets/Scenes/CharacterLineup.unity");
+        }
+
+        /// <summary>Poses a character instance from one of the Rig_Medium clips (for stills).</summary>
+        public static void SamplePose(GameObject character, string file, string clip, float time)
+        {
+            var model = character.transform.Find("Model");
+            Clip(file, clip).SampleAnimation(model != null ? model.gameObject : character, time);
         }
 
         public static GameObject LoadPrefab(string look) =>
