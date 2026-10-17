@@ -752,7 +752,11 @@ namespace MergeResto.EditorTools
                 e.FindPropertyRelative("pitchSpread").floatValue = mix[i].sfx == Sfx.Blip ? 0.12f : 0.05f;
                 e.FindPropertyRelative("minInterval").floatValue = mix[i].interval;
             }
-            so.FindProperty("music").objectReferenceValue = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/bakery_theme.wav");
+            var playlist = so.FindProperty("playlist");
+            string[] tracks = { "Assets/Audio/Music/etirwer.ogg", "Assets/Audio/Music/bossa_shop.mp3" };
+            playlist.arraySize = tracks.Length;
+            for (int i = 0; i < tracks.Length; i++)
+                playlist.GetArrayElementAtIndex(i).objectReferenceValue = AssetDatabase.LoadAssetAtPath<AudioClip>(tracks[i]);
             so.FindProperty("crowd").objectReferenceValue = crowd;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
