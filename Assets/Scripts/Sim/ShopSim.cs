@@ -35,6 +35,9 @@ namespace MergeResto.Sim
         /// <summary>How fast waiting customers lose patience (0 pauses it, e.g. during the tutorial).</summary>
         public float PatienceScale { get; set; } = 1f;
 
+        /// <summary>Caps the queue below the shop's maximum (the tutorial lets one in at a time); -1 for no cap.</summary>
+        public int QueueLimit { get; set; } = -1;
+
         public ShopSim(ShopDefinition def, ShopState state = null)
         {
             Def = def ?? throw new ArgumentNullException(nameof(def));
@@ -460,7 +463,8 @@ namespace MergeResto.Sim
             State.customerTimer += dt;
             if (State.customerTimer >= interval)
             {
-                if (State.queue.Count < Def.maxQueue)
+                int max = QueueLimit >= 0 ? Math.Min(QueueLimit, Def.maxQueue) : Def.maxQueue;
+                if (State.queue.Count < max)
                 {
                     State.customerTimer -= interval;
                     var customer = new CustomerState

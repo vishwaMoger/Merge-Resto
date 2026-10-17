@@ -71,6 +71,10 @@ namespace MergeResto.Game.Views
 
         void OnArrived(CustomerState c) => Spawn(c.id, atQueue: false);
 
+        /// <summary>The character for a waiting customer, or null.</summary>
+        public Transform CharacterFor(int customerId) =>
+            _active.TryGetValue(customerId, out var w) && w.go != null ? w.go.transform : null;
+
         void OnServed(CustomerState c, double coins)
         {
             if (!_active.Remove(c.id, out var w))
