@@ -24,8 +24,8 @@ namespace MergeResto.EditorTools
         static readonly List<StationHud> _markers = new();
         static readonly Color PinOrange = new(1f, 0.52f, 0.18f);
         static Material _outlined, _shadow;
-        static readonly Color Brown = new(0.36f, 0.23f, 0.18f);
-        static readonly Color SoftBrown = new(0.55f, 0.42f, 0.36f);
+        static readonly Color Brown = new(0.27f, 0.16f, 0.11f);
+        static readonly Color SoftBrown = new(0.4f, 0.27f, 0.2f);
         static readonly Color FrameBrown = new(0.66f, 0.42f, 0.27f);
 
         const string SweetLand = "Assets/Art/UI/SweetLand/Sprites/";
@@ -85,6 +85,10 @@ namespace MergeResto.EditorTools
                 UiArtGenerator.GenerateFonts();
             _display = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(UiArtGenerator.DisplayFontPath);
             _body = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(UiArtGenerator.BodyFontPath);
+            // Body text is set in bold; keep the synthetic bold from spreading letters apart.
+            _body.boldStyle = 0.7f;
+            _body.boldSpacing = 1;
+            EditorUtility.SetDirty(_body);
             _outlined = AssetDatabase.LoadAssetAtPath<Material>(UiArtGenerator.DisplayOutlinedPath);
             _shadow = AssetDatabase.LoadAssetAtPath<Material>(UiArtGenerator.DisplayShadowPath);
 
@@ -139,7 +143,7 @@ namespace MergeResto.EditorTools
             var holder = Rect("Goals", root);
             holder.anchorMin = holder.anchorMax = holder.pivot = new Vector2(0f, 1f);
             holder.anchoredPosition = new Vector2(30, -134);
-            holder.sizeDelta = new Vector2(440, 320);
+            holder.sizeDelta = new Vector2(480, 320);
             var group = holder.gameObject.AddComponent<CanvasGroup>();
             var panel = holder.gameObject.AddComponent<GoalsPanel>();
 
@@ -149,7 +153,7 @@ namespace MergeResto.EditorTools
                 var card = Rect($"Goal{i}", holder);
                 card.anchorMin = card.anchorMax = card.pivot = new Vector2(0f, 1f);
                 card.anchoredPosition = new Vector2(0, -i * 102);
-                card.sizeDelta = new Vector2(440, 94);
+                card.sizeDelta = new Vector2(480, 94);
                 Window(card, 6f, 1.4f);
 
                 var disc = Rect("IconBg", card);
@@ -163,10 +167,11 @@ namespace MergeResto.EditorTools
 
                 var title = Label("Title", card, "Goal", 25, _body, null, Brown, TextAlignmentOptions.Left);
                 title.textWrappingMode = TextWrappingModes.Normal;
-                title.fontSizeMin = 18;
+                title.lineSpacing = -12f;
+                title.fontSizeMin = 21;
                 title.fontSizeMax = 25;
                 title.enableAutoSizing = true;
-                Fill(title.rectTransform, new Vector2(90, 40), new Vector2(-128, -8));
+                Fill(title.rectTransform, new Vector2(90, 40), new Vector2(-126, -6));
 
                 var barBg = Rect("Bar", card);
                 barBg.anchorMin = barBg.anchorMax = barBg.pivot = new Vector2(0f, 0f);
@@ -829,7 +834,7 @@ namespace MergeResto.EditorTools
             t.textWrappingMode = TextWrappingModes.NoWrap;
             t.overflowMode = TextOverflowModes.Overflow;
             if (font == _body)
-                t.fontWeight = FontWeight.SemiBold;
+                t.fontStyle = FontStyles.Bold; // synthetic bold: Fredoka ships one weight
             return t;
         }
 

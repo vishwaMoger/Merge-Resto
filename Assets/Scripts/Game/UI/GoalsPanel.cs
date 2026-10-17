@@ -43,7 +43,7 @@ namespace MergeResto.Game.UI
         [SerializeField] Sprite managerIcon;
         [SerializeField] Sprite machineIcon;
         [SerializeField] Sprite shopLevelIcon;
-        [SerializeField] Color waitingText = new(0.55f, 0.36f, 0.24f);
+        [SerializeField] Color waitingText = new(0.4f, 0.25f, 0.16f);
         [Tooltip("Reward text material while the goal is unfinished (same font, no outline).")]
         [SerializeField] Material waitingMaterial;
 
