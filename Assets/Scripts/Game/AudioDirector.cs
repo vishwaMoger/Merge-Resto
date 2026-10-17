@@ -45,8 +45,10 @@ namespace MergeResto.Game
             public float minInterval = 0.05f;
         }
 
-        [SerializeField] AudioClip music;
-        [SerializeField, Range(0f, 1f)] float musicVolume = 0.32f;
+        [Tooltip("Background tracks, played in turn with a slow crossfade.")]
+        [SerializeField] AudioClip[] playlist;
+        [SerializeField, Range(0f, 1f)] float musicVolume = 0.26f;
+        [SerializeField] float crossfadeSeconds = 4f;
         [SerializeField] Entry[] entries;
         [SerializeField] CustomerCrowd crowd;
         [SerializeField] int voices = 10;
@@ -57,7 +59,10 @@ namespace MergeResto.Game
         readonly Dictionary<Sfx, Entry> _map = new();
         readonly Dictionary<Sfx, float> _last = new();
         AudioSource[] _pool;
-        AudioSource _music;
+        AudioSource[] _music;
+        int _musicFront;
+        int _track = -1;
+        float _musicFade = 1f;
         int _next;
         ShopSim _sim;
         float _coinStreak;
@@ -78,19 +83,21 @@ namespace MergeResto.Game
                 _pool[i].playOnAwake = false;
                 _pool[i].spatialBlend = 0f;
             }
-            _music = gameObject.AddComponent<AudioSource>();
-            _music.clip = music;
-            _music.loop = true;
-            _music.playOnAwake = false;
-            _music.volume = 0f;
+            _music = new AudioSource[2];
+            for (int i = 0; i < 2; i++)
+            {
+                _music[i] = gameObject.AddComponent<AudioSource>();
+                _music[i].playOnAwake = false;
+                _music[i].loop = false;
+                _music[i].volume = 0f;
+            }
             SoundOn = PlayerPrefs.GetInt(SoundKey, 1) == 1;
             MusicOn = PlayerPrefs.GetInt(MusicKey, 1) == 1;
         }
 
         void Start()
         {
-            if (music != null)
-                _music.Play();
+            NextTrack();
             _sim = GameController.Instance.Sim;
             _sim.UpgradePurchased += OnUpgrade;
             _sim.ManagerHired += OnManager;
@@ -135,11 +142,48 @@ namespace MergeResto.Game
 
         void Update()
         {
-            float target = MusicOn ? musicVolume : 0f;
-            _music.volume = Mathf.MoveTowards(_music.volume, target, Time.unscaledDeltaTime * 0.25f);
+            UpdateMusic(Time.unscaledDeltaTime);
             _coinStreak = Mathf.Max(0f, _coinStreak - Time.unscaledDeltaTime);
             if (_coinStreak <= 0f)
                 _coinCount = 0;
+        }
+
+        // ------------------------------------------------------------------ Music
+
+        void NextTrack()
+        {
+            if (playlist == null || playlist.Length == 0)
+                return;
+            _track = (_track + 1) % playlist.Length;
+            _musicFront = 1 - _musicFront;
+            var source = _music[_musicFront];
+            source.clip = playlist[_track];
+            source.volume = 0f;
+            source.Play();
+            _musicFade = 0f;
+        }
+
+        void UpdateMusic(float dt)
+        {
+            if (playlist == null || playlist.Length == 0)
+                return;
+            var front = _music[_musicFront];
+            var back = _music[1 - _musicFront];
+            // Start the next track a crossfade before this one ends.
+            if (front.clip != null && front.isPlaying && front.time >= front.clip.length - crossfadeSeconds)
+            {
+                NextTrack();
+                front = _music[_musicFront];
+                back = _music[1 - _musicFront];
+            }
+            _musicFade = Mathf.Min(1f, _musicFade + dt / crossfadeSeconds);
+            float level = MusicOn ? musicVolume : 0f;
+            // Muting fades quickly; the crossfade itself is slow and smooth.
+            float mute = MusicOn ? 1f : 0f;
+            front.volume = Mathf.MoveTowards(front.volume, level * Mathf.SmoothStep(0f, 1f, _musicFade), dt * (mute > 0f ? 1f : 2f));
+            back.volume = Mathf.MoveTowards(back.volume, MusicOn ? level * (1f - Mathf.SmoothStep(0f, 1f, _musicFade)) : 0f, dt * 2f);
+            if (back.isPlaying && back.volume <= 0.001f && _musicFade >= 1f)
+                back.Stop();
         }
 
         // ------------------------------------------------------------------ Playing
