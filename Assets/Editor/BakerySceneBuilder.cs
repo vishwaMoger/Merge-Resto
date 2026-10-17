@@ -25,6 +25,14 @@ namespace MergeResto.EditorTools
         const string BakeryArt = "Assets/Art/ThirdParty/TinyTreats_BakeryInterior/Models/";
         const string GoodsArt = "Assets/Art/ThirdParty/TinyTreats_BakedGoods/Models/";
         const float CharacterScale = 1f;
+        const string RestaurantArt = "Assets/Art/ThirdParty/KayKit_RestaurantBits/Models/";
+        const string CityArt = "Assets/Art/ThirdParty/KayKit_CityBuilder/Models/";
+        const string ForestArt = "Assets/Art/ThirdParty/KayKit_Forest/Models/";
+        const float LowWallHeight = 1.2f;
+        const float EntranceX = 6.2f;
+        const float ExitZ = -2.2f;
+        // KayKit City Builder is a miniature set; this brings it to character scale.
+        const float CityScale = 3f;
         const float WalkSpeed = 2.4f;
 
         [MenuItem("Merge Resto/Game/Build Bakery Scene")]
@@ -38,7 +46,7 @@ namespace MergeResto.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             // Opening a scene unloads unreferenced assets, so fetch the config afterwards.
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
-            var cam = LookSetup.CreateLookRig(new Vector3(0.6f, 1f, 0.4f), 7.9f);
+            var cam = LookSetup.CreateLookRig(new Vector3(1.2f, 1f, -0.6f), 9.2f);
 
             var world = new GameObject("Bakery").transform;
             BuildRoom(world);
@@ -66,6 +74,8 @@ namespace MergeResto.EditorTools
             HudBuilder.Build(stations, crowd, out var popups, out var coinFly);
             BuildFx(world, stations, crowd, popups, coinFly);
             BuildDecor(world);
+            BuildInterior(world);
+            BuildStreet(world);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -145,7 +155,11 @@ namespace MergeResto.EditorTools
         static void UpdateCustomerTimes(ShopConfig config, CustomerCrowd crowd)
         {
             float speed = crowd.walkSpeed;
-            float walkIn = Vector3.Distance(crowd.entryPoint.position, crowd.queueSlots[0].position) / speed;
+            float length = 0f;
+            for (int i = 1; i < crowd.entryPath.Length; i++)
+                length += Vector3.Distance(crowd.entryPath[i - 1].position, crowd.entryPath[i].position);
+            length += Vector3.Distance(crowd.entryPath[^1].position, crowd.queueSlots[0].position);
+            float walkIn = length / speed;
             float step = Vector3.Distance(crowd.queueSlots[0].position, crowd.queueSlots[1].position) / speed;
             config.shop.walkInSeconds = walkIn + 0.15f;
             config.shop.stepUpSeconds = step + 0.15f;
@@ -174,12 +188,40 @@ namespace MergeResto.EditorTools
                 Place(piece, room, new Vector3(-8f, 0f, z), 90f);
             }
 
-            Place("wall_sign_large", room, new Vector3(4f, 3.3f, 5.95f), 180f);
             Place("wall_shelf_bakery_A", room, new Vector3(-7.95f, 2.4f, 2f), 90f);
             Place("tin_A_beige", room, new Vector3(-7.6f, 2.45f, 1.5f));
             Place("tin_A_brown", room, new Vector3(-7.6f, 2.45f, 2.1f));
             Place("cookie_jar", room, new Vector3(-7.6f, 2.45f, 2.6f));
             Place("rug", room, new Vector3(-3.5f, 0f, -3f));
+
+            // Cut-away front and right walls: knee height so the shop stays visible, with a
+            // gap for the entrance (front) and a separate exit (right side).
+            var low = Group("LowWalls", room);
+            // The same panelled bakery wall as the back, cut down to knee height. Pieces are
+            // 2 wide with their back face on the pivot; models keep their import scale.
+            void Segment(Vector3 from, Vector3 to, float yaw)
+            {
+                var mid = (from + to) * 0.5f;
+                float len = Vector3.Distance(from, to);
+                var w = Place("wall_modular_panelled_bakery_straight_A", low, mid, yaw);
+                w.transform.localScale = Vector3.Scale(w.transform.localScale, new Vector3(len / 2f, LowWallHeight / 4f, 1f));
+            }
+            void Post(Vector3 at)
+            {
+                var post = Place("pillar_A", RestaurantArt, low, at);
+                post.transform.localScale = Vector3.Scale(post.transform.localScale, new Vector3(0.75f, 1.75f / 4.1f, 0.75f));
+            }
+            // Wall meshes are single-sided, so the front and right walls face outwards: the
+            // camera looks at their outside. They sit just outside the floor edge.
+            Segment(new Vector3(-8f, 0f, -6f), new Vector3(EntranceX - 1.1f, 0f, -6f), 180f);
+            Segment(new Vector3(EntranceX + 1.1f, 0f, -6f), new Vector3(8f, 0f, -6f), 180f);
+            Segment(new Vector3(8f, 0f, -6f), new Vector3(8f, 0f, ExitZ - 1.1f), 90f);
+            Segment(new Vector3(8f, 0f, ExitZ + 1.1f), new Vector3(8f, 0f, 6f), 90f);
+            Post(new Vector3(EntranceX - 1.1f, 0f, -6.15f));
+            Post(new Vector3(EntranceX + 1.1f, 0f, -6.15f));
+            Post(new Vector3(8.15f, 0f, ExitZ - 1.1f));
+            Post(new Vector3(8.15f, 0f, ExitZ + 1.1f));
+            Post(new Vector3(8.15f, 0f, -6.15f));
         }
 
         // ------------------------------------------------------------------ Stations
@@ -321,14 +363,29 @@ namespace MergeResto.EditorTools
         {
             var root = Group("Customers", world);
             var crowd = root.gameObject.AddComponent<CustomerCrowd>();
-            crowd.entryPoint = Marker("Entry", root, new Vector3(9f, 0f, -8f));
-            crowd.exitPoint = Marker("Exit", root, new Vector3(10f, 0f, -7f));
+            // In from the street along the front sidewalk, through the entrance.
+            crowd.entryPath = new[]
+            {
+                Marker("Entry_Street", root, new Vector3(22f, 0f, -8.2f)),
+                Marker("Entry_Outside", root, new Vector3(EntranceX, 0f, -8.2f)),
+                Marker("Entry_Door", root, new Vector3(EntranceX, 0f, -6.25f)),
+                Marker("Entry_Inside", root, new Vector3(EntranceX, 0f, -5.0f)),
+            };
+            // Out through the side exit and away down the right-hand sidewalk.
+            crowd.exitPath = new[]
+            {
+                Marker("Exit_Inside", root, new Vector3(7.0f, 0f, ExitZ)),
+                Marker("Exit_Door", root, new Vector3(8.25f, 0f, ExitZ)),
+                Marker("Exit_Outside", root, new Vector3(9.8f, 0f, ExitZ)),
+                Marker("Exit_Street", root, new Vector3(9.8f, 0f, 20f)),
+            };
 
+            // The line runs from the register towards the entrance, then snakes left.
             var slots = new List<Transform>();
             Vector3[] slotPositions =
             {
                 new(4.75f, 0f, -0.6f), new(4.75f, 0f, -1.9f), new(4.75f, 0f, -3.2f),
-                new(4.75f, 0f, -4.5f), new(6.0f, 0f, -4.5f), new(7.2f, 0f, -4.5f),
+                new(4.75f, 0f, -4.5f), new(3.5f, 0f, -4.5f), new(2.25f, 0f, -4.5f),
             };
             for (int i = 0; i < slotPositions.Length; i++)
             {
@@ -368,12 +425,207 @@ namespace MergeResto.EditorTools
             Plant("sansevieria_plant_medium_potted", new Vector3(-7.3f, 0f, -0.2f), 10f);
             Plant("pothos_plant_small_potted", new Vector3(-7.55f, 2.45f, 1.0f), 90f);
             Plant("succulent_plant_pot_small", new Vector3(-7.55f, 2.45f, 3.0f), 0f);
-            Plant("zzplant_plant_medium_potted", new Vector3(7.2f, 0f, -5.2f), -40f);
+            Plant("zzplant_plant_medium_potted", new Vector3(7.4f, 0f, -5.4f), -40f);
             Plant("monstera_plant_medium_potted", new Vector3(2.2f, 0f, 5.3f), 0f);
 
-            // Welcome mat where customers come in.
-            var mat = Place("rug", decor, new Vector3(6.6f, 0f, -5.2f), 90f);
-            mat.transform.localScale = new Vector3(0.7f, 1f, 0.7f);
+            // Mats at the entrance and the exit.
+            var inMat = Place("rug", decor, new Vector3(EntranceX, 0.01f, -5.3f), 0f);
+            inMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
+            var outMat = Place("rug", decor, new Vector3(7.3f, 0.01f, ExitZ), 90f);
+            outMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
+        }
+
+        // ------------------------------------------------------------------ Interior dressing
+
+        // Makes the room feel lived-in: shelves, curtains, signs, pastries on display and warm
+        // pendant lamps that actually light the counter and the tables.
+        static void BuildInterior(Transform world)
+        {
+            var dress = Group("Dressing", world);
+
+            // Back wall: shelf of jars behind the mixer, sign above the oven area.
+            Place("wall_shelf_bakery_B", dress, new Vector3(-3f, 2.75f, 5.7f), 180f);
+            Place("cookie_jar", dress, new Vector3(-3.6f, 2.78f, 5.3f));
+            Place("tin_A_grey", dress, new Vector3(-2.9f, 2.78f, 5.3f));
+            Place("tin_B_beige", dress, new Vector3(-2.4f, 2.78f, 5.3f));
+            Place("wall_sign_large", dress, new Vector3(4.2f, 3.2f, 5.7f), 180f);
+
+            // Curtains on every window.
+            Place("curtains", dress, new Vector3(5f, 3.55f, 5.69f), 180f);
+            Place("curtains", dress, new Vector3(7f, 3.55f, 5.69f), 180f);
+            Place("curtains", dress, new Vector3(-7.69f, 3.55f, -3f), 90f);
+            Place("curtains", dress, new Vector3(-7.69f, 3.55f, -1f), 90f);
+
+            // Hanging vines under the shelves.
+            var vine = Place("pothos_vine_medium_A", PlantArt, dress, new Vector3(-7.55f, 2.0f, 1.4f), 90f);
+            ApplySway(vine);
+            var vine2 = Place("pothos_vine_medium_A", PlantArt, dress, new Vector3(-2.2f, 2.25f, 5.45f), 180f);
+            ApplySway(vine2);
+
+            // Treats on display at the counter.
+            Place("pastry_stand_B_decorated", dress, new Vector3(6.05f, 1.0f, 0.75f), 0f);
+            Place("cake_birthday", GoodsArt, dress, new Vector3(5.75f, 1.0f, 1.25f), 30f).transform.localScale *= 0.55f;
+            Place("cookie_jar", dress, new Vector3(3.95f, 1.0f, 1.15f));
+
+            // Chalkboard menu by the door.
+            var menu = Place("menu", RestaurantArt, dress, new Vector3(4.9f, 0f, -5.25f), 200f);
+            menu.transform.localScale *= 1.6f;
+
+            // Warm light pools over the counter and the dining tables. The room has no ceiling,
+            // so these are bare lights rather than hanging lamps floating in the air.
+            foreach (var p in new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) })
+                WarmLight(dress, p);
+        }
+
+        static void WarmLight(Transform parent, Vector3 floorPos)
+        {
+            var lightGo = new GameObject("WarmLight");
+            lightGo.transform.SetParent(parent, false);
+            lightGo.transform.position = new Vector3(floorPos.x, 2.8f, floorPos.z);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.78f, 0.52f);
+            light.range = 4.5f;
+            light.intensity = 1.6f;
+            light.shadows = LightShadows.None;
+        }
+
+        // ------------------------------------------------------------------ Street
+
+        // The neighbourhood around the shop: grass, sidewalks, a road with traffic, street
+        // furniture in front (kept low so it never hides the shop) and houses and trees behind.
+        static void BuildStreet(Transform world)
+        {
+            var street = Group("Street", world);
+
+            var grass = LookSetup.Box("Grass", street, new Vector3(0f, -0.12f, 4f), new Vector3(90f, 0.2f, 70f),
+                LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f));
+            grass.name = "Grass";
+
+            GameObject City(string model, Vector3 pos, float yaw = 0f, float scale = CityScale)
+            {
+                var go = Place(model, CityArt, street, pos, yaw);
+                go.transform.localScale *= scale;
+                return go;
+            }
+            GameObject Nature(string model, Vector3 pos, float yaw = 0f, float scale = 1f, bool sway = true)
+            {
+                var go = Place(model, ForestArt, street, pos, yaw);
+                go.transform.localScale *= scale;
+                if (sway) ApplySway(go);
+                return go;
+            }
+
+            // Sidewalks: front (along x) and right side (along z), 3-unit pavement tiles.
+            float tile = 2f * 1.5f;
+            for (float x = -22.5f; x <= 25f; x += tile)
+                City("base", new Vector3(x, -0.13f, -8.0f), 0f, 1.5f);
+            for (float z = -5f; z <= 22f; z += tile)
+                City("base", new Vector3(9.95f, -0.13f, z), 0f, 1.5f);
+
+            // Road in front of the shop: asphalt, curbs, dashed centre line, zebra crossing.
+            var asphalt = LookSetup.Mat("Asphalt", LookSetup.Hex("67626B"), rim: 0f);
+            var curb = LookSetup.Mat("Curb", LookSetup.Hex("D9D2C8"), rim: 0f);
+            var paint = LookSetup.Mat("RoadPaint", LookSetup.Hex("FFF6E2"), rim: 0f);
+            LookSetup.Box("Road", street, new Vector3(2f, -0.06f, -12.6f), new Vector3(90f, 0.1f, 5.6f), asphalt);
+            LookSetup.Box("CurbNear", street, new Vector3(2f, -0.02f, -9.62f), new Vector3(90f, 0.18f, 0.35f), curb);
+            LookSetup.Box("CurbFar", street, new Vector3(2f, -0.02f, -15.58f), new Vector3(90f, 0.18f, 0.35f), curb);
+            for (float x = -40f; x <= 44f; x += 3f)
+                if (Mathf.Abs(x - EntranceX) > 2.5f)
+                    LookSetup.Box("Dash", street, new Vector3(x, 0.0f, -12.6f), new Vector3(1.5f, 0.02f, 0.18f), paint);
+            for (int i = 0; i < 5; i++)
+                LookSetup.Box("Zebra", street, new Vector3(EntranceX - 1.7f + i * 0.85f, 0.0f, -12.6f), new Vector3(0.45f, 0.02f, 5.0f), paint);
+
+            // Flower beds along the shop front.
+            var soil = LookSetup.Mat("Soil", LookSetup.Hex("8A5A3C"), rim: 0f);
+            string[] petals = { "FF8FB1", "FFD35C", "FFFFFF", "C9A0FF", "FF8C66" };
+            void FlowerBed(Vector3 center, float length, bool alongX)
+            {
+                var size = alongX ? new Vector3(length, 0.25f, 0.7f) : new Vector3(0.7f, 0.25f, length);
+                LookSetup.Box("FlowerBed", street, center + Vector3.up * 0.1f, size, soil);
+                int count = Mathf.RoundToInt(length * 2.2f);
+                for (int i = 0; i < count; i++)
+                {
+                    float t = (i + 0.5f) / count - 0.5f;
+                    var offset = alongX ? new Vector3(t * length, 0f, ((i * 37) % 3 - 1) * 0.18f) : new Vector3(((i * 37) % 3 - 1) * 0.18f, 0f, t * length);
+                    var stemPos = center + offset + Vector3.up * 0.3f;
+                    LookSetup.Sphere("Leaf", street, stemPos, new Vector3(0.28f, 0.2f, 0.28f), LookSetup.Mat("Leaves", LookSetup.Hex("86C46E"), sway: true));
+                    LookSetup.Sphere("Petal", street, stemPos + Vector3.up * 0.16f, Vector3.one * 0.17f,
+                        LookSetup.Mat($"Petal{i % petals.Length}", LookSetup.Hex(petals[i % petals.Length]), rim: 0.3f, sway: true));
+                }
+            }
+            FlowerBed(new Vector3(-4.5f, 0f, -6.75f), 6.5f, true);
+            FlowerBed(new Vector3(1.8f, 0f, -6.75f), 4f, true);
+            FlowerBed(new Vector3(8.75f, 0f, 2.5f), 5f, false);
+
+            // Street furniture along the front sidewalk (low, so the view stays clear).
+            foreach (float x in new[] { -14f, -4f, 13f })
+                City("streetlight", new Vector3(x, 0f, -9.2f), 180f);
+            City("bench", new Vector3(-9f, 0f, -8.9f), 180f);
+            City("bench", new Vector3(1f, 0f, -8.9f), 180f);
+            City("firehydrant", new Vector3(11.4f, 0f, -9.2f));
+            City("trash_A", new Vector3(3.8f, 0f, -9.2f));
+            City("streetlight", new Vector3(11.4f, 0f, 3f), 90f);
+            City("streetlight", new Vector3(11.4f, 0f, 14f), 90f);
+
+            // Parked and passing cars.
+            City("car_hatchback", new Vector3(-12f, 0f, -10.6f), 90f);
+            City("car_taxi", new Vector3(18f, 0f, -10.6f), 90f);
+            var mover = City("car_sedan", new Vector3(-20f, 0f, -14.2f), 90f);
+            var loop = mover.AddComponent<MergeResto.Look.LoopMover>();
+            loop.from = new Vector3(-30f, 0f, -14.2f);
+            loop.to = new Vector3(34f, 0f, -14.2f);
+            loop.speed = 5f;
+            var mover2 = City("car_stationwagon", new Vector3(20f, 0f, -11f), -90f);
+            var loop2 = mover2.AddComponent<MergeResto.Look.LoopMover>();
+            loop2.from = new Vector3(34f, 0f, -11f);
+            loop2.to = new Vector3(-30f, 0f, -11f);
+            loop2.speed = 4f;
+            loop2.startOffset = 0.45f;
+
+            // Hedges and flowers right outside the low walls.
+            foreach (float x in new[] { -8.4f, -0.7f, 4.4f })
+                Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x * 3) % 7] + "_Color1", new Vector3(x, 0f, -6.75f), x * 40f, 1.0f);
+            foreach (float z in new[] { -0.4f, 5.6f })
+                Nature("Bush_2_" + "ABCDEF"[(int)Mathf.Abs(z * 3) % 6] + "_Color1", new Vector3(8.75f, 0f, z), z * 50f, 0.9f);
+
+            // Behind the shop: houses peeking over the walls, trees and greenery.
+            City("building_C", new Vector3(-4f, 0f, 12.5f), 180f);
+            City("building_A", new Vector3(4.5f, 0f, 12.5f), 180f);
+            City("building_E", new Vector3(13f, 0f, 12.5f), 180f);
+            City("building_B", new Vector3(-15.5f, 0f, 2f), 90f);
+            City("building_D", new Vector3(-15.5f, 0f, -6f), 90f);
+            Nature("Tree_1_A_Color1", new Vector3(-10.5f, 0f, 8.5f), 20f, 1.3f);
+            Nature("Tree_2_B_Color1", new Vector3(-0.5f, 0f, 9f), 80f, 1.25f);
+            Nature("Tree_3_A_Color1", new Vector3(9f, 0f, 9f), 140f, 1.3f);
+            Nature("Tree_4_A_Color1", new Vector3(-11f, 0f, -2f), 200f, 1.2f);
+            Nature("Tree_1_C_Color1", new Vector3(-11.5f, 0f, -9.5f), 60f, 1.1f);
+            Nature("Tree_2_A_Color1", new Vector3(15f, 0f, 4f), 300f, 1.2f);
+            foreach (var (x, z) in new[] { (-9.5f, 4f), (-9.8f, -4.5f), (2f, 7.6f), (6.5f, 7.4f), (12.5f, -4f), (13.5f, 8f) })
+                Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x + z) % 7] + "_Color1", new Vector3(x, 0f, z), x * 30f, 1.1f);
+            // Grass tufts in little clumps rather than lone blades.
+            foreach (var (x, z) in new[] { (-10f, 1f), (-9.2f, 7f), (-6f, 8f), (4f, 8.4f), (-13f, -7f) })
+                for (int i = 0; i < 4; i++)
+                    Nature("Grass_1_" + "ABCD"[i] + "_Color1", new Vector3(x + (i % 2) * 0.5f - 0.25f, 0f, z + (i / 2) * 0.5f - 0.25f), x * 70f + i * 90f, 1.6f);
+
+            // A little park across the side street: path, bench, lamp, flowers and trees.
+            var path = LookSetup.Mat("ParkPath", LookSetup.Hex("E6D3B3"), rim: 0f);
+            LookSetup.Box("ParkPath", street, new Vector3(17f, -0.015f, -5f), new Vector3(1.6f, 0.02f, 9f), path);
+            LookSetup.Box("ParkPath", street, new Vector3(17f, -0.015f, -5f), new Vector3(9f, 0.02f, 1.6f), path);
+            City("bench", new Vector3(15.6f, 0f, -2.5f), 90f);
+            City("streetlight", new Vector3(18.4f, 0f, -7.4f), -90f);
+            FlowerBed(new Vector3(14.2f, 0f, -7.6f), 3.2f, true);
+            FlowerBed(new Vector3(19.6f, 0f, -2.6f), 3.2f, true);
+            Nature("Tree_1_B_Color1", new Vector3(23.5f, 0f, -5.5f), 40f, 1.2f);
+            Nature("Tree_3_B_Color1", new Vector3(21.5f, 0f, 2.5f), 160f, 1.1f);
+            Nature("Bush_2_A_Color1", new Vector3(19.8f, 0f, 0.6f), 30f, 1.1f);
+            Nature("Bush_1_C_Color1", new Vector3(13.6f, 0f, -9.6f), 75f, 1.0f);
+            Nature("Rock_1_A_Color1", new Vector3(-12.5f, 0f, 5f), 30f, 1.2f, sway: false);
+
+            // Across the road: a low hedge and flowers, kept short so they never hide the shop.
+            for (float x = -20f; x <= 26f; x += 2.3f)
+                if (Mathf.Abs(x - EntranceX) > 2f)
+                    Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x) % 7] + "_Color1", new Vector3(x, 0f, -16.6f), x * 35f, 0.75f);
         }
 
         // Leafy parts of plants get the gentle vertex sway.

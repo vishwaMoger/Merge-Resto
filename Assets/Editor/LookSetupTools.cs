@@ -122,6 +122,20 @@ namespace MergeResto.EditorTools
             vignette.smoothness.Override(0.5f);
             vignette.color.Override(new Color(0.35f, 0.2f, 0.25f));
 
+            // Warm highlights, slightly cool and purple shadows: a sunny afternoon storybook grade.
+            var smh = GetOrAdd<ShadowsMidtonesHighlights>(profile);
+            smh.shadows.Override(new Vector4(0.92f, 0.9f, 1.08f, -0.02f));
+            smh.midtones.Override(new Vector4(1.02f, 1f, 0.97f, 0f));
+            smh.highlights.Override(new Vector4(1.06f, 1.0f, 0.9f, 0.02f));
+
+            // Gentle background blur so the shop reads like a miniature diorama.
+            var dof = GetOrAdd<DepthOfField>(profile);
+            dof.mode.Override(DepthOfFieldMode.Gaussian);
+            dof.gaussianStart.Override(36f);
+            dof.gaussianEnd.Override(70f);
+            dof.gaussianMaxRadius.Override(1.2f);
+            dof.highQualitySampling.Override(true);
+
             EditorUtility.SetDirty(profile);
             return profile;
         }
@@ -191,11 +205,11 @@ namespace MergeResto.EditorTools
             var sunGo = new GameObject("Sun");
             var sun = sunGo.AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.94f, 0.84f);
-            sun.intensity = 1.05f;
+            sun.color = new Color(1f, 0.9f, 0.76f);
+            sun.intensity = 1.0f;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.9f;
-            sunGo.transform.rotation = Quaternion.Euler(48f, -20f, 0f);
+            sunGo.transform.rotation = Quaternion.Euler(40f, -32f, 0f);
             sunGo.AddComponent<UniversalAdditionalLightData>();
 
             var lookGo = new GameObject("Look");
