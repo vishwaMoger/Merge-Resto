@@ -28,7 +28,7 @@ namespace MergeResto.Game.UI
             public bool Counts => kind != Kind.Talk && kind != Kind.Reward;
         }
 
-        static string Key(string s) => $"<color=#D2602A>{s}</color>";
+        static string Key(string s) => $"<color=#C24E18>{s}</color>";
 
         static readonly Step[] Steps =
         {
@@ -330,6 +330,9 @@ namespace MergeResto.Game.UI
             {
                 _closing = 0f;
                 _sim.PatienceScale = 1f;
+                // Customers who waited through the lesson start fresh, one after another.
+                for (int i = 0; i < _sim.State.queue.Count; i++)
+                    _sim.State.queue[i].patienceLeft = _sim.Def.patienceSeconds + i * 4f;
                 TutorialFocus.Active = false;
                 TutorialFocus.Station = -1;
                 TutorialFocus.ShowBadge = false;

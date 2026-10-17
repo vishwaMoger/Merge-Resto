@@ -38,7 +38,7 @@ namespace MergeResto.Game.UI
         [SerializeField] Sprite unaffordableSprite;
         [SerializeField] Sprite maxedSprite;
         [SerializeField] Sprite managerSprite;
-        [SerializeField] Color goodValue = new(0.27f, 0.62f, 0.22f);
+        [SerializeField] Color goodValue = new(0.2f, 0.52f, 0.16f);
 
         int _station = -1;
         int _shownStation = -1;

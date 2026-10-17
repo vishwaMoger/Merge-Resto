@@ -24876,8 +24876,8 @@ MonoBehaviour:
   fontWeights: []
   normalStyle: 0
   normalSpacingOffset: 0
-  boldStyle: 0.75
-  boldSpacing: 7
+  boldStyle: 0.7
+  boldSpacing: 1
   italicStyle: 35
   tabSize: 10
   m_fontInfo:
