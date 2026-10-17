@@ -15,7 +15,7 @@ namespace MergeResto.Game.UI
     public class GrandOpeningTutorial : MonoBehaviour
     {
         /// <summary>Saved step value once the tutorial is over.</summary>
-        public const int Finished = 1000;
+        public const int Finished = ShopState.TutorialFinished;
 
         enum Kind { Talk, Tap, Serve, Upgrade, Manager, Reward }
 

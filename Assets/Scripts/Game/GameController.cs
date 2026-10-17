@@ -50,6 +50,7 @@ namespace MergeResto.Game
             if (_pendingOffline > 0)
                 OfflineEarningsReady?.Invoke(_pendingOffline, _pendingOfflineSeconds);
 
+            WorldState.SetLast(config.shop.id);
             if (CrazySDK.IsAvailable && CrazySDK.IsInitialized)
                 CrazySDK.Game.GameplayStart();
         }
@@ -133,12 +134,24 @@ namespace MergeResto.Game
             SaveStore.Save(SaveKey, JsonUtility.ToJson(Sim.State));
         }
 
+        public ShopDefinition Definition => config.shop;
+
+        /// <summary>Saves this shop and opens another one.</summary>
+        public void Travel(string sceneName)
+        {
+            Save();
+            enabled = false;
+            if (CrazySDK.IsAvailable && CrazySDK.IsInitialized)
+                CrazySDK.Game.GameplayStop();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
+        }
+
         /// <summary>Deletes the save and reloads the scene with a fresh shop (debug and settings use).</summary>
         public void ResetProgress()
         {
             SaveStore.Delete(SaveKey);
             enabled = false; // no autosave before the reload
-            UnityEngine.SceneManagement.SceneManager.LoadScene(gameObject.scene.buildIndex);
+            UnityEngine.SceneManagement.SceneManager.LoadScene(gameObject.scene.name);
         }
     }
 }

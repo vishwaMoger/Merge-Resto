@@ -59,7 +59,11 @@ namespace MergeResto.Sim
 
         public static ShopState NewState(ShopDefinition def)
         {
-            var s = new ShopState { shopId = def.id, coins = def.startCoins, gems = def.startGems };
+            var s = new ShopState
+            {
+                shopId = def.id, coins = def.startCoins, gems = def.startGems,
+                tutorialStep = def.hasTutorial ? 0 : ShopState.TutorialFinished,
+            };
             foreach (var st in def.stations)
                 s.stations.Add(new StationState { hasManager = st.startsAutomated });
             for (int i = 0; i < def.couriers.Count; i++)

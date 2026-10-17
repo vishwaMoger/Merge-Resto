@@ -25,6 +25,7 @@ namespace MergeResto.EditorTools
         public const string BakerLook = "Baker";
         public const string CashierLook = "Cashier";
         public const string GrandmaLook = "Grandma";
+        public const string BaristaLook = "Barista";
         public static readonly string[] CustomerLooks =
             { "Customer_Sky", "Customer_Lavender", "Customer_Teal", "Customer_Rose", "Customer_Hoodie", "Customer_Knight", "Customer_Strong" };
 
@@ -46,6 +47,10 @@ namespace MergeResto.EditorTools
             new() { name = CashierLook, model = "Rogue", texture = "rogue_texture",
                 hide = new[] { "Rogue_Cape" },
                 recolor = new[] { (0, 1, "F2817A"), (1, 1, "FFF1DE") } },
+            // Café baristas: the baker outfit without the hat, in a green apron.
+            new() { name = BaristaLook, model = "Ranger", texture = "ranger_texture",
+                hide = new[] { "Ranger_Cape", "Ranger_Quiver" },
+                recolor = new[] { (0, 1, "4F9E6E"), (1, 2, "4F9E6E") } },
             // Grandma runs the till and guides the tutorial: silver hair, lavender cardigan, cream apron.
             new() { name = GrandmaLook, model = "Mage", texture = "mage_texture",
                 hide = new[] { "Mage_Hat", "Mage_Cape" },
@@ -98,7 +103,7 @@ namespace MergeResto.EditorTools
             var floor = LookSetup.Box("Floor", null, new Vector3(0f, -0.05f, 0f), new Vector3(30f, 0.1f, 8f),
                 LookSetup.Mat("LineupFloor", LookSetup.Hex("F7E7C8")));
             floor.transform.SetParent(null);
-            var names = new[] { BakerLook, CashierLook, GrandmaLook }.Concat(CustomerLooks).ToArray();
+            var names = new[] { BakerLook, CashierLook, GrandmaLook, BaristaLook }.Concat(CustomerLooks).ToArray();
             for (int i = 0; i < names.Length; i++)
             {
                 var go = (GameObject)PrefabUtility.InstantiatePrefab(LoadPrefab(names[i]));

@@ -111,6 +111,8 @@ namespace MergeResto.Sim
     {
         public string id = "grandmas_bakery";
         public string displayName = "Grandma's Bakery";
+        [Tooltip("Shops after the first skip the Grand Opening tutorial.")]
+        public bool hasTutorial = true;
 
         [Tooltip("Production chain in order. Station 0 must be a Source, the last a Seller.")]
         public List<StationDefinition> stations = new();

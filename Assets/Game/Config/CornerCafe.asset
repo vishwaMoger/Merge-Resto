@@ -1,0 +1,362 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2917ff0e61d07f640ae45e5b76ea2065, type: 3}
+  m_Name: CornerCafe
+  m_EditorClassIdentifier: Assembly-CSharp::MergeResto.Game.ShopConfig
+  shop:
+    id: corner_cafe
+    displayName: "Corner Caf\xE9"
+    hasTutorial: 0
+    stations:
+    - id: beans
+      displayName: Coffee Beans
+      kind: 0
+      baseCycleSeconds: 2.5
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 25
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Quick Scoop
+        maxLevel: 10
+        baseCost: 200
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Sacks
+        maxLevel: 10
+        baseCost: 300
+        costGrowth: 1.7
+      - track: 2
+        displayName: Extra Pallet
+        maxLevel: 2
+        baseCost: 1600
+        costGrowth: 3
+    - id: espresso
+      displayName: Espresso Machine
+      kind: 1
+      baseCycleSeconds: 3
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 35
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Faster Brew
+        maxLevel: 10
+        baseCost: 200
+        costGrowth: 1.7
+      - track: 1
+        displayName: Double Shot
+        maxLevel: 10
+        baseCost: 300
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Machine
+        maxLevel: 2
+        baseCost: 1600
+        costGrowth: 3
+    - id: latte
+      displayName: Latte Bar
+      kind: 1
+      baseCycleSeconds: 3.5
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 45
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Swift Pour
+        maxLevel: 10
+        baseCost: 200
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Mugs
+        maxLevel: 10
+        baseCost: 300
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Station
+        maxLevel: 2
+        baseCost: 1600
+        costGrowth: 3
+    - id: counter
+      displayName: "Caf\xE9 Counter"
+      kind: 2
+      baseCycleSeconds: 1.2
+      baseBatch: 0
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 0
+      startsAutomated: 1
+      upgrades:
+      - track: 0
+        displayName: Friendly Barista
+        maxLevel: 10
+        baseCost: 200
+        costGrowth: 1.7
+      - track: 1
+        displayName: Fancy Latte
+        maxLevel: 10
+        baseCost: 300
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Cashier
+        maxLevel: 2
+        baseCost: 1600
+        costGrowth: 3
+    couriers:
+    - carry: 6
+      walkSeconds: 1.2112033
+    - carry: 6
+      walkSeconds: 1.7499999
+    - carry: 6
+      walkSeconds: 1.6180404
+    customerIntervalSeconds: 4
+    intervalPerShopLevel: 0.94
+    minCustomerIntervalSeconds: 0.8
+    maxQueue: 6
+    itemsPerOrder: 2
+    pricePerItem: 70
+    patienceSeconds: 22
+    walkInSeconds: 12.161606
+    stepUpSeconds: 0.65
+    startCoins: 600
+    startGems: 25
+    pricePerOutputLevel: 0.2
+    gemMilestoneEvery: 5
+    gemMilestoneReward: 10
+    board:
+      columns: 7
+      rows: 5
+      energyMax: 100
+      energyRegenSeconds: 6
+      sellBase: 5
+      chains:
+      - id: sweets
+        displayName: Sweets
+        tiers:
+        - Cookie
+        - Macaron
+        - Cupcake
+        - Donut
+        - Cinnamon Roll
+        - Strawberry Cake
+        - Birthday Cake
+        models:
+        - TinyTreats_BakedGoods/cookie
+        - TinyTreats_BakeryInterior/macaron_pink
+        - TinyTreats_BakedGoods/cupcake
+        - TinyTreats_BakedGoods/donut_pink
+        - TinyTreats_BakedGoods/cinnamon_roll
+        - TinyTreats_BakedGoods/cake_strawberry
+        - TinyTreats_BakedGoods/cake_birthday
+      - id: kitchen
+        displayName: Kitchenware
+        tiers:
+        - Whisk
+        - Mug
+        - Plates
+        - Mixing Bowl
+        - Kitchen Scale
+        - Stand Mixer
+        models:
+        - TinyTreats_BakeryInterior/whisk
+        - TinyTreats_BakeryInterior/mug_A_pink
+        - TinyTreats_BakeryInterior/plate_stacked
+        - TinyTreats_BakeryInterior/mixing_bowl
+        - TinyTreats_BakeryInterior/scale
+        - TinyTreats_BakeryInterior/stand_mixer
+      - id: plants
+        displayName: Plants
+        tiers:
+        - Succulent
+        - Little Cactus
+        - Pothos
+        - ZZ Plant
+        - Snake Plant
+        - Monstera
+        models:
+        - TinyTreats_HousePlants/succulent_plant_pot_small
+        - TinyTreats_HousePlants/cacti_plant_pot_small
+        - TinyTreats_HousePlants/pothos_plant_small_potted
+        - TinyTreats_HousePlants/zzplant_plant_medium_potted
+        - TinyTreats_HousePlants/sansevieria_plant_large_potted
+        - TinyTreats_HousePlants/monstera_plant_large_potted
+      generators:
+      - id: cookie_jar
+        displayName: Cookie Jar
+        chain: 0
+        luckyChance: 0.12
+        model: TinyTreats_BakeryInterior/cookie_jar
+      - id: dish_rack
+        displayName: Dish Rack
+        chain: 1
+        luckyChance: 0.12
+        model: KayKit_RestaurantBits/dishrack_plates
+      - id: watering_can
+        displayName: Watering Can
+        chain: 2
+        luckyChance: 0.12
+        model: TinyTreats_HousePlants/watering_can_A
+      renovations:
+      - id: pastry_stand
+        displayName: Fill the cake stand
+        needs:
+        - chain: 0
+          tier: 3
+        rewardCoins: 800
+        coziness: 0.05
+      - id: window_plants
+        displayName: Plant the window pots
+        needs:
+        - chain: 2
+          tier: 3
+        - chain: 2
+          tier: 2
+        rewardCoins: 1200
+        coziness: 0.06
+      - id: dining
+        displayName: "Lay the caf\xE9 tables"
+        needs:
+        - chain: 1
+          tier: 3
+        - chain: 1
+          tier: 3
+        - chain: 1
+          tier: 2
+        rewardCoins: 1800
+        coziness: 0.08
+      - id: display_case
+        displayName: Shine the display case
+        needs:
+        - chain: 1
+          tier: 4
+        - chain: 0
+          tier: 4
+        rewardCoins: 3000
+        coziness: 0.08
+      - id: corner
+        displayName: Grow a reading corner
+        needs:
+        - chain: 2
+          tier: 5
+        rewardCoins: 5000
+        coziness: 0.08
+      - id: shop_sign
+        displayName: "Light the caf\xE9 sign"
+        needs:
+        - chain: 0
+          tier: 6
+        - chain: 1
+          tier: 5
+        - chain: 2
+          tier: 5
+        rewardCoins: 12000
+        coziness: 0.15
+      start:
+      - cell: 0
+        generator: 0
+        chain: 0
+        tier: 0
+      - cell: 14
+        generator: 1
+        chain: 0
+        tier: 0
+      - cell: 28
+        generator: 2
+        chain: 0
+        tier: 0
+      - cell: 9
+        generator: -1
+        chain: 0
+        tier: 0
+      - cell: 10
+        generator: -1
+        chain: 0
+        tier: 0
+    goals:
+    - kind: 1
+      station: 0
+      target: 10
+      rewardCoins: 600
+      rewardGems: 0
+    - kind: 0
+      station: 1
+      target: 2
+      rewardCoins: 0
+      rewardGems: 15
+    - kind: 2
+      station: 0
+      target: 1
+      rewardCoins: 800
+      rewardGems: 0
+    - kind: 3
+      station: 0
+      target: 1
+      rewardCoins: 0
+      rewardGems: 20
+    - kind: 0
+      station: 2
+      target: 3
+      rewardCoins: 0
+      rewardGems: 20
+    - kind: 2
+      station: 1
+      target: 1
+      rewardCoins: 1500
+      rewardGems: 0
+    - kind: 5
+      station: 0
+      target: 20000
+      rewardCoins: 0
+      rewardGems: 30
+    - kind: 4
+      station: 1
+      target: 1
+      rewardCoins: 0
+      rewardGems: 30
+    - kind: 3
+      station: 0
+      target: 3
+      rewardCoins: 0
+      rewardGems: 40
+    - kind: 1
+      station: 0
+      target: 150
+      rewardCoins: 6000
+      rewardGems: 0
+    - kind: 2
+      station: 2
+      target: 1
+      rewardCoins: 4000
+      rewardGems: 0
+    - kind: 6
+      station: 0
+      target: 30
+      rewardCoins: 0
+      rewardGems: 60
+    - kind: 3
+      station: 0
+      target: 6
+      rewardCoins: 0
+      rewardGems: 80
+    - kind: 5
+      station: 0
+      target: 150000
+      rewardCoins: 0
+      rewardGems: 100
+    offlineCapHours: 2
+    offlineEfficiency: 0.5

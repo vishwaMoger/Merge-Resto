@@ -15,6 +15,7 @@ MonoBehaviour:
   shop:
     id: grandmas_bakery
     displayName: Grandma's Bakery
+    hasTutorial: 1
     stations:
     - id: flour
       displayName: Flour Storage
