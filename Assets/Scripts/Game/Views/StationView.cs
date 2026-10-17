@@ -12,8 +12,10 @@ namespace MergeResto.Game.Views
         public int stationIndex;
         [Tooltip("Where couriers stand to pick up from or drop off at this station.")]
         public Transform workPoint;
-        [Tooltip("Where the progress ring and tap prompt float.")]
+        [Tooltip("Where the progress ring floats.")]
         public Transform hudAnchor;
+        [Tooltip("Top of the first machine: where tap pins and the tutorial pointer touch down.")]
+        public Transform tapAnchor;
         [Tooltip("One per machine slot; extra slots appear as Machines are upgraded.")]
         public GameObject[] machineVisuals;
         [Tooltip("Goods shown on the station; more appear as stock fills up.")]
@@ -24,13 +26,28 @@ namespace MergeResto.Game.Views
         public Transform spinner;
         public float spinDegreesPerSecond = 360f;
 
+        [Tooltip("Warm glow pulsed on the station while it waits for a tap.")]
+        public Color glowColor = new(0.55f, 0.32f, 0.08f);
+
+        static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
+
         ShopSim _sim;
         float _bounce;
+        Renderer[] _glowRenderers;
+        MaterialPropertyBlock _block;
+        float _glow;
 
         void Start()
         {
             _sim = GameController.Instance.Sim;
             _sim.CycleCompleted += OnCycleCompleted;
+            // Staff are not part of the machine, so they never glow.
+            var list = new System.Collections.Generic.List<Renderer>();
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+                if (r.GetComponentInParent<ChibiAnimator>() == null && !(r is ParticleSystemRenderer))
+                    list.Add(r);
+            _glowRenderers = list.ToArray();
+            _block = new MaterialPropertyBlock();
         }
 
         void OnDestroy()
@@ -105,12 +122,38 @@ namespace MergeResto.Game.Views
             if (running && spinner != null)
                 spinner.Rotate(0f, spinDegreesPerSecond * Time.deltaTime, 0f, Space.Self);
 
+            UpdateGlow();
+
             // Squash-and-stretch pop when a batch finishes.
             if (_bounce > 0f)
             {
                 _bounce = Mathf.Max(0f, _bounce - Time.deltaTime * 4f);
                 float s = Mathf.Sin(_bounce * Mathf.PI) * 0.08f;
                 transform.localScale = new Vector3(1f - s * 0.5f, 1f + s, 1f - s * 0.5f);
+            }
+        }
+
+        // Pulses a warm glow while the station is waiting for the player (or is the tutorial's target).
+        void UpdateGlow()
+        {
+            bool lit = TutorialFocus.Active ? TutorialFocus.Station == stationIndex : _sim.NeedsTap(stationIndex);
+            float target = lit ? 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 5f) : 0f;
+            float next = Mathf.MoveTowards(_glow, target, Time.unscaledDeltaTime * 4f);
+            if (Mathf.Approximately(next, _glow))
+                return;
+            _glow = next;
+            foreach (var r in _glowRenderers)
+            {
+                if (r == null)
+                    continue;
+                if (_glow <= 0.001f)
+                {
+                    r.SetPropertyBlock(null);
+                    continue;
+                }
+                r.GetPropertyBlock(_block);
+                _block.SetColor(EmissionId, glowColor * _glow);
+                r.SetPropertyBlock(_block);
             }
         }
     }

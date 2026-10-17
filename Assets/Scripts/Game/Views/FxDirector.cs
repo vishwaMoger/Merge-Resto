@@ -79,6 +79,13 @@ namespace MergeResto.Game.Views
                 coinFly.Fly(position, Mathf.Clamp((int)(coins / 25), 2, 6));
         }
 
+        /// <summary>A big sparkle burst for milestones (tutorial finished, new shop).</summary>
+        public void Celebrate(Vector3 position)
+        {
+            Emit(sparkleBurst, position, 60);
+            Emit(sparkleBurst, position + Vector3.up * 0.8f, 40);
+        }
+
         static void Emit(ParticleSystem ps, Vector3 position, int count)
         {
             if (ps == null)

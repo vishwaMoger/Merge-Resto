@@ -46,7 +46,7 @@ namespace MergeResto.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             // Opening a scene unloads unreferenced assets, so fetch the config afterwards.
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
-            var cam = LookSetup.CreateLookRig(new Vector3(1.2f, 1f, -0.6f), 9.2f);
+            var cam = LookSetup.CreateLookRig(new Vector3(0.4f, 1f, 1.0f), 9.4f);
 
             var world = new GameObject("Bakery").transform;
             BuildRoom(world);
@@ -72,10 +72,15 @@ namespace MergeResto.EditorTools
             SetPrivate(input, "worldCamera", cam);
 
             HudBuilder.Build(stations, crowd, out var popups, out var coinFly);
-            BuildFx(world, stations, crowd, popups, coinFly);
+            var fx = BuildFx(world, stations, crowd, popups, coinFly);
             BuildDecor(world);
             BuildInterior(world);
             BuildStreet(world);
+
+            // Grandma guides the Grand Opening; her portrait is rendered from the 3D model.
+            var portrait = PortraitRenderer.Render(CharacterLibrary.GrandmaLook, LookSetup.Hex("FFD9A8"));
+            var grandma = stations[3].GetComponentsInChildren<ChibiAnimator>(true).First(a => a.name == "Grandma");
+            HudBuilder.BuildTutorial(stations, fx, coinFly, grandma, portrait);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -239,16 +244,22 @@ namespace MergeResto.EditorTools
 
         static StationView BuildFlourStorage(Transform world)
         {
-            var view = NewStation(world, "FlourStorage", new Vector3(-6.4f, 0f, 4.7f), new Vector3(-6.0f, 0f, 3.0f), 1.5f);
+            var view = NewStation(world, "FlourStorage", new Vector3(-6.1f, 0f, 4.45f), new Vector3(-6.0f, 0f, 3.0f), 1.5f);
             var t = view.transform;
             var slots = new List<GameObject>();
             for (int m = 0; m < 3; m++)
             {
+                // A delivery: a stack of big flour sacks on a wooden crate, easy to spot and tap.
                 var pile = Group($"SackPile{m}", t);
-                pile.localPosition = new Vector3(-0.6f + m * 1.0f, 0f, 0f);
-                Place("flour_sack_closed", pile, Vector3.zero + new Vector3(-0.3f, 0f, 0f), 10f, local: true);
-                Place("flour_sack_closed", pile, new Vector3(0.3f, 0f, 0.05f), -15f, local: true);
-                Place("flour_sack_closed", pile, new Vector3(0f, 0.5f, 0f), 5f, local: true);
+                pile.localPosition = new Vector3(-0.75f + m * 1.25f, 0f, 0f);
+                var crate = Place("crate", RestaurantArt, pile, Vector3.zero, 0f, local: true);
+                crate.transform.localScale = Vector3.Scale(crate.transform.localScale, new Vector3(1.15f, 0.55f, 1.0f));
+                float top = 0.32f;
+                var a = Place("flour_sack_closed", pile, new Vector3(-0.28f, top, 0f), 10f, local: true);
+                var b = Place("flour_sack_closed", pile, new Vector3(0.3f, top, 0.05f), -15f, local: true);
+                var c = Place("flour_sack_closed", pile, new Vector3(0f, top + 0.55f, 0f), 5f, local: true);
+                foreach (var sack in new[] { a, b, c })
+                    sack.transform.localScale *= 1.25f;
                 slots.Add(pile.gameObject);
             }
             view.machineVisuals = slots.ToArray();
@@ -321,7 +332,8 @@ namespace MergeResto.EditorTools
             float[] xs = { 0.75f, 2f, -0.4f };
             for (int m = 0; m < 3; m++)
             {
-                var c = Character(CharacterLibrary.CashierLook, t, $"Cashier{m}");
+                // Grandma herself runs the first till.
+                var c = Character(m == 0 ? CharacterLibrary.GrandmaLook : CharacterLibrary.CashierLook, t, m == 0 ? "Grandma" : $"Cashier{m}");
                 c.transform.localPosition = new Vector3(xs[m], 0f, 1.25f);
                 c.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 c.GetComponent<ChibiAnimator>().idleFacing = Vector3.back;
@@ -655,7 +667,7 @@ namespace MergeResto.EditorTools
 
         const string FxFolder = "Assets/Art/FX";
 
-        static void BuildFx(Transform world, StationView[] stations, CustomerCrowd crowd, FloatingTextLayer popups, CoinFlyLayer coinFly)
+        static FxDirector BuildFx(Transform world, StationView[] stations, CustomerCrowd crowd, FloatingTextLayer popups, CoinFlyLayer coinFly)
         {
             var fx = Group("FX", world);
             var sparkle = Burst(fx, "SparkleBurst", "fx_sparkle", new Color(1f, 0.85f, 0.35f), size: (0.25f, 0.55f), speed: (2.5f, 5f), life: (0.45f, 0.8f), gravity: 0.6f);
@@ -673,6 +685,7 @@ namespace MergeResto.EditorTools
             so.FindProperty("sparkleBurst").objectReferenceValue = sparkle;
             so.FindProperty("flourPuff").objectReferenceValue = flour;
             so.ApplyModifiedPropertiesWithoutUndo();
+            return director;
         }
 
         static ParticleSystem Burst(Transform parent, string name, string sprite, Color color,
@@ -875,6 +888,26 @@ namespace MergeResto.EditorTools
             var box = view.gameObject.AddComponent<BoxCollider>();
             box.center = view.transform.InverseTransformPoint(b.center);
             box.size = b.size + new Vector3(0.2f, 0.2f, 0.2f);
+
+            // Tap pins touch down on top of the first machine; the progress ring hovers just
+            // above it. Staffed stations (the counter) use the top of the whole counter.
+            var first = view.machineVisuals != null && view.machineVisuals.Length > 0 ? view.machineVisuals[0] : null;
+            Vector3 top;
+            if (first != null && first.GetComponentInChildren<ChibiAnimator>(true) == null)
+            {
+                var fb = new Bounds(first.transform.position, Vector3.zero);
+                bool any = false;
+                foreach (var r in first.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (!any) { fb = r.bounds; any = true; }
+                    else fb.Encapsulate(r.bounds);
+                }
+                top = new Vector3(fb.center.x, fb.max.y + 0.1f, fb.center.z);
+            }
+            else
+                top = new Vector3(b.center.x, b.max.y + 0.1f, b.center.z);
+            view.tapAnchor = Marker("TapAnchor", view.transform, top);
+            view.hudAnchor.position = top + Vector3.up * 0.75f;
         }
 
         static void SetPrivate(Object target, string field, object value)

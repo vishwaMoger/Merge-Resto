@@ -161,6 +161,17 @@ namespace MergeResto.Sim.Tests
         }
 
         [Test]
+        public void Customer_StaysWhilePatienceIsPaused()
+        {
+            var sim = new ShopSim(Bakery()) { PatienceScale = 0f };
+            int left = 0;
+            sim.CustomerLeft += _ => left++;
+            sim.Tick(60f);
+            Assert.AreEqual(0, left);
+            Assert.Greater(sim.State.queue.Count, 0);
+        }
+
+        [Test]
         public void Queue_NeverExceedsMax()
         {
             var def = Bakery();

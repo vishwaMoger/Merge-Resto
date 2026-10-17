@@ -29,6 +29,9 @@ namespace MergeResto.Sim
 
         int _nextCustomerId = 1;
 
+        /// <summary>How fast waiting customers lose patience (0 pauses it, e.g. during the tutorial).</summary>
+        public float PatienceScale { get; set; } = 1f;
+
         public ShopSim(ShopDefinition def, ShopState state = null)
         {
             Def = def ?? throw new ArgumentNullException(nameof(def));
@@ -422,7 +425,7 @@ namespace MergeResto.Sim
                     customer.walkLeft = Math.Max(0f, customer.walkLeft - dt);
                     continue;
                 }
-                customer.patienceLeft -= dt;
+                customer.patienceLeft -= dt * PatienceScale;
                 if (customer.patienceLeft <= 0f)
                 {
                     RemoveCustomerAt(i);

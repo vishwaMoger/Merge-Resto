@@ -15,6 +15,8 @@ namespace MergeResto.Sim
         public int gems;
         public double lifetimeCoins;
         public long lastSavedUnixSeconds;
+        /// <summary>Grand Opening tutorial progress: index of the current step, or a large value once finished.</summary>
+        public int tutorialStep;
         public float customerTimer;
         public List<StationState> stations = new();
         public List<CourierState> couriers = new();

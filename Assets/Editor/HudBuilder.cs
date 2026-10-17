@@ -19,6 +19,10 @@ namespace MergeResto.EditorTools
     public static class HudBuilder
     {
         static TMP_FontAsset _display, _body;
+        static RectTransform _root;
+        static StationPanel _panel;
+        static readonly List<StationHud> _markers = new();
+        static readonly Color PinOrange = new(1f, 0.52f, 0.18f);
         static Material _outlined, _shadow;
         static readonly Color Brown = new(0.36f, 0.23f, 0.18f);
         static readonly Color SoftBrown = new(0.55f, 0.42f, 0.36f);
@@ -46,6 +50,13 @@ namespace MergeResto.EditorTools
                 "sl_icon_close" => "Icons/Icon_Close",
                 "sl_icon_speed" => "Joysticks/PowerUp_Ready_Cookie",
                 "sl_shine" => "BG_Shining",
+                "sl_btn_orange_circle" => "Buttons/250px/Button_Circle_Orange_250px",
+                "sl_play" => "Icons/Icon_Play",
+                "sl_green_disc" => "Scales/Scale_Honey_Green_60px",
+                "sl_ping" => "Scales/Empty_Circle_250px",
+                "sl_medal" => "Icons/Medal",
+                "sl_disc_honey" => "Frames/250px/Frame_Circle_Honey_250px",
+                "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
                 _ => null,
             };
             return path != null ? AssetDatabase.LoadAssetAtPath<Sprite>(SweetLand + path + ".png") : UiArtGenerator.Load(key);
@@ -90,6 +101,8 @@ namespace MergeResto.EditorTools
             scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
             var root = (RectTransform)canvasGo.transform;
+            _root = root;
+            _markers.Clear();
 
             var worldLayer = Stretch(Rect("WorldLayer", root));
             foreach (var s in stations)
@@ -103,7 +116,7 @@ namespace MergeResto.EditorTools
             Set(popups, "crowd", crowd);
 
             var topBar = TopBar(root, out var coinTarget, out var coinJuice);
-            StationCard(root);
+            _panel = StationCard(root);
             OfflineDialog(root);
 
             var flyLayer = Stretch(Rect("CoinFly", root));
@@ -142,15 +155,22 @@ namespace MergeResto.EditorTools
             icon.sizeDelta = new Vector2(46, 46);
             Img(icon, IconFor(station), Color.white);
 
-            var tap = Rect("TapPrompt", root);
-            tap.sizeDelta = new Vector2(150, 115);
-            tap.pivot = new Vector2(0.5f, 0f);
-            Img(tap, "bubble", Color.white);
-            var tapLabel = Label("Label", tap, "TAP!", 44, _display, _outlined, Color.white, TextAlignmentOptions.Center);
-            var lr = tapLabel.rectTransform;
-            lr.anchorMin = new Vector2(0f, 0.3f);
-            lr.anchorMax = new Vector2(1f, 0.95f);
-            lr.offsetMin = lr.offsetMax = Vector2.zero;
+            var tap = Pin(root, "TapPin", "TAP!");
+
+            // Upgrade badge: a small green bubble with an up arrow on the ring's corner; opens the card.
+            var upBadge = Rect("UpgradeBadge", root);
+            upBadge.anchoredPosition = new Vector2(46, 40);
+            upBadge.sizeDelta = new Vector2(54, 54);
+            var upBadgeImage = Img(upBadge, "sl_green_disc", Color.white);
+            upBadgeImage.raycastTarget = true;
+            var upBadgeButton = upBadge.gameObject.AddComponent<UnityEngine.UI.Button>();
+            upBadgeButton.targetGraphic = upBadgeImage;
+            upBadge.gameObject.AddComponent<ButtonJuice>();
+            var up = Rect("Arrow", upBadge);
+            up.sizeDelta = new Vector2(30, 30);
+            up.anchoredPosition = new Vector2(0, 1);
+            up.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            Img(up, "sl_play", Color.white);
 
             var badge = Rect("ManagerBadge", root);
             badge.sizeDelta = new Vector2(150, 56);
@@ -166,7 +186,7 @@ namespace MergeResto.EditorTools
 
             var stockPill = Rect("StockPill", root);
             stockPill.sizeDelta = new Vector2(96, 46);
-            stockPill.anchoredPosition = new Vector2(92, -4);
+            stockPill.anchoredPosition = new Vector2(-96, -4);
             Window(stockPill, 5f, 2.4f);
             var stock = Label("Stock", stockPill, "", 32, _display, _shadow, Brown, TextAlignmentOptions.Center);
             Stretch(stock.rectTransform);
@@ -174,9 +194,34 @@ namespace MergeResto.EditorTools
 
             Set(hud, "ring", ring.gameObject);
             Set(hud, "ringFill", fill);
-            Set(hud, "tapPrompt", tap.gameObject);
+            Set(hud, "tapPin", tap);
+            Set(hud, "upgradeBadge", upBadge);
             Set(hud, "managerBadge", badge.gameObject);
             Set(hud, "stockText", stock);
+            _markers.Add(hud);
+        }
+
+        // A glossy orange "map pin" whose tip (the pivot) touches what should be tapped.
+        static RectTransform Pin(RectTransform parent, string name, string label)
+        {
+            var pin = Rect(name, parent);
+            pin.pivot = new Vector2(0.5f, 0f);
+            pin.sizeDelta = new Vector2(108, 140);
+            var tail = Rect("Tail", pin);
+            tail.anchorMin = tail.anchorMax = new Vector2(0.5f, 0f);
+            tail.anchoredPosition = new Vector2(0, 22);
+            tail.sizeDelta = new Vector2(50, 50);
+            tail.localRotation = Quaternion.Euler(0f, 0f, -90f);
+            Img(tail, "sl_play", PinOrange);
+            var disc = Rect("Disc", pin);
+            disc.anchorMin = disc.anchorMax = new Vector2(0.5f, 0f);
+            disc.pivot = new Vector2(0.5f, 0f);
+            disc.anchoredPosition = new Vector2(0, 30);
+            disc.sizeDelta = new Vector2(108, 108);
+            Img(disc, "sl_btn_orange_circle", Color.white, simple: true);
+            var text = Label("Label", disc, label, 36, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(text.rectTransform, new Vector2(0, 8), new Vector2(0, 0));
+            return pin;
         }
 
         static string IconFor(StationView s) => s.name switch
@@ -237,7 +282,7 @@ namespace MergeResto.EditorTools
 
         // ------------------------------------------------------------------ Station card
 
-        static void StationCard(RectTransform root)
+        static StationPanel StationCard(RectTransform root)
         {
             var holder = Stretch(Rect("StationPanel", root));
             var panel = holder.gameObject.AddComponent<StationPanel>();
@@ -295,6 +340,7 @@ namespace MergeResto.EditorTools
             Set(panel, "unaffordableSprite", Resolve("sl_btn_white"));
             Set(panel, "maxedSprite", Resolve("sl_btn_yellow"));
             Set(panel, "managerSprite", Resolve("sl_btn_pink"));
+            return panel;
         }
 
         static StationPanel.UpgradeRow Row(RectTransform sheet, UpgradeTrack track, string icon, float y, string costIcon, string buttonSprite, bool manager = false)
@@ -426,6 +472,161 @@ namespace MergeResto.EditorTools
             Set(dialog, "body", body);
             Set(dialog, "amount", amount);
             Set(dialog, "collectButton", button);
+        }
+
+        // ------------------------------------------------------------------ Tutorial
+
+        const string SpotlightMaterialPath = "Assets/Art/UI/Spotlight.mat";
+
+        static Material SpotlightMaterial()
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(SpotlightMaterialPath);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("MergeResto/UI/Spotlight"));
+                AssetDatabase.CreateAsset(mat, SpotlightMaterialPath);
+            }
+            mat.color = new Color(0.2f, 0.11f, 0.08f, 0.5f);
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        /// <summary>The Grand Opening layer: spotlight, pointer, Grandma's speech box, progress bar.</summary>
+        public static void BuildTutorial(StationView[] stations, FxDirector fx, CoinFlyLayer coinFly, ChibiAnimator grandma, Sprite portraitSprite)
+        {
+            var holder = Stretch(Rect("Tutorial", _root));
+            var dialog = _root.Find("OfflineDialog");
+            if (dialog != null)
+                holder.SetSiblingIndex(dialog.GetSiblingIndex());
+            var group = holder.gameObject.AddComponent<CanvasGroup>();
+            var tutorial = holder.gameObject.AddComponent<GrandOpeningTutorial>();
+
+            // Dim with a soft hole over the target.
+            var dim = Rect("Spotlight", holder);
+            dim.sizeDelta = new Vector2(6000, 6000);
+            var dimImage = Img(dim, null, Color.white);
+            dimImage.material = SpotlightMaterial();
+            var dimButton = dim.gameObject.AddComponent<UnityEngine.UI.Button>();
+            dimButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            dimButton.targetGraphic = dimImage;
+
+            var ping = Rect("Ping", holder);
+            ping.sizeDelta = new Vector2(150, 150);
+            Img(ping, "sl_ping", Color.white, simple: true);
+
+            // Grandma's speech box, bottom left; it slides right while the upgrade card is open.
+            var speech = Rect("Speech", holder);
+            speech.anchorMin = speech.anchorMax = speech.pivot = new Vector2(0f, 0f);
+            speech.anchoredPosition = new Vector2(36, 32);
+            speech.sizeDelta = new Vector2(900, 236);
+            var frame = Window(speech, 12f);
+            frame.raycastTarget = true;
+            var speechButton = speech.gameObject.AddComponent<UnityEngine.UI.Button>();
+            speechButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            speechButton.targetGraphic = frame;
+
+            var portrait = Rect("Portrait", speech);
+            portrait.anchorMin = portrait.anchorMax = new Vector2(0f, 0.5f);
+            portrait.anchoredPosition = new Vector2(132, 14);
+            portrait.sizeDelta = new Vector2(226, 226);
+            Img(portrait, "sl_disc_honey", Color.white, simple: true);
+            var mask = Rect("Mask", portrait);
+            mask.sizeDelta = new Vector2(198, 198);
+            Img(mask, "sl_disc_white", Color.white, simple: true);
+            mask.gameObject.AddComponent<UnityEngine.UI.Mask>().showMaskGraphic = true;
+            var face = Rect("Face", mask);
+            face.sizeDelta = new Vector2(198, 198);
+            var faceImage = face.gameObject.AddComponent<UnityEngine.UI.Image>();
+            faceImage.sprite = portraitSprite;
+            faceImage.raycastTarget = false;
+
+            var plate = Rect("NamePlate", speech);
+            plate.anchorMin = plate.anchorMax = new Vector2(0f, 1f);
+            plate.pivot = new Vector2(0f, 0.5f);
+            plate.anchoredPosition = new Vector2(236, 4);
+            plate.sizeDelta = new Vector2(250, 68);
+            Img(plate, "sl_banner", Color.white, BannerSlice(68f));
+            var plateText = Label("Name", plate, "Grandma", 36, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(plateText.rectTransform, new Vector2(30, 6), new Vector2(-30, -4));
+
+            var text = Label("Text", speech, "", 34, _body, null, Brown, TextAlignmentOptions.Left);
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.lineSpacing = -6f;
+            Fill(text.rectTransform, new Vector2(262, 54), new Vector2(-40, -46));
+
+            var hint = Rect("ContinueHint", speech);
+            hint.anchorMin = hint.anchorMax = hint.pivot = new Vector2(1f, 0f);
+            hint.anchoredPosition = new Vector2(-34, 16);
+            hint.sizeDelta = new Vector2(320, 40);
+            var hintText = Label("Text", hint, "Tap to continue", 28, _display, _shadow, PinOrange, TextAlignmentOptions.Right);
+            Fill(hintText.rectTransform, Vector2.zero, new Vector2(-40, 0));
+            var hintArrow = Rect("Arrow", hint);
+            hintArrow.anchorMin = hintArrow.anchorMax = new Vector2(1f, 0.5f);
+            hintArrow.anchoredPosition = new Vector2(-14, 0);
+            hintArrow.sizeDelta = new Vector2(30, 30);
+            Img(hintArrow, "sl_play", PinOrange);
+
+            // Progress bar, top centre.
+            var bar = Rect("Progress", holder);
+            bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0.5f, 1f);
+            bar.anchoredPosition = new Vector2(50, -30);
+            bar.sizeDelta = new Vector2(470, 76);
+            Window(bar, 7f, 1.3f);
+            var fillArea = Rect("FillArea", bar);
+            Fill(fillArea, new Vector2(11, 11), new Vector2(-11, -11));
+            fillArea.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
+            var fill = Rect("Fill", fillArea);
+            fill.anchorMin = Vector2.zero;
+            fill.anchorMax = new Vector2(0.001f, 1f);
+            fill.offsetMin = fill.offsetMax = Vector2.zero;
+            Img(fill, "sl_btn_orange", Color.white, 2.4f);
+            var barText = Label("Text", bar, "Grand Opening  0/6", 34, _display, _shadow, Brown, TextAlignmentOptions.Center);
+            Fill(barText.rectTransform, new Vector2(10, 4), new Vector2(-60, 0));
+            var medal = Rect("Medal", bar);
+            medal.anchorMin = medal.anchorMax = new Vector2(1f, 0.5f);
+            medal.anchoredPosition = new Vector2(4, 4);
+            medal.sizeDelta = new Vector2(96, 92);
+            Img(medal, "sl_medal", Color.white);
+            var barJuice = bar.gameObject.AddComponent<ButtonJuice>();
+
+            // The pointer goes on top of everything else in the layer.
+            var pointer = Pin(holder, "Pointer", "TAP!");
+
+            var stationArray = new UnityEngine.Object[stations.Length];
+            var markerArray = new UnityEngine.Object[_markers.Count];
+            for (int i = 0; i < stations.Length; i++) stationArray[i] = stations[i];
+            for (int i = 0; i < _markers.Count; i++) markerArray[i] = _markers[i];
+            SetArray(tutorial, "stations", stationArray);
+            SetArray(tutorial, "markers", markerArray);
+            Set(tutorial, "panel", _panel);
+            Set(tutorial, "coinFly", coinFly);
+            Set(tutorial, "fx", fx);
+            Set(tutorial, "grandma", grandma);
+            Set(tutorial, "group", group);
+            Set(tutorial, "layer", holder);
+            Set(tutorial, "dim", dimImage);
+            Set(tutorial, "dimButton", dimButton);
+            Set(tutorial, "pointer", pointer);
+            Set(tutorial, "ping", ping);
+            Set(tutorial, "speech", speech);
+            Set(tutorial, "speechButton", speechButton);
+            Set(tutorial, "speechText", text);
+            Set(tutorial, "continueHint", hint.gameObject);
+            Set(tutorial, "portrait", portrait);
+            Set(tutorial, "progressRoot", bar);
+            Set(tutorial, "progressFill", fill);
+            Set(tutorial, "progressText", barText);
+            Set(tutorial, "progressJuice", barJuice);
+        }
+
+        static void SetArray(Object target, string field, Object[] values)
+        {
+            var so = new SerializedObject(target);
+            var prop = so.FindProperty(field);
+            prop.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+                prop.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // ------------------------------------------------------------------ Helpers
