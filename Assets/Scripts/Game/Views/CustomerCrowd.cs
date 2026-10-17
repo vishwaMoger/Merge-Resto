@@ -6,15 +6,18 @@ using UnityEngine;
 namespace MergeResto.Game.Views
 {
     /// <summary>
-    /// Spawns a customer character for each customer in the sim's queue, walks them to their
-    /// queue slot, and sends them out happy (with their order) or grumpy (out of patience).
+    /// Spawns a customer character for each customer in the sim's queue. Customers walk in along
+    /// the street through the entrance, wait at their queue slot, and leave through the separate
+    /// exit, happy with their order or grumpy when they ran out of patience.
     /// </summary>
     public class CustomerCrowd : MonoBehaviour
     {
         [Tooltip("Inactive character templates; one is picked at random per customer.")]
         public GameObject[] templates;
-        public Transform entryPoint;
-        public Transform exitPoint;
+        [Tooltip("Arrival route: spawn on the street, then through the entrance. The queue slot follows.")]
+        public Transform[] entryPath;
+        [Tooltip("Leaving route: from the counter through the exit door and away down the street.")]
+        public Transform[] exitPath;
         [Tooltip("Queue positions, front (at the register) first.")]
         public Transform[] queueSlots;
         public float walkSpeed = 2.6f;
@@ -32,6 +35,7 @@ namespace MergeResto.Game.Views
             public Transform grump;
             public bool leaving;
             public float leaveDelay;
+            public readonly Queue<Vector3> route = new();
         }
 
         static Transform FindDeep(Transform root, string name)
@@ -105,13 +109,25 @@ namespace MergeResto.Game.Views
             if (w.bag != null) w.bag.gameObject.SetActive(false);
             if (w.grump != null) w.grump.gameObject.SetActive(false);
             int slot = Mathf.Min(_sim.State.queue.FindIndex(c => c.id == id), queueSlots.Length - 1);
-            go.transform.position = atQueue && slot >= 0 ? queueSlots[slot].position : entryPoint.position;
+            if (atQueue && slot >= 0)
+            {
+                go.transform.position = queueSlots[slot].position;
+            }
+            else
+            {
+                go.transform.position = entryPath[0].position;
+                for (int i = 1; i < entryPath.Length; i++)
+                    w.route.Enqueue(entryPath[i].position);
+            }
             _active[id] = w;
         }
 
         void StartLeaving(Walker w)
         {
             w.leaving = true;
+            w.route.Clear();
+            foreach (var p in exitPath)
+                w.route.Enqueue(p.position);
             _leaving.Add(w);
         }
 
@@ -125,6 +141,8 @@ namespace MergeResto.Game.Views
                 if (!_active.TryGetValue(queue[i].id, out var w))
                     continue;
                 var slot = queueSlots[Mathf.Min(i, queueSlots.Length - 1)];
+                if (!FollowRoute(w))
+                    continue; // still walking in through the door
                 Step(w, slot.position);
                 if (w.anim != null)
                     w.anim.FaceWhenIdle(slot.forward);
@@ -138,12 +156,24 @@ namespace MergeResto.Game.Views
                     w.leaveDelay -= Time.deltaTime;
                     continue;
                 }
-                if (Step(w, exitPoint.position))
+                if (FollowRoute(w))
                 {
                     Destroy(w.go);
                     _leaving.RemoveAt(i);
                 }
             }
+        }
+
+        // Walks towards the next waypoint; true once the route is finished.
+        bool FollowRoute(Walker w)
+        {
+            while (w.route.Count > 0)
+            {
+                if (!Step(w, w.route.Peek()))
+                    return false;
+                w.route.Dequeue();
+            }
+            return true;
         }
 
         bool Step(Walker w, Vector3 target)
