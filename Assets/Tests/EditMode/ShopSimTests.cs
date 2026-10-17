@@ -318,5 +318,144 @@ namespace MergeResto.Sim.Tests
             Assert.IsTrue(sim.IsGoalComplete(2)); // the mixer is automated, so its manager goal is met
             Assert.AreEqual(sim.State.customersServed >= 3, sim.IsGoalComplete(1));
         }
+
+        // ------------------------------------------------------------------ Merge board
+
+        static ShopDefinition WithBoard()
+        {
+            var def = Bakery();
+            var b = def.board;
+            b.columns = 4;
+            b.rows = 3;
+            b.energyMax = 10;
+            b.energyRegenSeconds = 5f;
+            b.chains.Add(new MergeChainDefinition { id = "sweets", tiers = new() { "Cookie", "Macaron", "Cupcake", "Cake" } });
+            b.chains.Add(new MergeChainDefinition { id = "plants", tiers = new() { "Sprout", "Succulent", "Monstera" } });
+            b.generators.Add(new GeneratorDefinition { id = "jar", chain = 0, luckyChance = 0f });
+            b.generators.Add(new GeneratorDefinition { id = "can", chain = 1, luckyChance = 0f });
+            b.start.Add(new BoardStartItem { cell = 0, generator = 0 });
+            b.start.Add(new BoardStartItem { cell = 11, generator = 1 });
+            b.renovations.Add(new RenovationDefinition { id = "stand", needs = new() { new ItemRef(0, 2) }, rewardCoins = 100, coziness = 0.1f });
+            b.renovations.Add(new RenovationDefinition { id = "plants", needs = new() { new ItemRef(1, 1), new ItemRef(1, 1) }, coziness = 0.2f });
+            return def;
+        }
+
+        [Test]
+        public void Board_StartsWithGeneratorsAndFullEnergy()
+        {
+            var sim = new ShopSim(WithBoard());
+            Assert.IsTrue(sim.Board[0].IsGenerator);
+            Assert.IsTrue(sim.Board[11].IsGenerator);
+            Assert.AreEqual(10, sim.Board.Energy);
+            Assert.AreEqual(10, sim.Board.EmptyCells);
+        }
+
+        [Test]
+        public void Generator_SpendsEnergyAndDropsItemNextToItself()
+        {
+            var sim = new ShopSim(WithBoard());
+            Assert.IsTrue(sim.Board.Spawn(0, out int cell));
+            Assert.AreEqual(1, cell); // right neighbour, first in reading order
+            Assert.AreEqual(BoardItem.Item(0, 0), sim.Board[cell]);
+            Assert.AreEqual(9, sim.Board.Energy);
+        }
+
+        [Test]
+        public void Generator_StopsWithoutEnergyOrSpace()
+        {
+            var sim = new ShopSim(WithBoard());
+            for (int i = 0; i < 10; i++)
+                Assert.IsTrue(sim.Board.Spawn(0, out _));
+            Assert.IsFalse(sim.Board.Spawn(0, out _), "no energy");
+            sim.Tick(1000f);
+            Assert.AreEqual(10, sim.Board.Energy);
+            Assert.IsFalse(sim.Board.Spawn(0, out _), "board full");
+        }
+
+        [Test]
+        public void EqualItems_MergeIntoNextTier()
+        {
+            var sim = new ShopSim(WithBoard());
+            sim.Board.Spawn(0, out int a);
+            sim.Board.Spawn(0, out int b);
+            Assert.AreEqual(MoveResult.Merged, sim.Board.Move(a, b));
+            Assert.AreEqual(BoardItem.Item(0, 1), sim.Board[b]);
+            Assert.IsTrue(sim.Board[a].IsEmpty);
+        }
+
+        [Test]
+        public void DifferentItems_Swap_AndEmptyCellsTakeMoves()
+        {
+            var sim = new ShopSim(WithBoard());
+            sim.Board.Spawn(0, out int cookie);
+            sim.Board.Spawn(11, out int sprout);
+            Assert.AreEqual(MoveResult.Swapped, sim.Board.Move(cookie, sprout));
+            Assert.AreEqual(BoardItem.Item(0, 0), sim.Board[sprout]);
+            Assert.AreEqual(MoveResult.Moved, sim.Board.Move(sprout, 5));
+            Assert.AreEqual(BoardItem.Item(0, 0), sim.Board[5]);
+        }
+
+        [Test]
+        public void MaxTierItems_DoNotMerge()
+        {
+            var def = WithBoard();
+            def.board.start.Add(new BoardStartItem { cell = 4, generator = -1, chain = 1, tier = 2 });
+            def.board.start.Add(new BoardStartItem { cell = 5, generator = -1, chain = 1, tier = 2 });
+            var sim = new ShopSim(def);
+            Assert.AreEqual(MoveResult.Swapped, sim.Board.Move(4, 5));
+        }
+
+        [Test]
+        public void Renovation_ConsumesItems_PaysCoins_AndRaisesPrices()
+        {
+            var def = WithBoard();
+            def.board.start.Add(new BoardStartItem { cell = 4, generator = -1, chain = 0, tier = 2 });
+            var sim = new ShopSim(def);
+            double price = sim.PricePerItem;
+            double coins = sim.State.coins;
+            Assert.IsFalse(sim.Board.CanRenovate(1));
+            Assert.IsTrue(sim.Board.Renovate(0));
+            Assert.IsTrue(sim.Board[4].IsEmpty);
+            Assert.AreEqual(coins + 100, sim.State.coins);
+            Assert.AreEqual(price * 1.1, sim.PricePerItem, 1e-6);
+            Assert.IsFalse(sim.Board.Renovate(0), "only once");
+            CollectionAssert.AreEqual(new[] { 1 }, sim.Board.ActiveRenovations(3));
+        }
+
+        [Test]
+        public void Renovation_NeedsEveryCopy()
+        {
+            var def = WithBoard();
+            def.board.start.Add(new BoardStartItem { cell = 4, generator = -1, chain = 1, tier = 1 });
+            var sim = new ShopSim(def);
+            Assert.IsFalse(sim.Board.CanRenovate(1));
+            sim.State.board.cells[5] = BoardItem.Item(1, 1).code;
+            Assert.IsTrue(sim.Board.Renovate(1));
+            Assert.IsTrue(sim.Board[4].IsEmpty && sim.Board[5].IsEmpty);
+        }
+
+        [Test]
+        public void Board_SurvivesSaveAndLoad()
+        {
+            var def = WithBoard();
+            var sim = new ShopSim(def);
+            sim.Board.Spawn(0, out _);
+            sim.Board.Spawn(11, out _);
+            var json = JsonUtility.ToJson(sim.State);
+            var restored = new ShopSim(def, JsonUtility.FromJson<ShopState>(json));
+            CollectionAssert.AreEqual(sim.State.board.cells, restored.State.board.cells);
+            Assert.AreEqual(sim.Board.Energy, restored.Board.Energy);
+        }
+
+        [Test]
+        public void Selling_FreesCellForCoins()
+        {
+            var sim = new ShopSim(WithBoard());
+            sim.Board.Spawn(0, out int cell);
+            double coins = sim.State.coins;
+            Assert.IsTrue(sim.Board.Sell(cell));
+            Assert.Greater(sim.State.coins, coins);
+            Assert.IsFalse(sim.Board.Sell(0), "generators cannot be sold");
+        }
     }
 }

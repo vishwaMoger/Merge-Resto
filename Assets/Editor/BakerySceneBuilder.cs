@@ -47,6 +47,7 @@ namespace MergeResto.EditorTools
             // Opening a scene unloads unreferenced assets, so fetch the config afterwards.
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
             EnsureGoals(config);
+            EnsureBoard(config);
             var cam = LookSetup.CreateLookRig(new Vector3(0.4f, 1f, 1.0f), 9.4f);
 
             var world = new GameObject("Bakery").transform;
@@ -83,6 +84,13 @@ namespace MergeResto.EditorTools
             var grandma = stations[3].GetComponentsInChildren<ChibiAnimator>(true).First(a => a.name == "Grandma");
             HudBuilder.BuildTutorial(stations, fx, coinFly, grandma, portrait);
 
+            // The renovation board and the run-down spots it fixes.
+            var boardIcons = RenderBoardIcons(config.shop.board);
+            var openIcon = AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/renovate.png")
+                ?? IconRenderer.Render($"{CityArt}box_A.fbx", "renovate", yaw: 30f);
+            HudBuilder.BuildBoard(config.shop.board, boardIcons.chains, boardIcons.generators, openIcon, coinFly);
+            BuildRenovationSpots(world, stations);
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
             Debug.Log($"[Merge Resto] Bakery scene saved to {ScenePath}.");
@@ -95,12 +103,13 @@ namespace MergeResto.EditorTools
         static void EnsureGoals(ShopConfig config)
         {
             var goals = config.shop.goals;
-            if (goals.Count > 0)
-                return;
+            goals.Clear();
             GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
                 new() { kind = kind, target = target, station = station, rewardCoins = coins, rewardGems = gems };
+            goals.Add(G(GoalKind.Renovations, 1, coins: 200));
             goals.Add(G(GoalKind.StationLevel, 2, station: 2, gems: 15));
             goals.Add(G(GoalKind.ServeCustomers, 15, coins: 150));
+            goals.Add(G(GoalKind.Renovations, 3, gems: 20));
             goals.Add(G(GoalKind.StationLevel, 2, station: 1, gems: 15));
             goals.Add(G(GoalKind.HireManager, 1, station: 1, coins: 300));
             goals.Add(G(GoalKind.AddMachines, 1, station: 2, gems: 20));
@@ -109,12 +118,104 @@ namespace MergeResto.EditorTools
             goals.Add(G(GoalKind.StationLevel, 3, station: 3, gems: 20));
             goals.Add(G(GoalKind.ServeCustomers, 100, gems: 30));
             goals.Add(G(GoalKind.ShopLevel, 20, coins: 1500));
+            goals.Add(G(GoalKind.Renovations, 6, gems: 50));
             goals.Add(G(GoalKind.AddMachines, 1, station: 1, gems: 30));
             goals.Add(G(GoalKind.LifetimeCoins, 25000, gems: 50));
             goals.Add(G(GoalKind.ServeCustomers, 300, coins: 4000));
             goals.Add(G(GoalKind.ShopLevel, 40, gems: 75));
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssets();
+        }
+
+        // The renovation board: three chains of bakery props (sweets, kitchenware, plants),
+        // a generator for each, and six run-down spots in the shop to fix with them.
+        static void EnsureBoard(ShopConfig config)
+        {
+            var b = config.shop.board = new MergeBoardDefinition
+            {
+                columns = 7,
+                rows = 5,
+                energyMax = 100,
+                energyRegenSeconds = 6f,
+                sellBase = 5,
+            };
+            MergeChainDefinition Chain(string id, string name, params (string tier, string model)[] tiers)
+            {
+                var c = new MergeChainDefinition { id = id, displayName = name };
+                foreach (var t in tiers)
+                {
+                    c.tiers.Add(t.tier);
+                    c.models.Add(t.model);
+                }
+                return c;
+            }
+            b.chains.Add(Chain("sweets", "Sweets",
+                ("Cookie", "TinyTreats_BakedGoods/cookie"), ("Macaron", "TinyTreats_BakeryInterior/macaron_pink"),
+                ("Cupcake", "TinyTreats_BakedGoods/cupcake"), ("Donut", "TinyTreats_BakedGoods/donut_pink"),
+                ("Cinnamon Roll", "TinyTreats_BakedGoods/cinnamon_roll"), ("Strawberry Cake", "TinyTreats_BakedGoods/cake_strawberry"),
+                ("Birthday Cake", "TinyTreats_BakedGoods/cake_birthday")));
+            b.chains.Add(Chain("kitchen", "Kitchenware",
+                ("Whisk", "TinyTreats_BakeryInterior/whisk"), ("Mug", "TinyTreats_BakeryInterior/mug_A_pink"),
+                ("Plates", "TinyTreats_BakeryInterior/plate_stacked"), ("Mixing Bowl", "TinyTreats_BakeryInterior/mixing_bowl"),
+                ("Kitchen Scale", "TinyTreats_BakeryInterior/scale"), ("Stand Mixer", "TinyTreats_BakeryInterior/stand_mixer")));
+            b.chains.Add(Chain("plants", "Plants",
+                ("Succulent", "TinyTreats_HousePlants/succulent_plant_pot_small"), ("Little Cactus", "TinyTreats_HousePlants/cacti_plant_pot_small"),
+                ("Pothos", "TinyTreats_HousePlants/pothos_plant_small_potted"), ("ZZ Plant", "TinyTreats_HousePlants/zzplant_plant_medium_potted"),
+                ("Snake Plant", "TinyTreats_HousePlants/sansevieria_plant_large_potted"), ("Monstera", "TinyTreats_HousePlants/monstera_plant_large_potted")));
+            b.generators.Add(new GeneratorDefinition { id = "cookie_jar", displayName = "Cookie Jar", chain = 0, model = "TinyTreats_BakeryInterior/cookie_jar" });
+            b.generators.Add(new GeneratorDefinition { id = "dish_rack", displayName = "Dish Rack", chain = 1, model = "KayKit_RestaurantBits/dishrack_plates" });
+            b.generators.Add(new GeneratorDefinition { id = "watering_can", displayName = "Watering Can", chain = 2, model = "TinyTreats_HousePlants/watering_can_A" });
+
+            b.start.Add(new BoardStartItem { cell = 0, generator = 0 });
+            b.start.Add(new BoardStartItem { cell = 14, generator = 1 });
+            b.start.Add(new BoardStartItem { cell = 28, generator = 2 });
+            b.start.Add(new BoardStartItem { cell = 9, generator = -1, chain = 0, tier = 0 });
+            b.start.Add(new BoardStartItem { cell = 10, generator = -1, chain = 0, tier = 0 });
+
+            RenovationDefinition R(string id, string name, double coins, float cozy, params (int chain, int tier)[] needs)
+            {
+                var r = new RenovationDefinition { id = id, displayName = name, rewardCoins = coins, coziness = cozy };
+                foreach (var n in needs)
+                    r.needs.Add(new ItemRef(n.chain, n.tier));
+                return r;
+            }
+            b.renovations.Add(R("pastry_stand", "Restock the pastry stand", 150, 0.05f, (0, 2)));
+            b.renovations.Add(R("window_plants", "Revive the window plants", 200, 0.06f, (2, 2), (2, 1)));
+            b.renovations.Add(R("dining", "Set the dining tables", 300, 0.08f, (1, 2), (1, 2), (1, 1)));
+            b.renovations.Add(R("display_case", "Polish the display case", 500, 0.08f, (1, 3), (0, 3)));
+            b.renovations.Add(R("corner", "Green up the cozy corner", 800, 0.08f, (2, 4)));
+            b.renovations.Add(R("shop_sign", "Light up the shop sign", 2000, 0.15f, (0, 5), (1, 4), (2, 4)));
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+        }
+
+        // Board icons rendered from the item models (only missing ones, unless forced).
+        [MenuItem("Merge Resto/Art/Render Board Icons")]
+        static void RenderBoardIconsForced() => RenderBoardIcons(AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath).shop.board, force: true);
+
+        static (Sprite[][] chains, Sprite[] generators) RenderBoardIcons(MergeBoardDefinition b, bool force = false)
+        {
+            Sprite Icon(string model, string name)
+            {
+                string path = $"{IconRenderer.Folder}/{name}.png";
+                var existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                if (existing != null && !force)
+                    return existing;
+                // "Pack/model" lives at Assets/Art/ThirdParty/Pack/Models/model.fbx.
+                int slash = model.IndexOf('/');
+                return IconRenderer.Render($"Assets/Art/ThirdParty/{model[..slash]}/Models/{model[(slash + 1)..]}.fbx", name);
+            }
+            var chains = new Sprite[b.chains.Count][];
+            for (int c = 0; c < b.chains.Count; c++)
+            {
+                chains[c] = new Sprite[b.chains[c].models.Count];
+                for (int t = 0; t < chains[c].Length; t++)
+                    chains[c][t] = Icon(b.chains[c].models[t], $"{b.chains[c].id}_{t}");
+            }
+            var gens = new Sprite[b.generators.Count];
+            for (int g = 0; g < gens.Length; g++)
+                gens[g] = Icon(b.generators[g].model, $"gen_{b.generators[g].id}");
+            return (chains, gens);
         }
 
         static ShopConfig LoadOrCreateConfig()
@@ -515,6 +616,109 @@ namespace MergeResto.EditorTools
             // so these are bare lights rather than hanging lamps floating in the air.
             foreach (var p in new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) })
                 WarmLight(dress, p);
+        }
+
+        // ------------------------------------------------------------------ Renovations
+
+        // Each renovation's run-down look and its fixed props. Indices match EnsureBoard.
+        static void BuildRenovationSpots(Transform world, StationView[] stations)
+        {
+            var root = Group("Renovations", world);
+            var sparkle = GameObject.Find("Bakery/FX/SparkleBurst").GetComponent<ParticleSystem>();
+            RenovationSpot Spot(int index, string name, Vector3 pos)
+            {
+                var go = new GameObject(name);
+                go.transform.SetParent(root, false);
+                go.transform.position = pos;
+                var spot = go.AddComponent<RenovationSpot>();
+                spot.renovation = index;
+                spot.sparkle = sparkle;
+                spot.broken = new GameObject[0];
+                spot.fixedObjects = new GameObject[0];
+                spot.worn = new Renderer[0];
+                spot.lights = new Light[0];
+                return spot;
+            }
+            GameObject Find(string path) => GameObject.Find(path);
+            Renderer[] RenderersOf(params GameObject[] gos) =>
+                gos.Where(g => g != null).SelectMany(g => g.GetComponentsInChildren<Renderer>(true)).ToArray();
+            GameObject Prop(string model, string folder, Transform parent, Vector3 pos, float yaw = 0f, float scale = 1f, bool sway = false)
+            {
+                var p = Place(model, folder, parent, pos, yaw);
+                p.transform.localScale *= scale;
+                if (sway) ApplySway(p);
+                return p;
+            }
+
+            // 0: the pastry stand on the counter is dust-sheeted.
+            {
+                var spot = Spot(0, "PastryStand", new Vector3(6.05f, 1f, 0.75f));
+                var stand = Find("Bakery/Dressing/pastry_stand_B_decorated");
+                var cake = Find("Bakery/Dressing/cake_birthday");
+                var covered = Prop("pastry_stand_A_covered", BakeryArt, spot.transform, new Vector3(6.05f, 1f, 0.75f));
+                spot.broken = new[] { covered };
+                spot.fixedObjects = new[] { stand, cake }.Where(g => g != null).ToArray();
+                spot.worn = RenderersOf(covered);
+            }
+            // 1: empty pots under the left windows.
+            {
+                var spot = Spot(1, "WindowPlants", new Vector3(-7.3f, 0f, -1.6f));
+                var snake = Find("Bakery/Decor/sansevieria_plant_medium_potted");
+                var pothos = Prop("pothos_plant_medium_potted", PlantArt, spot.transform, new Vector3(-7.3f, 0f, -2.9f), 40f, sway: true);
+                var potA = Prop("pot_B_medium", PlantArt, spot.transform, new Vector3(-7.3f, 0f, -0.2f));
+                var potB = Prop("pot_B_medium", PlantArt, spot.transform, new Vector3(-7.3f, 0f, -2.9f), 30f);
+                spot.broken = new[] { potA, potB };
+                spot.fixedObjects = new[] { snake, pothos }.Where(g => g != null).ToArray();
+                spot.worn = RenderersOf(potA, potB);
+            }
+            // 2: dining tables bare and grimy; plates, mugs and treats appear once set.
+            {
+                var spot = Spot(2, "Dining", new Vector3(-4f, 0f, -3.5f));
+                var dining = Find("Bakery/Dining");
+                var tableware = new List<GameObject>();
+                var furniture = new List<GameObject>();
+                foreach (Transform child in dining.transform)
+                {
+                    if (child.name.StartsWith("mug") || child.name.StartsWith("plate") || child.name.StartsWith("cream_puff"))
+                        tableware.Add(child.gameObject);
+                    else
+                        furniture.Add(child.gameObject);
+                }
+                spot.fixedObjects = tableware.ToArray();
+                spot.worn = RenderersOf(furniture.ToArray());
+            }
+            // 3: the display case at the counter is grimy.
+            {
+                var spot = Spot(3, "DisplayCase", stations[3].transform.position + Vector3.left);
+                var display = stations[3].transform.Find("display_case_long");
+                spot.worn = RenderersOf(display != null ? display.gameObject : null);
+            }
+            // 4: the front-left corner has a dead, empty pot.
+            {
+                var spot = Spot(4, "CozyCorner", new Vector3(-7.2f, 0f, -5.2f));
+                var monstera = Find("Bakery/Decor/monstera_plant_large_potted");
+                var pot = Prop("pot_C_large", PlantArt, spot.transform, new Vector3(-7.2f, 0f, -5.2f), 10f);
+                var stick = Prop("yucca_branch_small_A", PlantArt, spot.transform, new Vector3(-7.2f, 0.45f, -5.2f), 60f);
+                spot.broken = new[] { pot, stick };
+                spot.fixedObjects = monstera != null ? new[] { monstera } : new GameObject[0];
+                spot.worn = RenderersOf(pot, stick);
+            }
+            // 5: the shop sign over the oven is dull until it is lit up.
+            {
+                var sign = Find("Bakery/Dressing/wall_sign_large");
+                var spot = Spot(5, "ShopSign", sign != null ? sign.transform.position : new Vector3(4.2f, 3.2f, 5.7f));
+                spot.worn = RenderersOf(sign);
+                var lightGo = new GameObject("SignGlow");
+                lightGo.transform.SetParent(spot.transform, false);
+                lightGo.transform.position = spot.transform.position + new Vector3(0f, 0f, -0.8f);
+                var light = lightGo.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = new Color(1f, 0.75f, 0.45f);
+                light.range = 4f;
+                light.intensity = 2.5f;
+                light.shadows = LightShadows.None;
+                spot.lights = new[] { light };
+            }
         }
 
         static void WarmLight(Transform parent, Vector3 floorPos)

@@ -146,13 +146,9 @@ namespace MergeResto.Game.Views
             {
                 if (r == null)
                     continue;
-                if (_glow <= 0.001f)
-                {
-                    r.SetPropertyBlock(null);
-                    continue;
-                }
+                // Keep the block (renovation wear may live in it); only the glow changes.
                 r.GetPropertyBlock(_block);
-                _block.SetColor(EmissionId, glowColor * _glow);
+                _block.SetColor(EmissionId, _glow <= 0.001f ? Color.black : glowColor * _glow);
                 r.SetPropertyBlock(_block);
             }
         }

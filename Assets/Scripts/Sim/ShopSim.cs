@@ -14,6 +14,8 @@ namespace MergeResto.Sim
 
         public ShopDefinition Def { get; }
         public ShopState State { get; }
+        /// <summary>The merge board, or null when the shop has none.</summary>
+        public MergeBoard Board { get; }
 
         public event Action<int, int> CycleStarted;          // station, machine
         public event Action<int, int, int> CycleCompleted;   // station, machine, amount
@@ -45,6 +47,11 @@ namespace MergeResto.Sim
             Normalize();
             foreach (var c in State.queue)
                 _nextCustomerId = Math.Max(_nextCustomerId, c.id + 1);
+            if (def.board != null && def.board.chains.Count > 0)
+            {
+                State.board ??= new BoardState();
+                Board = new MergeBoard(this, def.board, State.board);
+            }
         }
 
         public static ShopState NewState(ShopDefinition def)
@@ -114,10 +121,12 @@ namespace MergeResto.Sim
                 : (int)Math.Round(Def.stations[station].baseBatch * (1 + 0.5 * outputLevel));
 
         public double PriceAtLevel(int outputLevel) =>
-            Def.pricePerItem * (1 + Def.pricePerOutputLevel * outputLevel);
+            Def.pricePerItem * (1 + Def.pricePerOutputLevel * outputLevel) * CozinessMultiplier;
 
-        public double PricePerItem =>
-            Def.pricePerItem * (1 + Def.pricePerOutputLevel * State.stations[^1].outputLevel);
+        public double PricePerItem => PriceAtLevel(State.stations[^1].outputLevel);
+
+        /// <summary>Price multiplier from renovations (1 = no bonus).</summary>
+        public double CozinessMultiplier => 1 + (Board?.Coziness ?? 0f);
 
         public float CustomerInterval =>
             Math.Max(Def.minCustomerIntervalSeconds, Def.customerIntervalSeconds * (float)Math.Pow(Def.intervalPerShopLevel, ShopLevel));
@@ -206,6 +215,7 @@ namespace MergeResto.Sim
                 GoalKind.StationLevel => State.stations[s].TotalLevels,
                 GoalKind.ServeCustomers => State.customersServed,
                 GoalKind.HireManager => State.stations[s].hasManager ? 1 : 0,
+                GoalKind.Renovations => State.board?.renovationsDone?.Count ?? 0,
                 GoalKind.AddMachines => State.stations[s].machineLevel,
                 GoalKind.LifetimeCoins => State.lifetimeCoins,
                 _ => ShopLevel,
@@ -256,6 +266,7 @@ namespace MergeResto.Sim
 
         public void Tick(float dt)
         {
+            Board?.Tick(dt);
             while (dt > 0f)
             {
                 float step = Math.Min(dt, MaxStep);

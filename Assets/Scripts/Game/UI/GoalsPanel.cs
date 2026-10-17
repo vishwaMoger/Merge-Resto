@@ -43,6 +43,7 @@ namespace MergeResto.Game.UI
         [SerializeField] Sprite managerIcon;
         [SerializeField] Sprite machineIcon;
         [SerializeField] Sprite shopLevelIcon;
+        [SerializeField] Sprite renovateIcon;
         [SerializeField] Color waitingText = new(0.4f, 0.25f, 0.16f);
         [Tooltip("Reward text material while the goal is unfinished (same font, no outline).")]
         [SerializeField] Material waitingMaterial;
@@ -116,6 +117,7 @@ namespace MergeResto.Game.UI
                 GoalKind.StationLevel => levelIcon,
                 GoalKind.ServeCustomers => serveIcon,
                 GoalKind.HireManager => managerIcon,
+                GoalKind.Renovations => renovateIcon,
                 GoalKind.AddMachines => machineIcon,
                 GoalKind.LifetimeCoins => coinIcon,
                 _ => shopLevelIcon,
@@ -157,6 +159,7 @@ namespace MergeResto.Game.UI
                 GoalKind.StationLevel => $"Upgrade the {station} to Lv {g.target:0}",
                 GoalKind.ServeCustomers => $"Serve {NumberFormat.Short(g.target)} customers",
                 GoalKind.HireManager => $"Hire a manager for the {station}",
+                GoalKind.Renovations => g.target <= 1 ? "Finish your first renovation" : $"Finish {g.target:0} renovations",
                 GoalKind.AddMachines => $"Get {g.target + 1:0} {Noun(s)}s",
                 GoalKind.LifetimeCoins => $"Earn {NumberFormat.Short(g.target)} coins",
                 _ => $"Reach shop level {g.target:0}",

@@ -75,6 +75,8 @@ namespace MergeResto.Sim
         ServeCustomers,
         /// <summary>Hire the manager of a station.</summary>
         HireManager,
+        /// <summary>Finish this many renovations.</summary>
+        Renovations,
         /// <summary>A station has this many extra machines.</summary>
         AddMachines,
         /// <summary>Earn this many coins in total.</summary>
@@ -138,6 +140,9 @@ namespace MergeResto.Sim
         [Tooltip("Gems granted every this many upgrade levels on one station.")]
         public int gemMilestoneEvery = 5;
         public int gemMilestoneReward = 10;
+
+        [Header("Merge board")]
+        public MergeBoardDefinition board = new();
 
         [Header("Goals")]
         [Tooltip("Milestones offered after the tutorial, a few at a time, in this order.")]

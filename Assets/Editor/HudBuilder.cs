@@ -58,6 +58,7 @@ namespace MergeResto.EditorTools
                 "sl_disc_honey" => "Frames/250px/Frame_Circle_Honey_250px",
                 "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
                 "sl_heart" => "Icons/Heart",
+                "sl_frame_honey" => "Frames/250px/Frame_Square_Honey_250px",
                 _ => null,
             };
             return path != null ? AssetDatabase.LoadAssetAtPath<Sprite>(SweetLand + path + ".png") : UiArtGenerator.Load(key);
@@ -250,6 +251,7 @@ namespace MergeResto.EditorTools
             Set(panel, "managerIcon", Resolve("icon_manager"));
             Set(panel, "machineIcon", Resolve("icon_machine"));
             Set(panel, "shopLevelIcon", Resolve("sl_medal"));
+            Set(panel, "renovateIcon", AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/UI/Icons/renovate.png"));
             return panel;
         }
 
@@ -432,16 +434,7 @@ namespace MergeResto.EditorTools
             var info = Label("Info", sheet, "", 28, _body, null, SoftBrown, TextAlignmentOptions.Center);
             Top(info.rectTransform, new Vector2(0, -64), new Vector2(720, 40), centered: true);
 
-            var close = Rect("Close", sheet);
-            close.anchorMin = close.anchorMax = new Vector2(1f, 1f);
-            close.anchoredPosition = new Vector2(14, 14);
-            close.sizeDelta = new Vector2(88, 88);
-            var closeBtn = close.gameObject.AddComponent<UnityEngine.UI.Button>();
-            closeBtn.targetGraphic = Img(close, "sl_btn_red_circle", Color.white, simple: true);
-            var x = Rect("X", close);
-            x.sizeDelta = new Vector2(52, 52);
-            Img(x, "sl_icon_close", Color.white);
-            close.gameObject.AddComponent<ButtonJuice>();
+            var closeBtn = CloseButton(sheet);
 
             var rows = new List<StationPanel.UpgradeRow>();
             (UpgradeTrack track, string icon)[] defs = { (UpgradeTrack.Speed, "sl_icon_speed"), (UpgradeTrack.Output, "icon_output"), (UpgradeTrack.Machines, "icon_machine") };
@@ -596,6 +589,297 @@ namespace MergeResto.EditorTools
             Set(dialog, "body", body);
             Set(dialog, "amount", amount);
             Set(dialog, "collectButton", button);
+        }
+
+        // ------------------------------------------------------------------ Merge board
+
+        /// <summary>The renovation board panel (right side) and its Renovate button (bottom right).</summary>
+        public static void BuildBoard(MergeBoardDefinition def, Sprite[][] chainIcons, Sprite[] generatorIcons, Sprite openIcon, CoinFlyLayer coinFly)
+        {
+            var holder = Stretch(Rect("Board", _root));
+            var tutorial = _root.Find("Tutorial");
+            if (tutorial != null)
+                holder.SetSiblingIndex(tutorial.GetSiblingIndex());
+            var view = holder.gameObject.AddComponent<MergeBoardView>();
+
+            // Renovate button.
+            var open = Rect("RenovateButton", holder);
+            open.anchorMin = open.anchorMax = open.pivot = new Vector2(1f, 0f);
+            open.anchoredPosition = new Vector2(-36, 44);
+            open.sizeDelta = new Vector2(150, 150);
+            var openImage = Img(open, "sl_btn_orange_circle", Color.white, simple: true);
+            openImage.raycastTarget = true;
+            var openButton = open.gameObject.AddComponent<UnityEngine.UI.Button>();
+            openButton.targetGraphic = openImage;
+            open.gameObject.AddComponent<ButtonJuice>();
+            var openArt = Rect("Icon", open);
+            openArt.anchoredPosition = new Vector2(0, 14);
+            openArt.sizeDelta = new Vector2(104, 104);
+            var openArtImage = openArt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            openArtImage.sprite = openIcon;
+            openArtImage.preserveAspect = true;
+            openArtImage.raycastTarget = false;
+            var openLabel = Label("Label", open, "Renovate", 30, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            openLabel.rectTransform.anchorMin = openLabel.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            openLabel.rectTransform.anchoredPosition = new Vector2(0, 8);
+            openLabel.rectTransform.sizeDelta = new Vector2(200, 44);
+            var alert = Rect("Alert", open);
+            alert.anchorMin = alert.anchorMax = new Vector2(1f, 1f);
+            alert.anchoredPosition = new Vector2(-18, -18);
+            alert.sizeDelta = new Vector2(48, 48);
+            Img(alert, "sl_btn_red_circle", Color.white, simple: true);
+            var bang = Label("Text", alert, "!", 34, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(bang.rectTransform, new Vector2(0, 4), Vector2.zero);
+
+            // Soft dark backdrop; clicking it closes the board.
+            var dim = Stretch(Rect("Dim", holder));
+            var dimImage = Img(dim, null, new Color(0.03f, 0.02f, 0.02f, 0.55f));
+            dimImage.raycastTarget = true;
+            var dimButton = dim.gameObject.AddComponent<UnityEngine.UI.Button>();
+            dimButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            var dimGroup = dim.gameObject.AddComponent<CanvasGroup>();
+
+            // Panel.
+            var panel = Rect("Panel", holder);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0.5f);
+            panel.anchoredPosition = new Vector2(-30, -22);
+            panel.sizeDelta = new Vector2(860, 950);
+            var group = panel.gameObject.AddComponent<CanvasGroup>();
+            Window(Stretch(Rect("Background", panel)), 16f).raycastTarget = true;
+
+            var ribbon = Rect("Ribbon", panel);
+            ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 1f);
+            ribbon.anchoredPosition = new Vector2(0, 12);
+            ribbon.sizeDelta = new Vector2(460, 104);
+            Img(ribbon, "sl_banner", Color.white, BannerSlice(104f));
+            var title = Label("Title", ribbon, "Renovation", 50, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            BandText(title.rectTransform, 104f);
+
+            var closeButton = CloseButton(panel);
+
+            // Energy and coziness pills.
+            RectTransform Pill(string name, float xPos, float width, string icon, out TMP_Text text)
+            {
+                var pill = Rect(name, panel);
+                pill.anchorMin = pill.anchorMax = pill.pivot = new Vector2(0f, 1f);
+                pill.anchoredPosition = new Vector2(xPos, -72);
+                pill.sizeDelta = new Vector2(width, 60);
+                Window(pill, 5f, 1.6f);
+                var ic = Rect("Icon", pill);
+                ic.anchorMin = ic.anchorMax = new Vector2(0f, 0.5f);
+                ic.anchoredPosition = new Vector2(4, 2);
+                ic.sizeDelta = new Vector2(70, 70);
+                Img(ic, icon, Color.white);
+                text = Label("Value", pill, "", 32, _display, _shadow, Brown, TextAlignmentOptions.Left);
+                Fill(text.rectTransform, new Vector2(48, 2), new Vector2(-10, 0));
+                return pill;
+            }
+            var energyPill = Pill("Energy", 40, 330, "icon_speed", out var energyText);
+            var timer = Label("Timer", energyPill, "Full", 24, _body, null, SoftBrown, TextAlignmentOptions.Right);
+            Fill(timer.rectTransform, new Vector2(150, 2), new Vector2(-18, 0));
+            Pill("Coziness", 860 - 40 - 290 - 54, 290, "sl_heart", out var cozyText);
+
+            // Renovation tasks.
+            var tasks = new List<MergeBoardView.Task>();
+            for (int i = 0; i < 3; i++)
+            {
+                var card = Rect($"Task{i}", panel);
+                card.anchorMin = card.anchorMax = new Vector2(0f, 1f);
+                card.pivot = new Vector2(0.5f, 1f);
+                card.anchoredPosition = new Vector2(34 + 128 + i * 268, -146);
+                card.sizeDelta = new Vector2(256, 196);
+                Img(card, "sl_frame_white", Color.white, 1.4f);
+                var tt = Label("Title", card, "Renovation", 24, _body, null, Brown, TextAlignmentOptions.Center);
+                tt.textWrappingMode = TextWrappingModes.Normal;
+                tt.enableAutoSizing = true;
+                tt.fontSizeMin = 19;
+                tt.fontSizeMax = 24;
+                tt.lineSpacing = -14f;
+                Top(tt.rectTransform, new Vector2(0, -6), new Vector2(232, 50), centered: true);
+                var bonus = Label("Bonus", card, "+5% cozy", 22, _display, _shadow, new Color(0.2f, 0.52f, 0.16f), TextAlignmentOptions.Center);
+                Top(bonus.rectTransform, new Vector2(0, -52), new Vector2(232, 26), centered: true);
+
+                var frames = new List<UnityEngine.UI.Image>();
+                var needIcons = new List<UnityEngine.UI.Image>();
+                var checks = new List<GameObject>();
+                for (int n = 0; n < 3; n++)
+                {
+                    var slot = Rect($"Need{n}", card);
+                    slot.anchorMin = slot.anchorMax = new Vector2(0.5f, 1f);
+                    slot.anchoredPosition = new Vector2((n - 1) * 70, -110);
+                    slot.sizeDelta = new Vector2(62, 62);
+                    frames.Add(Img(slot, "sl_frame_cream", Color.white, 3f));
+                    var ni = Rect("Icon", slot);
+                    ni.sizeDelta = new Vector2(56, 56);
+                    var niImg = ni.gameObject.AddComponent<UnityEngine.UI.Image>();
+                    niImg.preserveAspect = true;
+                    niImg.raycastTarget = false;
+                    needIcons.Add(niImg);
+                    var check = Rect("Check", slot);
+                    check.anchorMin = check.anchorMax = new Vector2(1f, 0f);
+                    check.anchoredPosition = new Vector2(-4, 6);
+                    check.sizeDelta = new Vector2(28, 28);
+                    Img(check, "sl_green_disc", Color.white);
+                    checks.Add(check.gameObject);
+                }
+
+                var fix = Rect("Fix", card);
+                fix.anchorMin = fix.anchorMax = new Vector2(0.5f, 0f);
+                fix.pivot = new Vector2(0.5f, 0f);
+                fix.anchoredPosition = new Vector2(0, 8);
+                fix.sizeDelta = new Vector2(196, 46);
+                var fixImage = Img(fix, "sl_btn_orange", Color.white, 2.6f);
+                fixImage.raycastTarget = true;
+                var fixButton = fix.gameObject.AddComponent<UnityEngine.UI.Button>();
+                fixButton.targetGraphic = fixImage;
+                var colors = fixButton.colors;
+                colors.disabledColor = Color.white;
+                fixButton.colors = colors;
+                fix.gameObject.AddComponent<ButtonJuice>();
+                var fixText = Label("Text", fix, "Fix", 26, _display, _shadow, Color.white, TextAlignmentOptions.Center);
+                Fill(fixText.rectTransform, new Vector2(4, 4), Vector2.zero);
+
+                tasks.Add(new MergeBoardView.Task
+                {
+                    root = card, title = tt, bonus = bonus, needFrames = frames.ToArray(), needIcons = needIcons.ToArray(),
+                    needChecks = checks.ToArray(), fix = fixButton, fixImage = fixImage, fixText = fixText,
+                });
+            }
+
+            // The grid.
+            const float cell = 92f, gap = 6f;
+            var grid = Rect("Grid", panel);
+            grid.anchorMin = grid.anchorMax = new Vector2(0.5f, 1f);
+            grid.pivot = new Vector2(0.5f, 1f);
+            float gridW = def.columns * cell + (def.columns - 1) * gap + 24f;
+            float gridH = def.rows * cell + (def.rows - 1) * gap + 24f;
+            grid.anchoredPosition = new Vector2(0, -356);
+            grid.sizeDelta = new Vector2(gridW, gridH);
+            Img(grid, "sl_frame_white", new Color(0.86f, 0.66f, 0.46f), 1.2f);
+            var cellRects = new List<RectTransform>();
+            var frameImages = new List<UnityEngine.UI.Image>();
+            var iconImages = new List<UnityEngine.UI.Image>();
+            for (int r = 0; r < def.rows; r++)
+            {
+                for (int c = 0; c < def.columns; c++)
+                {
+                    var rt = Rect($"Cell{r * def.columns + c}", grid);
+                    rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
+                    rt.anchoredPosition = new Vector2(12 + c * (cell + gap), -12 - r * (cell + gap));
+                    rt.sizeDelta = new Vector2(cell, cell);
+                    var frame = Img(rt, "sl_frame_cream", Color.white, 2.2f);
+                    frame.raycastTarget = true;
+                    var ic = Rect("Icon", rt);
+                    ic.sizeDelta = new Vector2(cell - 8, cell - 8);
+                    var icImg = ic.gameObject.AddComponent<UnityEngine.UI.Image>();
+                    icImg.preserveAspect = true;
+                    icImg.raycastTarget = false;
+                    cellRects.Add(rt);
+                    frameImages.Add(frame);
+                    iconImages.Add(icImg);
+                }
+            }
+
+            // Info bar under the grid.
+            var info = Label("Info", panel, "", 25, _body, null, Brown, TextAlignmentOptions.Left);
+            info.textWrappingMode = TextWrappingModes.Normal;
+            info.enableAutoSizing = true;
+            info.fontSizeMin = 20;
+            info.fontSizeMax = 25;
+            info.rectTransform.anchorMin = info.rectTransform.anchorMax = info.rectTransform.pivot = new Vector2(0f, 0f);
+            info.rectTransform.anchoredPosition = new Vector2(40, 22);
+            info.rectTransform.sizeDelta = new Vector2(600, 64);
+            var sell = Rect("Sell", panel);
+            sell.anchorMin = sell.anchorMax = sell.pivot = new Vector2(1f, 0f);
+            sell.anchoredPosition = new Vector2(-36, 26);
+            sell.sizeDelta = new Vector2(170, 56);
+            var sellImage = Img(sell, "sl_btn_yellow", Color.white, 2.4f);
+            sellImage.raycastTarget = true;
+            var sellButton = sell.gameObject.AddComponent<UnityEngine.UI.Button>();
+            sellButton.targetGraphic = sellImage;
+            sell.gameObject.AddComponent<ButtonJuice>();
+            var sellText = Label("Text", sell, "Sell +5", 28, _display, _shadow, Brown, TextAlignmentOptions.Center);
+            Fill(sellText.rectTransform, new Vector2(4, 4), Vector2.zero);
+
+            // Effects on top: drag ghost, spawn flyer, merge burst.
+            Img(Rect("Burst", panel), "sl_shine", Color.white).rectTransform.sizeDelta = new Vector2(200, 200);
+            var burst = (RectTransform)panel.Find("Burst");
+            var ghost = Rect("DragGhost", panel);
+            ghost.sizeDelta = new Vector2(cell + 10, cell + 10);
+            var ghostImg = ghost.gameObject.AddComponent<UnityEngine.UI.Image>();
+            ghostImg.preserveAspect = true;
+            ghostImg.raycastTarget = false;
+            var fly = Rect("Flyer", panel);
+            fly.sizeDelta = new Vector2(cell - 8, cell - 8);
+            var flyImg = fly.gameObject.AddComponent<UnityEngine.UI.Image>();
+            flyImg.preserveAspect = true;
+            flyImg.raycastTarget = false;
+
+            // Wire up.
+            Set(view, "panel", panel);
+            Set(view, "group", group);
+            Set(view, "openButton", openButton);
+            Set(view, "openAlert", alert.gameObject);
+            Set(view, "closeButton", closeButton);
+            Set(view, "dim", dimGroup);
+            Set(view, "dimButton", dimButton);
+            var banner = _root.Find("ShopBanner");
+            if (banner != null)
+                SetArray(view, "hideWhileOpen", new Object[] { banner.gameObject.AddComponent<CanvasGroup>() });
+            SetArray(view, "cells", cellRects.ToArray());
+            SetArray(view, "cellFrames", frameImages.ToArray());
+            SetArray(view, "icons", iconImages.ToArray());
+            Set(view, "dragGhost", ghostImg);
+            Set(view, "flyer", flyImg);
+            Set(view, "burst", burst);
+            Set(view, "energyText", energyText);
+            Set(view, "energyTimer", timer);
+            Set(view, "cozinessText", cozyText);
+            Set(view, "infoText", info);
+            Set(view, "sellButton", sellButton);
+            Set(view, "sellText", sellText);
+            Set(view, "frameNormal", Resolve("sl_frame_cream"));
+            Set(view, "frameSelected", Resolve("sl_frame_peach"));
+            Set(view, "frameGenerator", Resolve("sl_frame_honey"));
+            Set(view, "fixReady", Resolve("sl_btn_orange"));
+            Set(view, "fixWaiting", Resolve("sl_btn_white"));
+            Set(view, "coinFly", coinFly);
+            SetArray(view, "generatorIcons", generatorIcons);
+
+            var so = new SerializedObject(view);
+            var chainsProp = so.FindProperty("chainIcons");
+            chainsProp.arraySize = chainIcons.Length;
+            for (int c = 0; c < chainIcons.Length; c++)
+            {
+                var tiersProp = chainsProp.GetArrayElementAtIndex(c).FindPropertyRelative("tiers");
+                tiersProp.arraySize = chainIcons[c].Length;
+                for (int t = 0; t < chainIcons[c].Length; t++)
+                    tiersProp.GetArrayElementAtIndex(t).objectReferenceValue = chainIcons[c][t];
+            }
+            var tasksProp = so.FindProperty("tasks");
+            tasksProp.arraySize = tasks.Count;
+            for (int i = 0; i < tasks.Count; i++)
+            {
+                var e = tasksProp.GetArrayElementAtIndex(i);
+                var t = tasks[i];
+                e.FindPropertyRelative("root").objectReferenceValue = t.root;
+                e.FindPropertyRelative("title").objectReferenceValue = t.title;
+                e.FindPropertyRelative("bonus").objectReferenceValue = t.bonus;
+                void Arr(string name, Object[] values)
+                {
+                    var a = e.FindPropertyRelative(name);
+                    a.arraySize = values.Length;
+                    for (int k = 0; k < values.Length; k++)
+                        a.GetArrayElementAtIndex(k).objectReferenceValue = values[k];
+                }
+                Arr("needFrames", t.needFrames);
+                Arr("needIcons", t.needIcons);
+                Arr("needChecks", t.needChecks);
+                e.FindPropertyRelative("fix").objectReferenceValue = t.fix;
+                e.FindPropertyRelative("fixImage").objectReferenceValue = t.fixImage;
+                e.FindPropertyRelative("fixText").objectReferenceValue = t.fixText;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // ------------------------------------------------------------------ Tutorial
@@ -754,6 +1038,25 @@ namespace MergeResto.EditorTools
         }
 
         // ------------------------------------------------------------------ Helpers
+
+        // Every window's close button: a red round button sitting inside the top-right corner.
+        static UnityEngine.UI.Button CloseButton(RectTransform window)
+        {
+            var close = Rect("Close", window);
+            close.anchorMin = close.anchorMax = close.pivot = new Vector2(1f, 1f);
+            close.anchoredPosition = new Vector2(-22, -22);
+            close.sizeDelta = new Vector2(64, 64);
+            var button = close.gameObject.AddComponent<UnityEngine.UI.Button>();
+            var bg = Img(close, "sl_btn_red_circle", Color.white, simple: true);
+            bg.raycastTarget = true;
+            button.targetGraphic = bg;
+            var x = Rect("X", close);
+            x.sizeDelta = new Vector2(38, 38);
+            x.anchoredPosition = new Vector2(0, 1);
+            Img(x, "sl_icon_close", Color.white);
+            close.gameObject.AddComponent<ButtonJuice>();
+            return button;
+        }
 
         static RectTransform Rect(string name, Transform parent)
         {
