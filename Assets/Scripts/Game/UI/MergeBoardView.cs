@@ -154,6 +154,8 @@ namespace MergeResto.Game.UI
 
         public void SetOpen(bool open)
         {
+            if (open != _isOpen)
+                AudioDirector.Play(Sfx.Whoosh, open ? 1.05f : 0.9f, 0.5f);
             _isOpen = open;
             if (open)
             {
@@ -183,8 +185,12 @@ namespace MergeResto.Game.UI
                     _pop[cell] = 0.6f;
                     StartFly(cell, target);
                 }
-                else if (_board.Energy <= 0)
-                    _noEnergyShake = 1f;
+                else
+                {
+                    if (_board.Energy <= 0)
+                        _noEnergyShake = 1f;
+                    AudioDirector.Play(Sfx.Deny);
+                }
                 _selected = cell;
                 return;
             }
@@ -252,8 +258,12 @@ namespace MergeResto.Game.UI
             if (_selected < 0 || !_board[_selected].IsItem)
                 return;
             var from = RectTransformUtility.WorldToScreenPoint(null, cells[_selected].position);
-            if (_board.Sell(_selected) && coinFly != null)
-                coinFly.FlyFromScreen(from, 3);
+            if (_board.Sell(_selected))
+            {
+                AudioDirector.Play(Sfx.Sale);
+                if (coinFly != null)
+                    coinFly.FlyFromScreen(from, 3);
+            }
             _selected = -1;
         }
 

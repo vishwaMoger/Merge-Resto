@@ -92,6 +92,8 @@ namespace MergeResto.EditorTools
             HudBuilder.BuildBoard(config.shop.board, boardIcons.chains, boardIcons.generators, openIcon, coinFly);
             BuildRenovationSpots(world, stations);
             BuildShopAge(world);
+            BuildAudio(crowd);
+            HudBuilder.BuildSoundToggle();
             HudBuilder.EnableButtonTargets();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -722,6 +724,37 @@ namespace MergeResto.EditorTools
                 light.shadows = LightShadows.None;
                 spot.lights = new[] { light };
             }
+        }
+
+        // Music and effects; clip choices and mix levels live here.
+        static void BuildAudio(CustomerCrowd crowd)
+        {
+            var go = new GameObject("Audio");
+            var audio = go.AddComponent<AudioDirector>();
+            AudioClip Clip(string name) => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/Audio/SFX/{name}.wav");
+            (Sfx sfx, string clip, float volume, float interval)[] mix =
+            {
+                (Sfx.Click, "click", 0.55f, 0.04f), (Sfx.Tap, "tap", 0.7f, 0.05f), (Sfx.Coin, "coin", 0.45f, 0.04f),
+                (Sfx.Sale, "sale", 0.6f, 0.08f), (Sfx.Upgrade, "upgrade", 0.8f, 0.05f), (Sfx.Manager, "manager", 0.85f, 0.2f),
+                (Sfx.Merge, "merge", 0.8f, 0.03f), (Sfx.Spawn, "spawn", 0.55f, 0.03f), (Sfx.Renovate, "renovate", 0.9f, 0.3f),
+                (Sfx.Celebrate, "celebrate", 0.9f, 0.5f), (Sfx.Claim, "claim", 0.8f, 0.1f), (Sfx.Deny, "deny", 0.6f, 0.15f),
+                (Sfx.Grumpy, "grumpy", 0.5f, 0.3f), (Sfx.Whoosh, "whoosh", 0.5f, 0.1f), (Sfx.Blip, "blip", 0.5f, 0.06f),
+            };
+            var so = new SerializedObject(audio);
+            var entries = so.FindProperty("entries");
+            entries.arraySize = mix.Length;
+            for (int i = 0; i < mix.Length; i++)
+            {
+                var e = entries.GetArrayElementAtIndex(i);
+                e.FindPropertyRelative("sfx").enumValueIndex = (int)mix[i].sfx;
+                e.FindPropertyRelative("clip").objectReferenceValue = Clip(mix[i].clip);
+                e.FindPropertyRelative("volume").floatValue = mix[i].volume;
+                e.FindPropertyRelative("pitchSpread").floatValue = mix[i].sfx == Sfx.Blip ? 0.12f : 0.05f;
+                e.FindPropertyRelative("minInterval").floatValue = mix[i].interval;
+            }
+            so.FindProperty("music").objectReferenceValue = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/bakery_theme.wav");
+            so.FindProperty("crowd").objectReferenceValue = crowd;
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // The whole shop starts old and grimy; renovations clean it up step by step.

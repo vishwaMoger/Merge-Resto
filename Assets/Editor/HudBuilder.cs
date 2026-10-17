@@ -58,6 +58,8 @@ namespace MergeResto.EditorTools
                 "sl_disc_honey" => "Frames/250px/Frame_Circle_Honey_250px",
                 "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
                 "sl_heart" => "Icons/Heart",
+                "sl_music_on" => "Icons/Icon_Music_On",
+                "sl_music_off" => "Icons/Icon_Music_Off",
                 "sl_frame_honey" => "Frames/250px/Frame_Square_Honey_250px",
                 _ => null,
             };
@@ -135,6 +137,31 @@ namespace MergeResto.EditorTools
             Set(coinFly, "target", coinTarget);
             Set(coinFly, "targetJuice", coinJuice);
             Set(goals, "coinFly", coinFly);
+        }
+
+        // ------------------------------------------------------------------ Sound toggle
+
+        /// <summary>Round mute button under the shop banner.</summary>
+        public static void BuildSoundToggle()
+        {
+            var rt = Rect("SoundToggle", _root);
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
+            rt.anchoredPosition = new Vector2(-40, -150);
+            rt.sizeDelta = new Vector2(76, 76);
+            var bg = Img(rt, "sl_btn_orange_circle", Color.white, simple: true);
+            bg.raycastTarget = true;
+            var button = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
+            button.targetGraphic = bg;
+            rt.gameObject.AddComponent<ButtonJuice>();
+            var icon = Rect("Icon", rt);
+            icon.sizeDelta = new Vector2(46, 46);
+            icon.anchoredPosition = new Vector2(0, 3);
+            var iconImage = Img(icon, "sl_music_on", Color.white);
+            var toggle = rt.gameObject.AddComponent<SoundToggle>();
+            Set(toggle, "button", button);
+            Set(toggle, "icon", iconImage);
+            Set(toggle, "onSprite", Resolve("sl_music_on"));
+            Set(toggle, "offSprite", Resolve("sl_music_off"));
         }
 
         // ------------------------------------------------------------------ Goals

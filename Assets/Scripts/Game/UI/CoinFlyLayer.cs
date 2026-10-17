@@ -77,6 +77,7 @@ namespace MergeResto.Game.UI
                     _live.RemoveAt(i);
                     if (targetJuice != null)
                         targetJuice.Pop(3f);
+                    AudioDirector.CoinLanded();
                 }
             }
         }
