@@ -8,6 +8,8 @@ namespace MergeResto.Sim
     public class ShopState
     {
         public const int CurrentVersion = 1;
+        /// <summary>tutorialStep once the tutorial is over (or for shops without one).</summary>
+        public const int TutorialFinished = 1000;
 
         public int version = CurrentVersion;
         public string shopId;

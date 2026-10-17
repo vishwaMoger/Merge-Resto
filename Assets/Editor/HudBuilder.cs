@@ -19,6 +19,8 @@ namespace MergeResto.EditorTools
     public static class HudBuilder
     {
         static TMP_FontAsset _display, _body;
+        /// <summary>Shown on the banner; set by the scene builder before Build.</summary>
+        public static string ShopName = "Grandma's Bakery";
         static RectTransform _root;
         static StationPanel _panel;
         static readonly List<StationHud> _markers = new();
@@ -137,6 +139,178 @@ namespace MergeResto.EditorTools
             Set(coinFly, "target", coinTarget);
             Set(coinFly, "targetJuice", coinJuice);
             Set(goals, "coinFly", coinFly);
+        }
+
+        // ------------------------------------------------------------------ Map
+
+        /// <summary>"Main Street" shop map: a Shops button (bottom right) and a card per shop.</summary>
+        public static void BuildMap(MapPanel.Shop[] shops)
+        {
+            var holder = Stretch(Rect("Map", _root));
+            var board = _root.Find("Board");
+            if (board != null)
+                holder.SetSiblingIndex(board.GetSiblingIndex() + 1);
+            var map = holder.gameObject.AddComponent<MapPanel>();
+
+            // Shops button, left of Renovate.
+            var open = Rect("ShopsButton", holder);
+            open.anchorMin = open.anchorMax = open.pivot = new Vector2(1f, 0f);
+            open.anchoredPosition = new Vector2(-206, 44);
+            open.sizeDelta = new Vector2(150, 150);
+            var openImage = Img(open, "sl_btn_orange_circle", Color.white, simple: true);
+            var openButton = open.gameObject.AddComponent<UnityEngine.UI.Button>();
+            openButton.targetGraphic = openImage;
+            open.gameObject.AddComponent<ButtonJuice>();
+            var openArt = Rect("Icon", open);
+            openArt.anchoredPosition = new Vector2(0, 14);
+            openArt.sizeDelta = new Vector2(108, 108);
+            var openArtImage = openArt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            openArtImage.sprite = shops[0].picture;
+            openArtImage.preserveAspect = true;
+            openArtImage.raycastTarget = false;
+            var openLabel = Label("Label", open, "Shops", 30, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            openLabel.rectTransform.anchorMin = openLabel.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            openLabel.rectTransform.anchoredPosition = new Vector2(0, 8);
+            openLabel.rectTransform.sizeDelta = new Vector2(200, 44);
+            var alert = Rect("Alert", open);
+            alert.anchorMin = alert.anchorMax = new Vector2(1f, 1f);
+            alert.anchoredPosition = new Vector2(-18, -18);
+            alert.sizeDelta = new Vector2(48, 48);
+            Img(alert, "sl_btn_red_circle", Color.white, simple: true);
+            var bang = Label("Text", alert, "!", 34, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(bang.rectTransform, new Vector2(0, 4), Vector2.zero);
+
+            var dim = Stretch(Rect("Dim", holder));
+            var dimImage = Img(dim, null, new Color(0.03f, 0.02f, 0.02f, 0.55f));
+            var dimButton = dim.gameObject.AddComponent<UnityEngine.UI.Button>();
+            dimButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            dimButton.targetGraphic = dimImage;
+            var dimGroup = dim.gameObject.AddComponent<CanvasGroup>();
+
+            var panel = Rect("Panel", holder);
+            panel.sizeDelta = new Vector2(1560, 720);
+            panel.anchoredPosition = new Vector2(0, -10);
+            var group = panel.gameObject.AddComponent<CanvasGroup>();
+            Window(Stretch(Rect("Background", panel)), 16f).raycastTarget = true;
+            var ribbon = Rect("Ribbon", panel);
+            ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 1f);
+            ribbon.anchoredPosition = new Vector2(0, 12);
+            ribbon.sizeDelta = new Vector2(480, 108);
+            Img(ribbon, "sl_banner", Color.white, BannerSlice(108f));
+            var title = Label("Title", ribbon, "Main Street", 52, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            BandText(title.rectTransform, 108f);
+            var closeButton = CloseButton(panel);
+
+            var cards = new List<MapPanel.Card>();
+            const float cardW = 350f, gap = 20f;
+            float startX = -(shops.Length * cardW + (shops.Length - 1) * gap) / 2f + cardW / 2f;
+            for (int i = 0; i < shops.Length; i++)
+            {
+                var card = Rect($"Shop{i}", panel);
+                card.anchoredPosition = new Vector2(startX + i * (cardW + gap), -34);
+                card.sizeDelta = new Vector2(cardW, 560);
+                Img(card, "sl_frame_white", Color.white, 1.3f);
+
+                var pic = Rect("Picture", card);
+                pic.anchorMin = pic.anchorMax = new Vector2(0.5f, 1f);
+                pic.pivot = new Vector2(0.5f, 1f);
+                pic.anchoredPosition = new Vector2(0, -14);
+                pic.sizeDelta = new Vector2(250, 250);
+                var picImage = pic.gameObject.AddComponent<UnityEngine.UI.Image>();
+                picImage.preserveAspect = true;
+                picImage.raycastTarget = false;
+                var lockIcon = Rect("Lock", card);
+                lockIcon.anchorMin = lockIcon.anchorMax = new Vector2(0.5f, 1f);
+                lockIcon.anchoredPosition = new Vector2(0, -150);
+                lockIcon.sizeDelta = new Vector2(90, 90);
+                Img(lockIcon, "sl_btn_white_circle", new Color(0.45f, 0.32f, 0.26f), simple: true);
+                var lockText = Label("Text", lockIcon, "?", 52, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                Fill(lockText.rectTransform, new Vector2(0, 6), Vector2.zero);
+                var here = Rect("Here", card);
+                here.anchorMin = here.anchorMax = new Vector2(0.5f, 1f);
+                here.anchoredPosition = new Vector2(0, -12);
+                here.sizeDelta = new Vector2(220, 52);
+                Img(here, "sl_btn_pink", Color.white, 2.6f);
+                var hereText = Label("Text", here, "You are here", 26, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                Fill(hereText.rectTransform, new Vector2(4, 4), Vector2.zero);
+
+                var name = Label("Name", card, "Shop", 34, _display, _shadow, Brown, TextAlignmentOptions.Center);
+                Top(name.rectTransform, new Vector2(0, -270), new Vector2(330, 46), centered: true);
+                var blurb = Label("Blurb", card, "", 24, _body, null, SoftBrown, TextAlignmentOptions.Center);
+                blurb.textWrappingMode = TextWrappingModes.Normal;
+                Top(blurb.rectTransform, new Vector2(0, -318), new Vector2(310, 64), centered: true);
+                var status = Label("Status", card, "", 25, _body, null, Brown, TextAlignmentOptions.Center);
+                status.textWrappingMode = TextWrappingModes.Normal;
+                Top(status.rectTransform, new Vector2(0, -390), new Vector2(310, 66), centered: true);
+
+                var btn = Rect("Action", card);
+                btn.anchorMin = btn.anchorMax = new Vector2(0.5f, 0f);
+                btn.pivot = new Vector2(0.5f, 0f);
+                btn.anchoredPosition = new Vector2(0, 20);
+                btn.sizeDelta = new Vector2(250, 70);
+                var btnImage = Img(btn, "sl_btn_orange", Color.white, 1.8f);
+                var button = btn.gameObject.AddComponent<UnityEngine.UI.Button>();
+                button.targetGraphic = btnImage;
+                var colors = button.colors;
+                colors.disabledColor = Color.white;
+                button.colors = colors;
+                btn.gameObject.AddComponent<ButtonJuice>();
+                var btnText = Label("Text", btn, "Go", 34, _display, _shadow, Color.white, TextAlignmentOptions.Center);
+                Fill(btnText.rectTransform, new Vector2(4, 4), Vector2.zero);
+
+                cards.Add(new MapPanel.Card
+                {
+                    root = card, picture = picImage, title = name, blurb = blurb, status = status,
+                    action = button, actionImage = btnImage, actionText = btnText,
+                    lockIcon = lockIcon.gameObject, hereBadge = here.gameObject,
+                });
+            }
+
+            var so = new SerializedObject(map);
+            var shopsProp = so.FindProperty("shops");
+            shopsProp.arraySize = shops.Length;
+            for (int i = 0; i < shops.Length; i++)
+            {
+                var e = shopsProp.GetArrayElementAtIndex(i);
+                var sh = shops[i];
+                e.FindPropertyRelative("id").stringValue = sh.id;
+                e.FindPropertyRelative("displayName").stringValue = sh.displayName;
+                e.FindPropertyRelative("blurb").stringValue = sh.blurb;
+                e.FindPropertyRelative("sceneName").stringValue = sh.sceneName ?? "";
+                e.FindPropertyRelative("picture").objectReferenceValue = sh.picture;
+                e.FindPropertyRelative("comingSoon").boolValue = sh.comingSoon;
+                e.FindPropertyRelative("requiresShop").stringValue = sh.requiresShop ?? "";
+                e.FindPropertyRelative("renovationsNeeded").intValue = sh.renovationsNeeded;
+                e.FindPropertyRelative("shopLevelNeeded").intValue = sh.shopLevelNeeded;
+                e.FindPropertyRelative("unlockCost").doubleValue = sh.unlockCost;
+            }
+            var cardsProp = so.FindProperty("cards");
+            cardsProp.arraySize = cards.Count;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var e = cardsProp.GetArrayElementAtIndex(i);
+                var c = cards[i];
+                e.FindPropertyRelative("root").objectReferenceValue = c.root;
+                e.FindPropertyRelative("picture").objectReferenceValue = c.picture;
+                e.FindPropertyRelative("title").objectReferenceValue = c.title;
+                e.FindPropertyRelative("blurb").objectReferenceValue = c.blurb;
+                e.FindPropertyRelative("status").objectReferenceValue = c.status;
+                e.FindPropertyRelative("action").objectReferenceValue = c.action;
+                e.FindPropertyRelative("actionImage").objectReferenceValue = c.actionImage;
+                e.FindPropertyRelative("actionText").objectReferenceValue = c.actionText;
+                e.FindPropertyRelative("lockIcon").objectReferenceValue = c.lockIcon;
+                e.FindPropertyRelative("hereBadge").objectReferenceValue = c.hereBadge;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Set(map, "panel", panel);
+            Set(map, "group", group);
+            Set(map, "dim", dimGroup);
+            Set(map, "dimButton", dimButton);
+            Set(map, "openButton", openButton);
+            Set(map, "openAlert", alert.gameObject);
+            Set(map, "closeButton", closeButton);
+            Set(map, "goSprite", Resolve("sl_btn_orange"));
+            Set(map, "lockedSprite", Resolve("sl_btn_white"));
         }
 
         // ------------------------------------------------------------------ Sound toggle
@@ -410,7 +584,7 @@ namespace MergeResto.EditorTools
             banner.anchoredPosition = new Vector2(-32, -24);
             banner.sizeDelta = new Vector2(560, 112);
             Img(banner, "sl_banner", Color.white, BannerSlice(112f));
-            var name = Label("Name", banner, "Grandma's Bakery", 50, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            var name = Label("Name", banner, ShopName, 50, _display, _outlined, Color.white, TextAlignmentOptions.Center);
             BandText(name.rectTransform, 112f);
             return bar;
         }

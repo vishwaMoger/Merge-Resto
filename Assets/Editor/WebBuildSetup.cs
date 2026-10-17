@@ -17,6 +17,7 @@ namespace MergeResto.EditorTools
         const string BootScenePath = "Assets/Scenes/Boot.unity";
         // The first playable shop.
         const string GameScenePath = "Assets/Scenes/Bakery.unity";
+        const string CafeScenePath = "Assets/Scenes/Cafe.unity";
         const string WebQualityLevel = "PC";
         const string SdkLoadingScenePath = "Assets/CrazySDK/Demo/LoadingScene.unity";
 
@@ -66,22 +67,27 @@ namespace MergeResto.EditorTools
                 }
             }
 
-            var gameSceneName = System.IO.Path.GetFileNameWithoutExtension(GameScenePath);
+            // The SDK's demo loader is replaced by ours, which also picks the player's last shop.
             var boot = EditorSceneManager.OpenScene(BootScenePath, OpenSceneMode.Additive);
-            var loader = boot.GetRootGameObjects()
-                .SelectMany(go => go.GetComponentsInChildren<CrazySDKLoadingScene>(true))
-                .FirstOrDefault();
+            foreach (var old in boot.GetRootGameObjects().SelectMany(go => go.GetComponentsInChildren<CrazySDKLoadingScene>(true)))
+            {
+                var host = old.gameObject;
+                UnityEngine.Object.DestroyImmediate(old);
+                if (host.GetComponent<MergeResto.Game.BootLoader>() == null)
+                    host.AddComponent<MergeResto.Game.BootLoader>();
+            }
+            var loader = boot.GetRootGameObjects().SelectMany(go => go.GetComponentsInChildren<MergeResto.Game.BootLoader>(true)).FirstOrDefault();
             if (loader == null)
             {
-                Debug.LogError("[Merge Resto] No CrazySDKLoadingScene component found in the boot scene.");
+                var go = new GameObject("BootLoader");
+                EditorSceneManager.MoveGameObjectToScene(go, boot);
+                loader = go.AddComponent<MergeResto.Game.BootLoader>();
             }
-            else
-            {
-                loader.nextSceneName = gameSceneName;
-                EditorUtility.SetDirty(loader);
-                EditorSceneManager.MarkSceneDirty(boot);
-                EditorSceneManager.SaveScene(boot);
-            }
+            loader.shopIds = new[] { "grandmas_bakery", "corner_cafe" };
+            loader.sceneNames = new[] { "Bakery", "Cafe" };
+            EditorUtility.SetDirty(loader);
+            EditorSceneManager.MarkSceneDirty(boot);
+            EditorSceneManager.SaveScene(boot);
             if (UnityEngine.SceneManagement.SceneManager.loadedSceneCount > 1)
                 EditorSceneManager.CloseScene(boot, true);
 
@@ -89,7 +95,9 @@ namespace MergeResto.EditorTools
             {
                 new EditorBuildSettingsScene(BootScenePath, true),
                 new EditorBuildSettingsScene(GameScenePath, true),
+                new EditorBuildSettingsScene(CafeScenePath, true),
             };
+            string gameSceneName = "Bakery, Cafe";
             Debug.Log($"[Merge Resto] Build scenes: Boot -> {gameSceneName}.");
         }
 

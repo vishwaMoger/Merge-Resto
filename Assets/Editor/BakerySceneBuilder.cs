@@ -14,13 +14,20 @@ using UnityEngine.InputSystem.UI;
 namespace MergeResto.EditorTools
 {
     /// <summary>
-    /// Builds the playable Grandma's Bakery scene: room, production chain, staff, customers,
-    /// game controller and HUD. Re-run after changing layout code; the config asset is kept.
+    /// Builds the playable shop scenes (Grandma's Bakery, Corner Café): room, production chain,
+    /// staff, customers, game controller and HUD. Both shops share the room, street and systems;
+    /// stations, staff, goods and balancing differ. Re-run after changing layout code.
     /// </summary>
     public static class BakerySceneBuilder
     {
-        const string ScenePath = "Assets/Scenes/Bakery.unity";
-        const string ConfigPath = "Assets/Game/Config/GrandmasBakery.asset";
+        enum ShopKind { Bakery, Cafe }
+
+        static ShopKind _shop = ShopKind.Bakery;
+        static bool IsCafe => _shop == ShopKind.Cafe;
+        static string ScenePath => IsCafe ? "Assets/Scenes/Cafe.unity" : "Assets/Scenes/Bakery.unity";
+        static string ConfigPath => IsCafe ? "Assets/Game/Config/CornerCafe.asset" : "Assets/Game/Config/GrandmasBakery.asset";
+        public const string BakeryScene = "Bakery";
+        public const string CafeScene = "Cafe";
         const string UiFolder = "Assets/Art/UI";
         const string BakeryArt = "Assets/Art/ThirdParty/TinyTreats_BakeryInterior/Models/";
         const string GoodsArt = "Assets/Art/ThirdParty/TinyTreats_BakedGoods/Models/";
@@ -29,17 +36,48 @@ namespace MergeResto.EditorTools
         const string CityArt = "Assets/Art/ThirdParty/KayKit_CityBuilder/Models/";
         const string ForestArt = "Assets/Art/ThirdParty/KayKit_Forest/Models/";
         const float LowWallHeight = 1.2f;
-        const float EntranceX = 6.2f;
+        // Floor plans. The bakery: production along the back wall left to right, counter on the
+        // right, tables on the left, entrance in the front and a side exit. The café: production
+        // right to left, counter on the left, tables on the right, two doors in the front.
+        const float BakeryEntranceX = 6.2f;
         const float ExitZ = -2.2f;
+        const float CafeEntranceX = 0.6f;
+        const float CafeExitX = -6.3f;
+        static float EntranceX => IsCafe ? CafeEntranceX : BakeryEntranceX;
+        static readonly Vector3 BakeryCounter = new(4f, 0f, 0.8f);
+        static Vector3 CounterPos => IsCafe ? new Vector3(-4.2f, 0f, 0.6f) : BakeryCounter;
+        static Vector3 CounterShift => CounterPos - BakeryCounter;
+        // Customers walk along the front sidewalk on this line.
+        static float WalkLaneZ => IsCafe ? -8.85f : -8.2f;
+
+        // Moves a built station (with its work point, anchors and props) to a new spot.
+        static StationView MoveStation(StationView view, Vector3 pos)
+        {
+            view.transform.position = pos;
+            return view;
+        }
         // KayKit City Builder is a miniature set; this brings it to character scale.
         const float CityScale = 3f;
         const float WalkSpeed = 2.4f;
 
         [MenuItem("Merge Resto/Game/Build Bakery Scene")]
-        public static void Build()
+        public static void Build() => BuildShop(ShopKind.Bakery);
+
+        [MenuItem("Merge Resto/Game/Build Corner Cafe Scene")]
+        public static void BuildCafe() => BuildShop(ShopKind.Cafe);
+
+        [MenuItem("Merge Resto/Game/Build All Shops")]
+        public static void BuildAll()
+        {
+            BuildShop(ShopKind.Cafe);
+            BuildShop(ShopKind.Bakery);
+        }
+
+        static void BuildShop(ShopKind kind)
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
+            _shop = kind;
 
             LookSetup.InstallRendering();
             LoadOrCreateConfig();
@@ -55,10 +93,10 @@ namespace MergeResto.EditorTools
             BuildRoom(world);
 
             var stations = new StationView[4];
-            stations[0] = BuildFlourStorage(world);
-            stations[1] = BuildMixer(world);
-            stations[2] = BuildOven(world);
-            stations[3] = BuildCounter(world);
+            stations[0] = IsCafe ? MoveStation(BuildBeanStorage(world), new Vector3(5.6f, 0f, 4.45f)) : BuildFlourStorage(world);
+            stations[1] = IsCafe ? MoveStation(BuildEspresso(world), new Vector3(2.8f, 0f, 5f)) : BuildMixer(world);
+            stations[2] = IsCafe ? MoveStation(BuildLatteBar(world), new Vector3(-1.4f, 0f, 5f)) : BuildOven(world);
+            stations[3] = MoveStation(BuildCounter(world), CounterPos);
             for (int i = 0; i < stations.Length; i++)
                 stations[i].stationIndex = i;
 
@@ -74,16 +112,22 @@ namespace MergeResto.EditorTools
             var input = game.AddComponent<InputController>();
             SetPrivate(input, "worldCamera", cam);
 
+            HudBuilder.ShopName = config.shop.displayName;
             HudBuilder.Build(stations, crowd, out var popups, out var coinFly);
             var fx = BuildFx(world, stations, crowd, popups, coinFly);
             BuildDecor(world);
             BuildInterior(world);
             BuildStreet(world);
+            if (IsCafe)
+                StyleCafe(world, cam);
 
-            // Grandma guides the Grand Opening; her portrait is rendered from the 3D model.
-            var portrait = PortraitRenderer.Render(CharacterLibrary.GrandmaLook, LookSetup.Hex("FFD9A8"));
-            var grandma = stations[3].GetComponentsInChildren<ChibiAnimator>(true).First(a => a.name == "Grandma");
-            HudBuilder.BuildTutorial(stations, fx, coinFly, grandma, portrait, crowd, cameraDirector);
+            // Grandma guides the Grand Opening in the bakery; her portrait is rendered from the 3D model.
+            if (!IsCafe)
+            {
+                var portrait = PortraitRenderer.Render(CharacterLibrary.GrandmaLook, LookSetup.Hex("FFD9A8"));
+                var grandma = stations[3].GetComponentsInChildren<ChibiAnimator>(true).First(a => a.name == "Grandma");
+                HudBuilder.BuildTutorial(stations, fx, coinFly, grandma, portrait, crowd, cameraDirector);
+            }
 
             // The renovation board and the run-down spots it fixes.
             var boardIcons = RenderBoardIcons(config.shop.board);
@@ -94,11 +138,12 @@ namespace MergeResto.EditorTools
             BuildShopAge(world);
             BuildAudio(crowd);
             HudBuilder.BuildSoundToggle();
+            BuildMap();
             HudBuilder.EnableButtonTargets();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[Merge Resto] Bakery scene saved to {ScenePath}.");
+            Debug.Log($"[Merge Resto] {config.shop.displayName} scene saved to {ScenePath}.");
         }
 
         // ------------------------------------------------------------------ Config
@@ -109,6 +154,11 @@ namespace MergeResto.EditorTools
         {
             var goals = config.shop.goals;
             goals.Clear();
+            if (IsCafe)
+            {
+                EnsureCafeGoals(config);
+                return;
+            }
             GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
                 new() { kind = kind, target = target, station = station, rewardCoins = coins, rewardGems = gems };
             goals.Add(G(GoalKind.Renovations, 1, coins: 200));
@@ -184,12 +234,24 @@ namespace MergeResto.EditorTools
                     r.needs.Add(new ItemRef(n.chain, n.tier));
                 return r;
             }
-            b.renovations.Add(R("pastry_stand", "Restock the pastry stand", 150, 0.05f, (0, 2)));
-            b.renovations.Add(R("window_plants", "Revive the window plants", 200, 0.06f, (2, 2), (2, 1)));
-            b.renovations.Add(R("dining", "Set the dining tables", 300, 0.08f, (1, 2), (1, 2), (1, 1)));
-            b.renovations.Add(R("display_case", "Polish the display case", 500, 0.08f, (1, 3), (0, 3)));
-            b.renovations.Add(R("corner", "Green up the cozy corner", 800, 0.08f, (2, 4)));
-            b.renovations.Add(R("shop_sign", "Light up the shop sign", 2000, 0.15f, (0, 5), (1, 4), (2, 4)));
+            if (IsCafe)
+            {
+                b.renovations.Add(R("pastry_stand", "Fill the cake stand", 800, 0.05f, (0, 3)));
+                b.renovations.Add(R("window_plants", "Plant the window pots", 1200, 0.06f, (2, 3), (2, 2)));
+                b.renovations.Add(R("dining", "Lay the café tables", 1800, 0.08f, (1, 3), (1, 3), (1, 2)));
+                b.renovations.Add(R("display_case", "Shine the display case", 3000, 0.08f, (1, 4), (0, 4)));
+                b.renovations.Add(R("corner", "Grow a reading corner", 5000, 0.08f, (2, 5)));
+                b.renovations.Add(R("shop_sign", "Light the café sign", 12000, 0.15f, (0, 6), (1, 5), (2, 5)));
+            }
+            else
+            {
+                b.renovations.Add(R("pastry_stand", "Restock the pastry stand", 150, 0.05f, (0, 2)));
+                b.renovations.Add(R("window_plants", "Revive the window plants", 200, 0.06f, (2, 2), (2, 1)));
+                b.renovations.Add(R("dining", "Set the dining tables", 300, 0.08f, (1, 2), (1, 2), (1, 1)));
+                b.renovations.Add(R("display_case", "Polish the display case", 500, 0.08f, (1, 3), (0, 3)));
+                b.renovations.Add(R("corner", "Green up the cozy corner", 800, 0.08f, (2, 4)));
+                b.renovations.Add(R("shop_sign", "Light up the shop sign", 2000, 0.15f, (0, 5), (1, 4), (2, 4)));
+            }
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssets();
         }
@@ -223,11 +285,35 @@ namespace MergeResto.EditorTools
             return (chains, gens);
         }
 
+        static void EnsureCafeGoals(ShopConfig config)
+        {
+            var goals = config.shop.goals;
+            GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
+                new() { kind = kind, target = target, station = station, rewardCoins = coins, rewardGems = gems };
+            goals.Add(G(GoalKind.ServeCustomers, 10, coins: 600));
+            goals.Add(G(GoalKind.StationLevel, 2, station: 1, gems: 15));
+            goals.Add(G(GoalKind.HireManager, 1, station: 0, coins: 800));
+            goals.Add(G(GoalKind.Renovations, 1, gems: 20));
+            goals.Add(G(GoalKind.StationLevel, 3, station: 2, gems: 20));
+            goals.Add(G(GoalKind.HireManager, 1, station: 1, coins: 1500));
+            goals.Add(G(GoalKind.LifetimeCoins, 20000, gems: 30));
+            goals.Add(G(GoalKind.AddMachines, 1, station: 1, gems: 30));
+            goals.Add(G(GoalKind.Renovations, 3, gems: 40));
+            goals.Add(G(GoalKind.ServeCustomers, 150, coins: 6000));
+            goals.Add(G(GoalKind.HireManager, 1, station: 2, coins: 4000));
+            goals.Add(G(GoalKind.ShopLevel, 30, gems: 60));
+            goals.Add(G(GoalKind.Renovations, 6, gems: 80));
+            goals.Add(G(GoalKind.LifetimeCoins, 150000, gems: 100));
+            EditorUtility.SetDirty(config);
+        }
+
         static ShopConfig LoadOrCreateConfig()
         {
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
             if (config != null)
                 return config;
+            if (IsCafe)
+                return CreateCafeConfig();
 
             LookSetup.EnsureFolder("Assets/Game/Config");
             config = ScriptableObject.CreateInstance<ShopConfig>();
@@ -254,6 +340,41 @@ namespace MergeResto.EditorTools
             for (int i = 0; i < 3; i++)
                 shop.couriers.Add(new CourierDefinition { carry = 6, walkSeconds = 1.5f });
 
+            AssetDatabase.CreateAsset(config, ConfigPath);
+            return config;
+        }
+
+        // The second shop: coffee instead of bread, pricier goods and upgrades, no tutorial.
+        static ShopConfig CreateCafeConfig()
+        {
+            LookSetup.EnsureFolder("Assets/Game/Config");
+            var config = ScriptableObject.CreateInstance<ShopConfig>();
+            var shop = config.shop;
+            shop.id = "corner_cafe";
+            shop.displayName = "Corner Café";
+            shop.hasTutorial = false;
+            shop.customerIntervalSeconds = 4f;
+            shop.itemsPerOrder = 2;
+            shop.pricePerItem = 70;
+            shop.patienceSeconds = 22f;
+            shop.startCoins = 600;
+            shop.startGems = 25;
+            shop.stations.Add(Station("beans", "Coffee Beans", StationKind.Source, 2.5f, 6, 25,
+                "Quick Scoop", "Bigger Sacks", "Extra Pallet"));
+            shop.stations.Add(Station("espresso", "Espresso Machine", StationKind.Processor, 3f, 6, 35,
+                "Faster Brew", "Double Shot", "Add Machine"));
+            shop.stations.Add(Station("latte", "Latte Bar", StationKind.Processor, 3.5f, 6, 45,
+                "Swift Pour", "Bigger Mugs", "Add Station"));
+            var counter = Station("counter", "Café Counter", StationKind.Seller, 1.2f, 0, 0,
+                "Friendly Barista", "Fancy Latte", "Add Cashier");
+            counter.startsAutomated = true;
+            shop.stations.Add(counter);
+            // Everything costs about four times the bakery's prices.
+            foreach (var st in shop.stations)
+                foreach (var up in st.upgrades)
+                    up.baseCost *= 4;
+            for (int i = 0; i < 3; i++)
+                shop.couriers.Add(new CourierDefinition { carry = 6, walkSeconds = 1.5f });
             AssetDatabase.CreateAsset(config, ConfigPath);
             return config;
         }
@@ -312,7 +433,7 @@ namespace MergeResto.EditorTools
             var room = Group("Room", world);
             for (int x = -7; x <= 7; x += 2)
             for (int z = -5; z <= 5; z += 2)
-                Place(z >= 2 ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
+                Place(z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
 
             // Back wall along z = 6 (kitchen side), windows behind the counter.
             for (int x = -7; x <= 7; x += 2)
@@ -352,14 +473,26 @@ namespace MergeResto.EditorTools
             }
             // Wall meshes are single-sided, so the front and right walls face outwards: the
             // camera looks at their outside. They sit just outside the floor edge.
-            Segment(new Vector3(-8f, 0f, -6f), new Vector3(EntranceX - 1.1f, 0f, -6f), 180f);
-            Segment(new Vector3(EntranceX + 1.1f, 0f, -6f), new Vector3(8f, 0f, -6f), 180f);
-            Segment(new Vector3(8f, 0f, -6f), new Vector3(8f, 0f, ExitZ - 1.1f), 90f);
-            Segment(new Vector3(8f, 0f, ExitZ + 1.1f), new Vector3(8f, 0f, 6f), 90f);
-            Post(new Vector3(EntranceX - 1.1f, 0f, -6.15f));
-            Post(new Vector3(EntranceX + 1.1f, 0f, -6.15f));
-            Post(new Vector3(8.15f, 0f, ExitZ - 1.1f));
-            Post(new Vector3(8.15f, 0f, ExitZ + 1.1f));
+            float[] frontGaps = IsCafe ? new[] { CafeExitX, CafeEntranceX } : new[] { BakeryEntranceX };
+            float[] sideGaps = IsCafe ? new float[0] : new[] { ExitZ };
+            float edge = -8f;
+            foreach (float g in frontGaps)
+            {
+                Segment(new Vector3(edge, 0f, -6f), new Vector3(g - 1.1f, 0f, -6f), 180f);
+                Post(new Vector3(g - 1.1f, 0f, -6.15f));
+                Post(new Vector3(g + 1.1f, 0f, -6.15f));
+                edge = g + 1.1f;
+            }
+            Segment(new Vector3(edge, 0f, -6f), new Vector3(8f, 0f, -6f), 180f);
+            edge = -6f;
+            foreach (float g in sideGaps)
+            {
+                Segment(new Vector3(8f, 0f, edge), new Vector3(8f, 0f, g - 1.1f), 90f);
+                Post(new Vector3(8.15f, 0f, g - 1.1f));
+                Post(new Vector3(8.15f, 0f, g + 1.1f));
+                edge = g + 1.1f;
+            }
+            Segment(new Vector3(8f, 0f, edge), new Vector3(8f, 0f, 6f), 90f);
             Post(new Vector3(8.15f, 0f, -6.15f));
         }
 
@@ -447,6 +580,83 @@ namespace MergeResto.EditorTools
             return view;
         }
 
+        // ------------------------------------------------------------------ Café stations
+
+        static readonly Color CoffeeBrown = new(0.62f, 0.42f, 0.3f);
+
+        // Material copies with a colour multiplier (coffee sacks are flour sacks dyed brown).
+        static void Tint(GameObject go, Color tint, string suffix)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var src = r.sharedMaterial;
+                if (src == null)
+                    continue;
+                string path = $"Assets/Art/Materials/{src.name}_{suffix}.mat";
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (mat == null)
+                {
+                    mat = new Material(src);
+                    AssetDatabase.CreateAsset(mat, path);
+                }
+                mat.SetColor("_BaseColor", src.GetColor("_BaseColor") * tint);
+                EditorUtility.SetDirty(mat);
+                r.sharedMaterial = mat;
+            }
+        }
+
+        static StationView BuildBeanStorage(Transform world)
+        {
+            var view = BuildFlourStorage(world);
+            view.name = "BeanStorage";
+            foreach (var pile in view.machineVisuals)
+                foreach (Transform sack in pile.transform)
+                    if (sack.name.StartsWith("flour_sack"))
+                        Tint(sack.gameObject, CoffeeBrown, "Coffee");
+            foreach (var sack in view.stockVisuals)
+                Tint(sack, CoffeeBrown, "Coffee");
+            return view;
+        }
+
+        static StationView BuildEspresso(Transform world)
+        {
+            var view = NewStation(world, "Espresso", new Vector3(-3f, 0f, 5f), new Vector3(-3f, 0f, 3.2f), 2.6f);
+            var t = view.transform;
+            Place("countertop_straight_A_large", t, new Vector3(-0.5f, 0f, 0f), 180f, local: true);
+            Place("countertop_straight_A_short", t, new Vector3(1f, 0f, 0f), 180f, local: true);
+            var slots = new List<GameObject>();
+            for (int m = 0; m < 3; m++)
+                slots.Add(Place("coffee_machine", t, new Vector3(-1f + m * 1f, 1f, 0.1f), 180f, local: true));
+            view.machineVisuals = slots.ToArray();
+            view.stockVisuals = Row("mug_A_blue", t, new Vector3(-1.1f, 1f, -0.5f), new Vector3(0.45f, 0f, 0f), 6, 200f);
+            view.runningEffects = new[] { SteamEmitter(t, new Vector3(-1f, 2.1f, 0.1f)) };
+            AddClickCollider(view);
+            return view;
+        }
+
+        static StationView BuildLatteBar(Transform world)
+        {
+            var view = NewStation(world, "LatteBar", new Vector3(1f, 0f, 5f), new Vector3(1f, 0f, 3.2f), 2.6f);
+            var t = view.transform;
+            Place("countertop_straight_A_large", t, new Vector3(-1f, 0f, 0f), 180f, local: true);
+            Place("countertop_straight_A_large", t, new Vector3(1f, 0f, 0f), 180f, local: true);
+            var slots = new List<GameObject>();
+            for (int m = 0; m < 3; m++)
+            {
+                // One latte station: a milk bottle and a stack of mugs.
+                var group = Group($"LatteStation{m}", t);
+                group.localPosition = new Vector3(-1.25f + m * 1.25f, 1f, 0.1f);
+                Place("milk", group, new Vector3(-0.25f, 0f, 0f), 20f, local: true);
+                Place("mug_B_stacked", group, new Vector3(0.25f, 0f, 0.05f), 0f, local: true);
+                slots.Add(group.gameObject);
+            }
+            view.machineVisuals = slots.ToArray();
+            view.stockVisuals = Row("coffee_cup_takeaway", t, new Vector3(-1.2f, 1f, -0.5f), new Vector3(0.45f, 0f, 0f), 6, 0f);
+            view.runningEffects = new[] { SteamEmitter(t, new Vector3(-1.25f, 1.9f, 0.1f)) };
+            AddClickCollider(view);
+            return view;
+        }
+
         static StationView BuildCounter(Transform world)
         {
             var view = NewStation(world, "Counter", new Vector3(4f, 0f, 0.8f), new Vector3(3f, 0f, 2.6f), 2.8f);
@@ -457,8 +667,12 @@ namespace MergeResto.EditorTools
             Place("cash_register", t, new Vector3(0.75f, 1f, 0.1f), 180f, local: true);
             Place("pricing_card", t, new Vector3(-1.6f, 1.55f, -0.4f), 0f, local: true);
 
-            var shelfA = Row("bread", GoodsArt, t, new Vector3(-1.65f, 0.55f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 90f);
-            var shelfB = Row("croissant", GoodsArt, t, new Vector3(-1.65f, 0.95f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f);
+            var shelfA = IsCafe
+                ? Row("coffee_cup_takeaway", t, new Vector3(-1.65f, 0.55f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f)
+                : Row("bread", GoodsArt, t, new Vector3(-1.65f, 0.55f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 90f);
+            var shelfB = IsCafe
+                ? Row("muffin", GoodsArt, t, new Vector3(-1.65f, 0.95f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f)
+                : Row("croissant", GoodsArt, t, new Vector3(-1.65f, 0.95f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f);
             view.stockVisuals = shelfA.Concat(shelfB).ToArray();
 
             // Cashiers behind the counter, one per "machine".
@@ -467,7 +681,8 @@ namespace MergeResto.EditorTools
             for (int m = 0; m < 3; m++)
             {
                 // Grandma herself runs the first till.
-                var c = Character(m == 0 ? CharacterLibrary.GrandmaLook : CharacterLibrary.CashierLook, t, m == 0 ? "Grandma" : $"Cashier{m}");
+                bool grandma = m == 0 && !IsCafe;
+                var c = Character(grandma ? CharacterLibrary.GrandmaLook : CharacterLibrary.CashierLook, t, grandma ? "Grandma" : $"Cashier{m}");
                 c.transform.localPosition = new Vector3(xs[m], 0f, 1.25f);
                 c.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 c.GetComponent<ChibiAnimator>().idleFacing = Vector3.back;
@@ -481,18 +696,22 @@ namespace MergeResto.EditorTools
         static void BuildCouriers(Transform world, StationView[] stations)
         {
             var staff = Group("Staff", world);
-            string[] carryModels = { "flour_sack_closed", "dough_ball", "bread" };
-            string[] carryFolders = { BakeryArt, BakeryArt, GoodsArt };
+            string[] carryModels = IsCafe
+                ? new[] { "flour_sack_closed", "mug_A_blue", "coffee_cup_takeaway" }
+                : new[] { "flour_sack_closed", "dough_ball", "bread" };
+            string[] carryFolders = IsCafe ? new[] { BakeryArt, BakeryArt, BakeryArt } : new[] { BakeryArt, BakeryArt, GoodsArt };
             Vector3[] offsets = { new(0f, 0f, -0.35f), new(0f, 0f, 0.35f), new(0f, 0f, -0.35f) };
             for (int i = 0; i < 3; i++)
             {
-                var baker = Character(CharacterLibrary.BakerLook, staff, $"Baker{i}");
+                var baker = Character(IsCafe ? CharacterLibrary.BaristaLook : CharacterLibrary.BakerLook, staff, $"Baker{i}");
                 var anim = baker.GetComponent<ChibiAnimator>();
 
                 var carry = Place(carryModels[i], carryFolders[i], anim.carryAnchor, Vector3.zero, 0f, local: true);
                 carry.transform.localRotation = Quaternion.identity;
                 carry.transform.localScale = Vector3.one * (i == 0 ? 1.1f : 1.5f);
                 carry.name = "Carry";
+                if (IsCafe && i == 0)
+                    Tint(carry, CoffeeBrown, "Coffee");
                 carry.SetActive(false);
 
                 var courier = baker.AddComponent<CourierView>();
@@ -512,31 +731,44 @@ namespace MergeResto.EditorTools
             // In from the street along the front sidewalk, through the entrance.
             crowd.entryPath = new[]
             {
-                Marker("Entry_Street", root, new Vector3(22f, 0f, -8.2f)),
-                Marker("Entry_Outside", root, new Vector3(EntranceX, 0f, -8.2f)),
+                Marker("Entry_Street", root, new Vector3(22f, 0f, WalkLaneZ)),
+                Marker("Entry_Outside", root, new Vector3(EntranceX, 0f, WalkLaneZ)),
                 Marker("Entry_Door", root, new Vector3(EntranceX, 0f, -6.25f)),
                 Marker("Entry_Inside", root, new Vector3(EntranceX, 0f, -5.0f)),
             };
             // Out through the side exit and away down the right-hand sidewalk.
-            crowd.exitPath = new[]
-            {
-                Marker("Exit_Inside", root, new Vector3(7.0f, 0f, ExitZ)),
-                Marker("Exit_Door", root, new Vector3(8.25f, 0f, ExitZ)),
-                Marker("Exit_Outside", root, new Vector3(9.8f, 0f, ExitZ)),
-                Marker("Exit_Street", root, new Vector3(9.8f, 0f, 20f)),
-            };
+            crowd.exitPath = IsCafe
+                ? new[]
+                {
+                    // Out through the left front door and away along the sidewalk.
+                    Marker("Exit_Inside", root, new Vector3(-5.9f, 0f, -3.0f)),
+                    Marker("Exit_Near", root, new Vector3(CafeExitX, 0f, -5.0f)),
+                    Marker("Exit_Door", root, new Vector3(CafeExitX, 0f, -6.25f)),
+                    Marker("Exit_Outside", root, new Vector3(CafeExitX, 0f, WalkLaneZ)),
+                    Marker("Exit_Street", root, new Vector3(-24f, 0f, WalkLaneZ)),
+                }
+                : new[]
+                {
+                    Marker("Exit_Inside", root, new Vector3(7.0f, 0f, ExitZ)),
+                    Marker("Exit_Door", root, new Vector3(8.25f, 0f, ExitZ)),
+                    Marker("Exit_Outside", root, new Vector3(9.8f, 0f, ExitZ)),
+                    Marker("Exit_Street", root, new Vector3(9.8f, 0f, 20f)),
+                };
 
             // The line runs from the register towards the entrance, then snakes left.
             var slots = new List<Transform>();
+            // In front of the register, then along the front towards the entrance.
+            float lineX = CounterPos.x + 0.75f;
+            float turn = IsCafe ? 1.25f : -1.25f;
             Vector3[] slotPositions =
             {
-                new(4.75f, 0f, -0.6f), new(4.75f, 0f, -1.9f), new(4.75f, 0f, -3.2f),
-                new(4.75f, 0f, -4.5f), new(3.5f, 0f, -4.5f), new(2.25f, 0f, -4.5f),
+                new(lineX, 0f, -0.6f), new(lineX, 0f, -1.9f), new(lineX, 0f, -3.2f),
+                new(lineX, 0f, -4.5f), new(lineX + turn, 0f, -4.5f), new(lineX + 2f * turn, 0f, -4.5f),
             };
             for (int i = 0; i < slotPositions.Length; i++)
             {
                 var s = Marker($"QueueSlot{i}", root, slotPositions[i]);
-                var lookAt = i < 4 ? new Vector3(4.75f, 0f, 1f) : slotPositions[i - 1];
+                var lookAt = i < 4 ? new Vector3(lineX, 0f, CounterPos.z + 0.2f) : slotPositions[i - 1];
                 s.rotation = Quaternion.LookRotation((lookAt - slotPositions[i]).normalized, Vector3.up);
                 slots.Add(s);
             }
@@ -566,18 +798,20 @@ namespace MergeResto.EditorTools
                 p.transform.localScale = Vector3.one * scale;
                 ApplySway(p);
             }
-            Plant("monstera_plant_large_potted", new Vector3(-7.2f, 0f, -5.2f), 30f);
-            Plant("yucca_plant_large_potted", new Vector3(7.3f, 0f, 4.9f), -20f);
+            // The café's reading corner is at the back left; the bakery's at the front left.
+            Plant("monstera_plant_large_potted", IsCafe ? new Vector3(-7.2f, 0f, 4.9f) : new Vector3(-7.2f, 0f, -5.2f), 30f);
+            Plant("yucca_plant_large_potted", IsCafe ? new Vector3(7.3f, 0f, -1.4f) : new Vector3(7.3f, 0f, 4.9f), -20f);
             Plant("sansevieria_plant_medium_potted", new Vector3(-7.3f, 0f, -0.2f), 10f);
             Plant("pothos_plant_small_potted", new Vector3(-7.55f, 2.45f, 1.0f), 90f);
             Plant("succulent_plant_pot_small", new Vector3(-7.55f, 2.45f, 3.0f), 0f);
-            Plant("zzplant_plant_medium_potted", new Vector3(7.4f, 0f, -5.4f), -40f);
-            Plant("monstera_plant_medium_potted", new Vector3(2.2f, 0f, 5.3f), 0f);
+            Plant("zzplant_plant_medium_potted", IsCafe ? new Vector3(7.3f, 0f, 2.3f) : new Vector3(7.4f, 0f, -5.4f), -40f);
+            if (!IsCafe) // the café's latte bar runs along this wall
+                Plant("monstera_plant_medium_potted", new Vector3(2.2f, 0f, 5.3f), 0f);
 
             // Mats at the entrance and the exit.
             var inMat = Place("rug", decor, new Vector3(EntranceX, 0.01f, -5.3f), 0f);
             inMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
-            var outMat = Place("rug", decor, new Vector3(7.3f, 0.01f, ExitZ), 90f);
+            var outMat = IsCafe ? Place("rug", decor, new Vector3(CafeExitX, 0.01f, -5.3f), 0f) : Place("rug", decor, new Vector3(7.3f, 0.01f, ExitZ), 90f);
             outMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
         }
 
@@ -609,18 +843,143 @@ namespace MergeResto.EditorTools
             ApplySway(vine2);
 
             // Treats on display at the counter.
-            Place("pastry_stand_B_decorated", dress, new Vector3(6.05f, 1.0f, 0.75f), 0f);
-            Place("cake_birthday", GoodsArt, dress, new Vector3(5.75f, 1.0f, 1.25f), 30f).transform.localScale *= 0.55f;
-            Place("cookie_jar", dress, new Vector3(3.95f, 1.0f, 1.15f));
+            Place("pastry_stand_B_decorated", dress, new Vector3(6.05f, 1.0f, 0.75f) + CounterShift, 0f);
+            Place("cake_birthday", GoodsArt, dress, new Vector3(5.75f, 1.0f, 1.25f) + CounterShift, 30f).transform.localScale *= 0.55f;
+            Place("cookie_jar", dress, new Vector3(3.95f, 1.0f, 1.15f) + CounterShift);
 
             // Chalkboard menu by the door.
-            var menu = Place("menu", RestaurantArt, dress, new Vector3(4.9f, 0f, -5.25f), 200f);
+            var menu = Place("menu", RestaurantArt, dress, new Vector3(EntranceX - 1.3f, 0f, -5.25f), 200f);
             menu.transform.localScale *= 1.6f;
 
             // Warm light pools over the counter and the dining tables. The room has no ceiling,
             // so these are bare lights rather than hanging lamps floating in the air.
-            foreach (var p in new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) })
+            var lights = IsCafe
+                ? new[] { CounterPos + new Vector3(0.2f, 0f, 0.6f), new Vector3(4.3f, 0f, -1.6f), new Vector3(3.2f, 0f, -3.8f) }
+                : new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) };
+            foreach (var p in lights)
                 WarmLight(dress, p);
+        }
+
+        // ------------------------------------------------------------------ Café look
+
+        static readonly Color CafeWall = new(0.74f, 0.9f, 0.8f);   // sage green
+        static readonly Color CafeFloor = new(0.7f, 0.52f, 0.42f); // dark roast wood
+
+        // Repaints the shared room as a café: sage walls, dark floor, teal curtains, coffee on
+        // the shelves, and warm late-afternoon light instead of the bakery's morning sun.
+        static void StyleCafe(Transform world, Camera cam)
+        {
+            var room = world.Find("Room");
+            foreach (Transform child in room)
+            {
+                if (child.name.StartsWith("wall_"))
+                    Tint(child.gameObject, CafeWall, "Cafe");
+                else if (child.name.StartsWith("floor_"))
+                    Tint(child.gameObject, CafeFloor, "Cafe");
+                else if (child.name == "LowWalls")
+                    foreach (Transform w in child)
+                        if (w.name.StartsWith("wall_"))
+                            Tint(w.gameObject, CafeWall, "Cafe");
+            }
+            var dress = world.Find("Dressing");
+            foreach (Transform child in dress)
+            {
+                if (child.name.StartsWith("curtains"))
+                    Tint(child.gameObject, new Color(0.55f, 0.85f, 0.85f), "Teal");
+                if (child.name.StartsWith("tin_") || child.name.StartsWith("cookie_jar"))
+                    Object.DestroyImmediate(child.gameObject);
+            }
+            // Coffee on the back shelf: mugs and takeaway cups.
+            Place("mug_B_stacked", dress, new Vector3(-3.6f, 2.78f, 5.3f));
+            Place("coffee_cup_takeaway_stacked", dress, new Vector3(-2.9f, 2.78f, 5.3f));
+            Place("mug_A_yellow", dress, new Vector3(-2.35f, 2.78f, 5.3f), 30f);
+            var shelf = room.Find("cookie_jar");
+            if (shelf != null)
+            {
+                var pos = shelf.position;
+                Object.DestroyImmediate(shelf.gameObject);
+                Place("coffee_machine", room, pos, 90f).transform.localScale *= 0.8f;
+            }
+
+            var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
+            if (sun != null)
+            {
+                sun.color = new Color(1f, 0.8f, 0.62f);
+                sun.intensity = 0.95f;
+                sun.transform.rotation = Quaternion.Euler(30f, -62f, 0f);
+            }
+            cam.backgroundColor = new Color(0.98f, 0.85f, 0.74f);
+        }
+
+        // Café tables inside: small round tables with cafe chairs, mugs and muffins.
+        static void BuildCafeDining(Transform world)
+        {
+            var dining = Group("Dining", world);
+            void Table(Vector3 p, float yaw)
+            {
+                Place("table_round_B", dining, p, yaw);
+                Place("chair", dining, p + Quaternion.Euler(0f, yaw, 0f) * new Vector3(-1.05f, 0f, 0f), yaw + 90f);
+                Place("chair", dining, p + Quaternion.Euler(0f, yaw, 0f) * new Vector3(1.05f, 0f, 0f), yaw - 90f);
+                Place("mug_A_blue", dining, p + new Vector3(-0.22f, 1f, 0.1f), yaw);
+                Place("plate", dining, p + new Vector3(0.28f, 1f, -0.12f));
+                Place("muffin", GoodsArt, dining, p + new Vector3(0.28f, 1.03f, -0.12f));
+            }
+            Table(new Vector3(4.6f, 0f, -0.9f), 0f);
+            Table(new Vector3(3.0f, 0f, -3.9f), 0f);
+            Table(new Vector3(6.0f, 0f, -3.6f), 90f);
+        }
+
+        // Outdoor café tables on the front sidewalk.
+        static void BuildTerrace(Transform street)
+        {
+            void Table(Vector3 p)
+            {
+                Place("table_round_C", street, p);
+                Place("chair", street, p + new Vector3(-1f, 0f, 0f), 90f);
+                Place("chair", street, p + new Vector3(1f, 0f, 0f), -90f);
+                Place("coffee_cup_takeaway", street, p + new Vector3(0.15f, 1f, 0f));
+            }
+            Table(new Vector3(-10.4f, 0f, -7.75f));
+            Table(new Vector3(-3.2f, 0f, -7.75f));
+            Table(new Vector3(4.2f, 0f, -7.75f));
+        }
+
+        // ------------------------------------------------------------------ Map
+
+        static void BuildMap()
+        {
+            Sprite Picture(string model, string name, float yaw) =>
+                AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/{name}.png")
+                ?? IconRenderer.Render($"{CityArt}{model}.fbx", name, yaw: yaw, pitch: 22f, padding: 1.05f);
+            var shops = new[]
+            {
+                new MapPanel.Shop
+                {
+                    id = "grandmas_bakery", displayName = "Grandma's Bakery", sceneName = BakeryScene,
+                    blurb = "Bread, croissants and the smell of Grandma's oven.",
+                    picture = Picture("building_C", "map_bakery", 210f),
+                },
+                new MapPanel.Shop
+                {
+                    id = "corner_cafe", displayName = "Corner Café", sceneName = CafeScene,
+                    blurb = "Espresso, lattes and muffins on the corner.",
+                    picture = Picture("building_A", "map_cafe", 210f),
+                    requiresShop = "grandmas_bakery", renovationsNeeded = 3, shopLevelNeeded = 12, unlockCost = 3000,
+                },
+                new MapPanel.Shop
+                {
+                    id = "nonnos_pizzeria", displayName = "Nonno's Pizzeria", comingSoon = true,
+                    blurb = "Wood-fired pizza from Grandma's old friend.",
+                    picture = Picture("building_E", "map_pizzeria", 210f),
+                },
+                new MapPanel.Shop
+                {
+                    id = "drive_thru", displayName = "Drive-Thru", comingSoon = true,
+                    blurb = "Coffee and snacks to go, straight to the car window.",
+                    picture = Picture("building_G", "map_drivethru", 210f),
+                },
+            };
+            HudBuilder.BuildMap(shops);
         }
 
         // ------------------------------------------------------------------ Renovations
@@ -657,10 +1016,10 @@ namespace MergeResto.EditorTools
 
             // 0: the pastry stand on the counter is dust-sheeted.
             {
-                var spot = Spot(0, "PastryStand", new Vector3(6.05f, 1f, 0.75f));
                 var stand = Find("Bakery/Dressing/pastry_stand_B_decorated");
                 var cake = Find("Bakery/Dressing/cake_birthday");
-                var covered = Prop("pastry_stand_A_covered", BakeryArt, spot.transform, new Vector3(6.05f, 1f, 0.75f));
+                var spot = Spot(0, "PastryStand", stand.transform.position);
+                var covered = Prop("pastry_stand_A_covered", BakeryArt, spot.transform, stand.transform.position);
                 spot.broken = new[] { covered };
                 spot.fixedObjects = new[] { stand, cake }.Where(g => g != null).ToArray();
                 spot.worn = RenderersOf(covered);
@@ -700,10 +1059,11 @@ namespace MergeResto.EditorTools
             }
             // 4: the front-left corner has a dead, empty pot.
             {
-                var spot = Spot(4, "CozyCorner", new Vector3(-7.2f, 0f, -5.2f));
                 var monstera = Find("Bakery/Decor/monstera_plant_large_potted");
-                var pot = Prop("pot_C_large", PlantArt, spot.transform, new Vector3(-7.2f, 0f, -5.2f), 10f);
-                var stick = Prop("yucca_branch_small_A", PlantArt, spot.transform, new Vector3(-7.2f, 0.45f, -5.2f), 60f);
+                var corner = monstera.transform.position;
+                var spot = Spot(4, "CozyCorner", corner);
+                var pot = Prop("pot_C_large", PlantArt, spot.transform, corner, 10f);
+                var stick = Prop("yucca_branch_small_A", PlantArt, spot.transform, corner + new Vector3(0f, 0.45f, 0f), 60f);
                 spot.broken = new[] { pot, stick };
                 spot.fixedObjects = monstera != null ? new[] { monstera } : new GameObject[0];
                 spot.worn = RenderersOf(pot, stick);
@@ -806,8 +1166,9 @@ namespace MergeResto.EditorTools
         {
             var street = Group("Street", world);
 
+            // The café sits on a paved little square; the bakery on a grassy street.
             var grass = LookSetup.Box("Grass", street, new Vector3(0f, -0.12f, 4f), new Vector3(90f, 0.2f, 70f),
-                LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f));
+                IsCafe ? LookSetup.Mat("Plaza", LookSetup.Hex("D9C7AE"), rim: 0f) : LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f));
             grass.name = "Grass";
 
             GameObject City(string model, Vector3 pos, float yaw = 0f, float scale = CityScale)
@@ -862,17 +1223,30 @@ namespace MergeResto.EditorTools
                         LookSetup.Mat($"Petal{i % petals.Length}", LookSetup.Hex(petals[i % petals.Length]), rim: 0.3f, sway: true));
                 }
             }
-            FlowerBed(new Vector3(-4.5f, 0f, -6.75f), 6.5f, true);
-            FlowerBed(new Vector3(1.8f, 0f, -6.75f), 4f, true);
+            if (IsCafe)
+            {
+                FlowerBed(new Vector3(-2.85f, 0f, -6.75f), 4.4f, true);
+                FlowerBed(new Vector3(4.6f, 0f, -6.75f), 5.6f, true);
+            }
+            else
+            {
+                FlowerBed(new Vector3(-4.5f, 0f, -6.75f), 6.5f, true);
+                FlowerBed(new Vector3(1.8f, 0f, -6.75f), 4f, true);
+            }
             FlowerBed(new Vector3(8.75f, 0f, 2.5f), 5f, false);
 
             // Street furniture along the front sidewalk (low, so the view stays clear).
             foreach (float x in new[] { -14f, -4f, 13f })
-                City("streetlight", new Vector3(x, 0f, -9.2f), 180f);
-            City("bench", new Vector3(-9f, 0f, -8.9f), 180f);
-            City("bench", new Vector3(1f, 0f, -8.9f), 180f);
+                City("streetlight", new Vector3(x, 0f, IsCafe ? -9.4f : -9.2f), 180f);
+            if (IsCafe)
+                BuildTerrace(street);
+            else
+            {
+                City("bench", new Vector3(-9f, 0f, -8.9f), 180f);
+                City("bench", new Vector3(1f, 0f, -8.9f), 180f);
+            }
             City("firehydrant", new Vector3(11.4f, 0f, -9.2f));
-            City("trash_A", new Vector3(3.8f, 0f, -9.2f));
+            City("trash_A", IsCafe ? new Vector3(12.4f, 0f, -9.3f) : new Vector3(3.8f, 0f, -9.2f));
             City("streetlight", new Vector3(11.4f, 0f, 3f), 90f);
             City("streetlight", new Vector3(11.4f, 0f, 14f), 90f);
 
@@ -894,17 +1268,20 @@ namespace MergeResto.EditorTools
             loop2.startOffset = 0.45f;
 
             // Hedges and flowers right outside the low walls.
-            foreach (float x in new[] { -8.4f, -0.7f, 4.4f })
+            foreach (float x in IsCafe ? new[] { -8.4f, -4.4f, 7.6f } : new[] { -8.4f, -0.7f, 4.4f })
                 Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x * 3) % 7] + "_Color1", new Vector3(x, 0f, -6.75f), x * 40f, 1.0f);
             foreach (float z in new[] { -0.4f, 5.6f })
                 Nature("Bush_2_" + "ABCDEF"[(int)Mathf.Abs(z * 3) % 6] + "_Color1", new Vector3(8.75f, 0f, z), z * 50f, 0.9f);
 
             // Behind the shop: houses peeking over the walls, trees and greenery.
-            City("building_C", new Vector3(-4f, 0f, 12.5f), 180f);
-            City("building_A", new Vector3(4.5f, 0f, 12.5f), 180f);
-            City("building_E", new Vector3(13f, 0f, 12.5f), 180f);
-            City("building_B", new Vector3(-15.5f, 0f, 2f), 90f);
-            City("building_D", new Vector3(-15.5f, 0f, -6f), 90f);
+            // A different block of neighbours for each shop.
+            string[] back = IsCafe ? new[] { "building_F", "building_H", "building_B" } : new[] { "building_C", "building_A", "building_E" };
+            string[] side = IsCafe ? new[] { "building_G", "building_E" } : new[] { "building_B", "building_D" };
+            City(back[0], new Vector3(-4f, 0f, 12.5f), 180f);
+            City(back[1], new Vector3(4.5f, 0f, 12.5f), 180f);
+            City(back[2], new Vector3(13f, 0f, 12.5f), 180f);
+            City(side[0], new Vector3(-15.5f, 0f, 2f), 90f);
+            City(side[1], new Vector3(-15.5f, 0f, -6f), 90f);
             Nature("Tree_1_A_Color1", new Vector3(-10.5f, 0f, 8.5f), 20f, 1.3f);
             Nature("Tree_2_B_Color1", new Vector3(-0.5f, 0f, 9f), 80f, 1.25f);
             Nature("Tree_3_A_Color1", new Vector3(9f, 0f, 9f), 140f, 1.3f);
@@ -1089,6 +1466,11 @@ namespace MergeResto.EditorTools
 
         static void BuildDining(Transform world)
         {
+            if (IsCafe)
+            {
+                BuildCafeDining(world);
+                return;
+            }
             var dining = Group("Dining", world);
             void Table(Vector3 p)
             {
