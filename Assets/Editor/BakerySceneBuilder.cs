@@ -92,6 +92,7 @@ namespace MergeResto.EditorTools
             HudBuilder.BuildBoard(config.shop.board, boardIcons.chains, boardIcons.generators, openIcon, coinFly);
             BuildRenovationSpots(world, stations);
             BuildShopAge(world);
+            HudBuilder.EnableButtonTargets();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
