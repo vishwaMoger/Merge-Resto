@@ -977,8 +977,10 @@ namespace MergeResto.EditorTools
 
             // Progress bar, top centre.
             var bar = Rect("Progress", holder);
-            bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0.5f, 1f);
-            bar.anchoredPosition = new Vector2(50, -30);
+            // Top left under the counters, where the goals sit after the tutorial; the top
+            // centre stays clear for pins over the back stations.
+            bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0f, 1f);
+            bar.anchoredPosition = new Vector2(34, -140);
             bar.sizeDelta = new Vector2(470, 76);
             Window(bar, 7f, 1.3f);
             var fillArea = Rect("FillArea", bar);
@@ -1041,6 +1043,21 @@ namespace MergeResto.EditorTools
         }
 
         // ------------------------------------------------------------------ Helpers
+
+        /// <summary>
+        /// Images are built with raycasts off (so decoration never steals clicks); every button's
+        /// own graphic must receive them, or the button can never be pressed.
+        /// </summary>
+        public static void EnableButtonTargets()
+        {
+            foreach (var button in _root.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+            {
+                if (button.targetGraphic == null)
+                    button.targetGraphic = button.GetComponent<UnityEngine.UI.Graphic>();
+                if (button.targetGraphic != null)
+                    button.targetGraphic.raycastTarget = true;
+            }
+        }
 
         // Every window's close button: a red round button sitting inside the top-right corner.
         static UnityEngine.UI.Button CloseButton(RectTransform window)
