@@ -1034,7 +1034,7 @@ namespace MergeResto.EditorTools
             // Warm light pools over the counter and the dining tables. The room has no ceiling,
             // so these are bare lights rather than hanging lamps floating in the air.
             var lights = IsPizza
-                ? new[] { CounterPos + new Vector3(0.6f, 0f, 0.6f), new Vector3(-2.5f, 0f, -1.4f), new Vector3(-2.4f, 0f, -4.4f) }
+                ? new[] { CounterPos + new Vector3(0.6f, 0f, 0.6f), new Vector3(-1.8f, 0f, -1.4f), new Vector3(-1.8f, 0f, -4.4f) }
                 : IsCafe
                 ? new[] { CounterPos + new Vector3(0.2f, 0f, 0.6f), new Vector3(4.3f, 0f, -1.6f), new Vector3(3.2f, 0f, -3.8f) }
                 : new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) };
@@ -1221,8 +1221,8 @@ namespace MergeResto.EditorTools
             Place("curtains", annex, new Vector3(11f, 3.55f, 5.69f), 180f);
             Place("curtains", annex, new Vector3(13f, 3.55f, 5.69f), 180f);
 
-            // Tables with chairs front and back, leaving the door path free.
-            foreach (var p in new[] { new Vector3(9.9f, 0f, -4.6f), new Vector3(14.1f, 0f, -4.6f), new Vector3(9.9f, 0f, 0.9f), new Vector3(14.1f, 0f, 0.9f), new Vector3(12f, 0f, 4.2f) })
+            // Tables with chairs front and back, leaving the door path free and the walls clear of diners.
+            foreach (var p in new[] { new Vector3(9.9f, 0f, -4.1f), new Vector3(14.1f, 0f, -4.1f), new Vector3(9.9f, 0f, 0.9f), new Vector3(14.1f, 0f, 0.9f), new Vector3(12f, 0f, 3.8f) })
             {
                 Place(IsCafe ? "table_round_B" : "table_round_A", annex, p);
                 Place("chair", annex, p + new Vector3(0f, 0f, -1.05f), 0f);
@@ -1308,7 +1308,7 @@ namespace MergeResto.EditorTools
             ApplySway(tree);
             // Flowers on every table in the annex.
             var vase = LookSetup.Mat("Vase", LookSetup.Hex("6FA8DC"), rim: 0.4f);
-            foreach (var p in new[] { new Vector3(9.9f, 0f, -4.6f), new Vector3(14.1f, 0f, -4.6f), new Vector3(9.9f, 0f, 0.9f), new Vector3(14.1f, 0f, 0.9f), new Vector3(12f, 0f, 4.2f) })
+            foreach (var p in new[] { new Vector3(9.9f, 0f, -4.1f), new Vector3(14.1f, 0f, -4.1f), new Vector3(9.9f, 0f, 0.9f), new Vector3(14.1f, 0f, 0.9f), new Vector3(12f, 0f, 3.8f) })
             {
                 LookSetup.Cylinder("Vase", grand, p + new Vector3(-0.15f, 1.1f, -0.3f), new Vector3(0.12f, 0.1f, 0.12f), vase);
                 LookSetup.Sphere("Bloom", grand, p + new Vector3(-0.15f, 1.27f, -0.3f), Vector3.one * 0.16f, LookSetup.Mat("Petal0", LookSetup.Hex("FF8FB1"), rim: 0.3f));
@@ -1341,7 +1341,7 @@ namespace MergeResto.EditorTools
                 Wall(new Vector3(0.4f, 0f, 2.6f), new Vector3(7.6f, 0f, 2.6f), 180f, 1.1f);
                 LookSetup.Box("BarTop", part, new Vector3(4f, 1.13f, 2.5f), new Vector3(7.4f, 0.07f, 0.6f), trim);
                 foreach (float x in new[] { 1.5f, 3.2f, 4.9f, 6.6f })
-                    Place("chair_stool", RestaurantArt, part, new Vector3(x, 0f, 1.85f));
+                    Place("chair_stool", RestaurantArt, part, new Vector3(x, 0f, 1.55f));
             }
             if (IsCafe)
                 Tint(part, CafeWall, CafeFloor);
@@ -1596,9 +1596,10 @@ namespace MergeResto.EditorTools
                 pizza.transform.localScale = Vector3.one * 1.1f;
                 Place("mug_A_yellow", dining, p + new Vector3(-0.35f, 1f, 0.2f), yaw);
             }
-            Table(new Vector3(-2.5f, 0f, -1.4f), 0f);
-            Table(new Vector3(-2.6f, 0f, -4.4f), 0f);
-            Table(new Vector3(-1.8f, 0f, 1.9f), 0f);
+            // Clear of the kitchen wall (x -4.05), so diners on that side don't sink into it.
+            Table(new Vector3(-1.8f, 0f, -1.4f), 0f);
+            Table(new Vector3(-1.9f, 0f, -4.4f), 0f);
+            Table(new Vector3(-1.1f, 0f, 1.9f), 0f);
         }
 
         static readonly Color PizzaWall = new(1f, 0.86f, 0.74f);   // warm terracotta plaster
