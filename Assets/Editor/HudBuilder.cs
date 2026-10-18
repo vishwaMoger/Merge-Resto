@@ -1023,6 +1023,42 @@ namespace MergeResto.EditorTools
 
             var coins = Counter(bar, "Coins", new Vector2(0, 0), 360, "icon_coin", out var coinsText, out coinTarget);
             var gems = Counter(bar, "Gems", new Vector2(400, 0), 250, "icon_gem", out var gemsText, out _);
+
+            // x2 income boost (rewarded ad), right of the gems.
+            // Top right under the shop banner, clear of the stations' tap pins.
+            var boost = Rect("Boost", root);
+            boost.anchorMin = boost.anchorMax = boost.pivot = new Vector2(1f, 1f);
+            boost.anchoredPosition = new Vector2(-136, -146);
+            boost.gameObject.AddComponent<CanvasGroup>();
+            boost.sizeDelta = new Vector2(250, 84);
+            var boostImage = Img(boost, "sl_frame_white", new Color(0.45f, 0.78f, 0.36f), 1.9f);
+            var boostButton = boost.gameObject.AddComponent<UnityEngine.UI.Button>();
+            boostButton.targetGraphic = boostImage;
+            var colors = boostButton.colors;
+            colors.disabledColor = new Color(0.85f, 0.85f, 0.85f);
+            boostButton.colors = colors;
+            var boostJuice = boost.gameObject.AddComponent<ButtonJuice>();
+            var adIcon = Rect("AdIcon", boost);
+            adIcon.anchorMin = adIcon.anchorMax = new Vector2(0f, 0.5f);
+            adIcon.anchoredPosition = new Vector2(40, 2);
+            adIcon.sizeDelta = new Vector2(54, 54);
+            Img(adIcon, "sl_ad", Color.white);
+            var boostLabel = Label("Label", boost, "x2 Income", 32, _display, _outlined, Color.white, TextAlignmentOptions.Left);
+            boostLabel.rectTransform.anchorMin = boostLabel.rectTransform.anchorMax = boostLabel.rectTransform.pivot = new Vector2(0f, 0.5f);
+            boostLabel.rectTransform.anchoredPosition = new Vector2(76, 13);
+            boostLabel.rectTransform.sizeDelta = new Vector2(170, 40);
+            var boostTimer = Label("Timer", boost, "Watch ad: 5 min", 21, _body, null, Color.white, TextAlignmentOptions.Left);
+            boostTimer.rectTransform.anchorMin = boostTimer.rectTransform.anchorMax = boostTimer.rectTransform.pivot = new Vector2(0f, 0.5f);
+            boostTimer.rectTransform.anchoredPosition = new Vector2(78, -19);
+            boostTimer.rectTransform.sizeDelta = new Vector2(170, 30);
+            var boostView = boost.gameObject.AddComponent<BoostButton>();
+            Set(boostView, "button", boostButton);
+            Set(boostView, "background", boostImage);
+            Set(boostView, "label", boostLabel);
+            Set(boostView, "timer", boostTimer);
+            Set(boostView, "idleSprite", Resolve("sl_frame_white"));
+            Set(boostView, "activeSprite", Resolve("sl_frame_honey"));
+            Set(boostView, "juice", boostJuice);
             coinJuice = coins.gameObject.AddComponent<ButtonJuice>();
             var gemJuice = gems.gameObject.AddComponent<ButtonJuice>();
             Set(view, "coinsText", coinsText);

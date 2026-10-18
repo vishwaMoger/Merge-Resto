@@ -103,6 +103,7 @@ namespace MergeResto.EditorTools
             EnsureBoard(config);
             EnsureRecipes(config);
             EnsureExpansions(config);
+            EnsureBalance(config);
             var cam = LookSetup.CreateLookRig(IsPizza ? new Vector3(-1.3f, 1f, 1.4f) : new Vector3(0.3f, 1f, 0.6f), 7.9f);
             var cameraDirector = cam.gameObject.AddComponent<CameraDirector>();
 
@@ -1037,11 +1038,80 @@ namespace MergeResto.EditorTools
         const float LotRight = 16f;
         const float AnnexDoorX = 12f;
 
+        // ------------------------------------------------------------------ Balance
+        // Pacing targets (checked with Merge Resto/Balance/Run Pacing Report):
+        //  - an upgrade every few seconds at first, every 20-60 s after 10 minutes
+        //  - first manager in the tutorial (~5 min), the bakery fully automated by ~12 min
+        //  - Dining Annex ~15-20 min, Corner Cafe ready ~35-45 min, Grand Interior ~50-60 min
+        //  - the pizzeria a few sessions later
+        public static readonly (int renovations, int level, double cost) CafeUnlock = (5, 90, 80000);
+        public static readonly (int renovations, int level, double cost) PizzeriaUnlock = (5, 100, 600000);
+
+        const int UpgradeMaxLevel = 25;
+        const double UpgradeGrowth = 1.55;
+
+        static void EnsureBalance(ShopConfig config)
+        {
+            var shop = config.shop;
+            double scale = Pick(1.0, 4.0, 12.0);
+            int[] managerGems = Pick(new[] { 20, 60, 100 }, new[] { 40, 80, 120 }, new[] { 60, 100, 150 });
+            shop.startGems = 0; // gems come from goals, milestones and Grandma's gift
+            for (int i = 0; i < shop.stations.Count; i++)
+            {
+                var st = shop.stations[i];
+                if (st.kind != StationKind.Seller)
+                    st.managerGemCost = managerGems[i];
+                foreach (var up in st.upgrades)
+                {
+                    if (up.track == UpgradeTrack.Machines)
+                    {
+                        up.maxLevel = 2;
+                        up.baseCost = 1500 * scale;
+                        up.costGrowth = 6;
+                        continue;
+                    }
+                    up.maxLevel = UpgradeMaxLevel;
+                    up.costGrowth = UpgradeGrowth;
+                    up.baseCost = (up.track == UpgradeTrack.Speed ? 60 : 90) * scale;
+                }
+            }
+            shop.gemMilestoneEvery = 15;
+            shop.gemMilestoneReward = 10;
+            // Customers come a little faster with every level, up to a busy (not frantic) rush.
+            shop.intervalPerShopLevel = 0.965f;
+            shop.minCustomerIntervalSeconds = 1.0f;
+            // Renovation energy paces the merge board: roughly one renovation every ~8 minutes,
+            // faster with the rewarded refill.
+            var (energyMax, regen) = Pick((40, 30f), (50, 24f), (60, 20f));
+            shop.board.energyMax = energyMax;
+            shop.board.startEnergy = 12; // enough for the first renovation
+            shop.board.energyRegenSeconds = regen;
+            EditorUtility.SetDirty(config);
+        }
+
+        /// <summary>Applies the code-defined balance to every shop's config (used by the pacing report).</summary>
+        public static void ApplyBalanceToConfigs()
+        {
+            var keep = _shop;
+            foreach (ShopKind kind in System.Enum.GetValues(typeof(ShopKind)))
+            {
+                _shop = kind;
+                var config = LoadOrCreateConfig();
+                EnsureGoals(config);
+                EnsureBoard(config);
+                EnsureRecipes(config);
+                EnsureExpansions(config);
+                EnsureBalance(config);
+            }
+            _shop = keep;
+            AssetDatabase.SaveAssets();
+        }
+
         static void EnsureExpansions(ShopConfig config)
         {
             ExpansionDefinition E(string name, string desc, double cost, int level, float price, float customers) =>
                 new() { displayName = name, description = desc, cost = cost, shopLevelNeeded = level, priceBonus = price, customerBonus = customers };
-            var (annexCost, annexLevel, grandCost, grandLevel) = Pick((3000.0, 10, 15000.0, 22), (18000.0, 14, 90000.0, 28), (90000.0, 16, 400000.0, 32));
+            var (annexCost, annexLevel, grandCost, grandLevel) = Pick((20000.0, 50, 90000.0, 105), (150000.0, 50, 900000.0, 105), (1500000.0, 50, 9000000.0, 105));
             config.shop.expansions = new List<ExpansionDefinition>
             {
                 E("Dining Annex", "Build on the empty lot next door: a second dining room.", annexCost, annexLevel, 0.15f, 0.25f),
@@ -1642,14 +1712,14 @@ namespace MergeResto.EditorTools
                     id = "corner_cafe", displayName = "Corner Café", sceneName = CafeScene,
                     blurb = "Espresso, lattes and muffins on the corner.",
                     picture = Picture("building_A", "map_cafe", 210f),
-                    requiresShop = "grandmas_bakery", renovationsNeeded = 3, shopLevelNeeded = 12, unlockCost = 3000,
+                    requiresShop = "grandmas_bakery", renovationsNeeded = CafeUnlock.renovations, shopLevelNeeded = CafeUnlock.level, unlockCost = CafeUnlock.cost,
                 },
                 new MapPanel.Shop
                 {
                     id = "nonnos_pizzeria", displayName = "Nonno's Pizzeria", sceneName = PizzeriaScene,
                     blurb = "Wood-fired pizza from Grandma's old friend.",
                     picture = Picture("building_E", "map_pizzeria", 210f),
-                    requiresShop = "corner_cafe", renovationsNeeded = 3, shopLevelNeeded = 15, unlockCost = 25000,
+                    requiresShop = "corner_cafe", renovationsNeeded = PizzeriaUnlock.renovations, shopLevelNeeded = PizzeriaUnlock.level, unlockCost = PizzeriaUnlock.cost,
                 },
                 new MapPanel.Shop
                 {

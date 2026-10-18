@@ -119,6 +119,17 @@ namespace MergeResto.Sim
 
         public int Machines(int station) => 1 + State.stations[station].machineLevel;
 
+        // Storage grows with the station: room for two rounds of every machine's batch, so
+        // bigger batches never jam the chain.
+        public int OutputCapacity(int station) =>
+            Math.Max(Def.stations[station].outputCapacity, Batch(station) * Machines(station) * 2);
+
+        public int InputCapacity(int station) =>
+            station == 0 ? Def.stations[0].inputCapacity : Math.Max(Def.stations[station].inputCapacity, CourierCarry(station - 1) * 2);
+
+        /// <summary>A courier takes everything that is ready, up to the upstream station's storage.</summary>
+        public int CourierCarry(int link) => Math.Max(Def.couriers[link].carry, OutputCapacity(link));
+
         // Previews of the value after one more level, for upgrade panels.
         public float CycleSecondsAtLevel(int station, int speedLevel) =>
             Def.stations[station].baseCycleSeconds * (float)Math.Pow(0.85, speedLevel);
@@ -131,7 +142,23 @@ namespace MergeResto.Sim
         public double PriceAtLevel(int outputLevel) =>
             Def.pricePerItem * (1 + Def.pricePerOutputLevel * outputLevel) * CozinessMultiplier;
 
-        public double PricePerItem => PriceAtLevel(State.stations[^1].outputLevel);
+        public double PricePerItem => PriceAtLevel(State.stations[^1].outputLevel) * (BoostActive ? 2 : 1);
+
+        // ------------------------------------------------------------------ Income boost
+
+        /// <summary>Most boost time that can be stacked up.</summary>
+        public const float MaxBoostSeconds = 60f * 60f;
+
+        public bool BoostActive => State.boostSeconds > 0f;
+
+        /// <summary>Adds doubled-income time (from a rewarded ad), up to the cap. Returns false when full.</summary>
+        public bool AddBoost(float seconds)
+        {
+            if (State.boostSeconds >= MaxBoostSeconds - 1f)
+                return false;
+            State.boostSeconds = Math.Min(MaxBoostSeconds, State.boostSeconds + seconds);
+            return true;
+        }
 
         /// <summary>The dish sold at a given counter output level ("" when the shop has no recipe list).</summary>
         public string RecipeAtLevel(int outputLevel)
@@ -202,7 +229,7 @@ namespace MergeResto.Sim
         }
 
         public float CustomerInterval =>
-            Math.Max(Def.minCustomerIntervalSeconds, Def.customerIntervalSeconds * (float)Math.Pow(Def.intervalPerShopLevel, ShopLevel) * ExpansionCustomerFactor);
+            Math.Max(Def.minCustomerIntervalSeconds, Def.customerIntervalSeconds * (float)Math.Pow(Def.intervalPerShopLevel, ShopLevel)) * ExpansionCustomerFactor;
 
         public double UpgradeCost(int station, UpgradeTrack track)
         {
@@ -340,6 +367,8 @@ namespace MergeResto.Sim
         public void Tick(float dt)
         {
             Board?.Tick(dt);
+            if (State.boostSeconds > 0f)
+                State.boostSeconds = Math.Max(0f, State.boostSeconds - dt);
             while (dt > 0f)
             {
                 float step = Math.Min(dt, MaxStep);
@@ -414,11 +443,11 @@ namespace MergeResto.Sim
             switch (def.kind)
             {
                 case StationKind.Source:
-                    return st.output + InProgress(index) + Batch(index) <= def.outputCapacity;
+                    return st.output + InProgress(index) + Batch(index) <= OutputCapacity(index);
                 case StationKind.Processor:
                 {
                     int amount = Math.Min(st.input, Batch(index));
-                    return amount > 0 && st.output + InProgress(index) + amount <= def.outputCapacity;
+                    return amount > 0 && st.output + InProgress(index) + amount <= OutputCapacity(index);
                 }
                 default:
                     return st.input >= Def.itemsPerOrder && NextWaitingCustomer() != null;
@@ -493,8 +522,8 @@ namespace MergeResto.Sim
             {
                 case CourierPhase.Waiting:
                 {
-                    int room = toDef.inputCapacity - to.input;
-                    int amount = Math.Min(def.carry, Math.Min(from.output, room));
+                    int room = InputCapacity(link + 1) - to.input;
+                    int amount = Math.Min(CourierCarry(link), Math.Min(from.output, room));
                     if (amount <= 0)
                         return;
                     from.output -= amount;
@@ -625,10 +654,11 @@ namespace MergeResto.Sim
                 double perCycle = Def.stations[i].kind == StationKind.Seller ? Def.itemsPerOrder : Batch(i);
                 itemsPerSecond = Math.Min(itemsPerSecond, Machines(i) * perCycle / CycleSeconds(i));
             }
-            foreach (var c in Def.couriers)
-                itemsPerSecond = Math.Min(itemsPerSecond, c.carry / (2.0 * c.walkSeconds));
+            for (int c = 0; c < Def.couriers.Count; c++)
+                itemsPerSecond = Math.Min(itemsPerSecond, CourierCarry(c) / (2.0 * Def.couriers[c].walkSeconds));
             itemsPerSecond = Math.Min(itemsPerSecond, Def.itemsPerOrder / CustomerInterval);
-            return itemsPerSecond * PricePerItem;
+            // Offline income never includes the boost: it only runs while playing.
+            return itemsPerSecond * PriceAtLevel(State.stations[^1].outputLevel);
         }
 
         /// <summary>Coins earned while away for the given time, after the cap and efficiency.</summary>

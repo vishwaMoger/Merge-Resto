@@ -91,9 +91,9 @@ namespace MergeResto.Sim.Tests
             var sim = new ShopSim(Bakery());
             sim.State.stations[Flour].output = 10;
             sim.Tick(0.05f);
-            Assert.AreEqual(5, sim.State.couriers[0].carrying);
+            Assert.AreEqual(10, sim.State.couriers[0].carrying, "a courier takes everything that is ready");
             sim.Tick(1.05f);
-            Assert.AreEqual(5, sim.State.stations[Mixer].input);
+            Assert.AreEqual(10, sim.State.stations[Mixer].input);
             Assert.AreEqual(CourierPhase.WalkingBack, sim.State.couriers[0].phase);
         }
 
@@ -561,6 +561,51 @@ namespace MergeResto.Sim.Tests
             Assert.AreEqual(20, sim.TipFor(100));
             sim.Board.Renovate(0); // +10% coziness
             Assert.AreEqual(30, sim.TipFor(100));
+        }
+
+        [Test]
+        public void BigBatches_NeverJamTheChain()
+        {
+            // Regression: a batch bigger than the storage used to stop production for good.
+            var sim = new ShopSim(Bakery());
+            AutomateAll(sim);
+            foreach (var st in sim.State.stations)
+                st.outputLevel = 8;
+            double coins = sim.State.coins;
+            for (int i = 0; i < 6000; i++)
+                sim.Tick(0.1f);
+            double early = sim.State.coins - coins;
+            coins = sim.State.coins;
+            for (int i = 0; i < 6000; i++)
+                sim.Tick(0.1f);
+            Assert.Greater(early, 0);
+            Assert.Greater(sim.State.coins - coins, early * 0.5, "still selling ten minutes later");
+        }
+
+        [Test]
+        public void Boost_DoublesPrices_RunsOut_AndCaps()
+        {
+            var sim = new ShopSim(Bakery());
+            double price = sim.PricePerItem;
+            Assert.IsTrue(sim.AddBoost(300f));
+            Assert.AreEqual(price * 2, sim.PricePerItem, 1e-6);
+            sim.Tick(301f);
+            Assert.IsFalse(sim.BoostActive);
+            Assert.AreEqual(price, sim.PricePerItem, 1e-6);
+            for (int i = 0; i < 20; i++)
+                sim.AddBoost(300f);
+            Assert.AreEqual(ShopSim.MaxBoostSeconds, sim.State.boostSeconds);
+            Assert.IsFalse(sim.AddBoost(300f));
+        }
+
+        [Test]
+        public void Boost_DoesNotDoubleOfflineEarnings()
+        {
+            var sim = new ShopSim(Bakery());
+            AutomateAll(sim);
+            double plain = sim.OfflineEarnings(3600);
+            sim.AddBoost(3000f);
+            Assert.AreEqual(plain, sim.OfflineEarnings(3600));
         }
     }
 }

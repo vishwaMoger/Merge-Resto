@@ -24,24 +24,24 @@ MonoBehaviour:
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
-      managerGemCost: 30
+      managerGemCost: 60
       startsAutomated: 0
       upgrades:
       - track: 0
         displayName: Quick Kneading
-        maxLevel: 10
-        baseCost: 600
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 720
+        costGrowth: 1.55
       - track: 1
         displayName: Bigger Batches
-        maxLevel: 10
-        baseCost: 900
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 1080
+        costGrowth: 1.55
       - track: 2
         displayName: Extra Bench
         maxLevel: 2
-        baseCost: 4800
-        costGrowth: 3
+        baseCost: 18000
+        costGrowth: 6
     - id: toppings
       displayName: Topping Table
       kind: 1
@@ -49,24 +49,24 @@ MonoBehaviour:
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
-      managerGemCost: 45
+      managerGemCost: 100
       startsAutomated: 0
       upgrades:
       - track: 0
         displayName: Swift Hands
-        maxLevel: 10
-        baseCost: 600
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 720
+        costGrowth: 1.55
       - track: 1
         displayName: Extra Cheese
-        maxLevel: 10
-        baseCost: 900
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 1080
+        costGrowth: 1.55
       - track: 2
         displayName: Add Table
         maxLevel: 2
-        baseCost: 4800
-        costGrowth: 3
+        baseCost: 18000
+        costGrowth: 6
     - id: oven
       displayName: Wood-fired Oven
       kind: 1
@@ -74,24 +74,24 @@ MonoBehaviour:
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
-      managerGemCost: 60
+      managerGemCost: 150
       startsAutomated: 0
       upgrades:
       - track: 0
         displayName: Hotter Fire
-        maxLevel: 10
-        baseCost: 600
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 720
+        costGrowth: 1.55
       - track: 1
         displayName: Bigger Peel
-        maxLevel: 10
-        baseCost: 900
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 1080
+        costGrowth: 1.55
       - track: 2
         displayName: Add Oven
         maxLevel: 2
-        baseCost: 4800
-        costGrowth: 3
+        baseCost: 18000
+        costGrowth: 6
     - id: counter
       displayName: Pizza Counter
       kind: 2
@@ -104,19 +104,19 @@ MonoBehaviour:
       upgrades:
       - track: 0
         displayName: Friendly Service
-        maxLevel: 10
-        baseCost: 600
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 720
+        costGrowth: 1.55
       - track: 1
         displayName: New Recipes
-        maxLevel: 10
-        baseCost: 900
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 1080
+        costGrowth: 1.55
       - track: 2
         displayName: Add Cashier
         maxLevel: 2
-        baseCost: 4800
-        costGrowth: 3
+        baseCost: 18000
+        costGrowth: 6
     couriers:
     - carry: 6
       walkSeconds: 1.5833334
@@ -125,8 +125,8 @@ MonoBehaviour:
     - carry: 6
       walkSeconds: 3.1215255
     customerIntervalSeconds: 4.2
-    intervalPerShopLevel: 0.94
-    minCustomerIntervalSeconds: 0.8
+    intervalPerShopLevel: 0.965
+    minCustomerIntervalSeconds: 1
     maxQueue: 6
     itemsPerOrder: 2
     pricePerItem: 180
@@ -142,29 +142,30 @@ MonoBehaviour:
     walkInSeconds: 10.247404
     stepUpSeconds: 0.65
     startCoins: 3000
-    startGems: 30
+    startGems: 0
     pricePerOutputLevel: 0.2
-    gemMilestoneEvery: 5
+    gemMilestoneEvery: 15
     gemMilestoneReward: 10
     expansions:
     - displayName: Dining Annex
       description: 'Build on the empty lot next door: a second dining room.'
-      cost: 90000
-      shopLevelNeeded: 16
+      cost: 1500000
+      shopLevelNeeded: 50
       priceBonus: 0.15
       customerBonus: 0.25
     - displayName: Grand Interior
       description: Wall lamps, paintings, rugs and big plants. Everything new and
         lovely.
-      cost: 400000
-      shopLevelNeeded: 32
+      cost: 9000000
+      shopLevelNeeded: 105
       priceBonus: 0.3
       customerBonus: 0.15
     board:
       columns: 7
       rows: 5
-      energyMax: 100
-      energyRegenSeconds: 6
+      energyMax: 60
+      startEnergy: 12
+      energyRegenSeconds: 20
       sellBase: 5
       chains:
       - id: sweets

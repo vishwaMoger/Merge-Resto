@@ -24,24 +24,24 @@ MonoBehaviour:
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
-      managerGemCost: 25
+      managerGemCost: 40
       startsAutomated: 0
       upgrades:
       - track: 0
         displayName: Quick Scoop
-        maxLevel: 10
-        baseCost: 200
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 240
+        costGrowth: 1.55
       - track: 1
         displayName: Bigger Sacks
-        maxLevel: 10
-        baseCost: 300
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 360
+        costGrowth: 1.55
       - track: 2
         displayName: Extra Pallet
         maxLevel: 2
-        baseCost: 1600
-        costGrowth: 3
+        baseCost: 6000
+        costGrowth: 6
     - id: espresso
       displayName: Espresso Machine
       kind: 1
@@ -49,24 +49,24 @@ MonoBehaviour:
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
-      managerGemCost: 35
+      managerGemCost: 80
       startsAutomated: 0
       upgrades:
       - track: 0
         displayName: Faster Brew
-        maxLevel: 10
-        baseCost: 200
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 240
+        costGrowth: 1.55
       - track: 1
         displayName: Double Shot
-        maxLevel: 10
-        baseCost: 300
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 360
+        costGrowth: 1.55
       - track: 2
         displayName: Add Machine
         maxLevel: 2
-        baseCost: 1600
-        costGrowth: 3
+        baseCost: 6000
+        costGrowth: 6
     - id: latte
       displayName: Latte Bar
       kind: 1
@@ -74,24 +74,24 @@ MonoBehaviour:
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
-      managerGemCost: 45
+      managerGemCost: 120
       startsAutomated: 0
       upgrades:
       - track: 0
         displayName: Swift Pour
-        maxLevel: 10
-        baseCost: 200
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 240
+        costGrowth: 1.55
       - track: 1
         displayName: Bigger Mugs
-        maxLevel: 10
-        baseCost: 300
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 360
+        costGrowth: 1.55
       - track: 2
         displayName: Add Station
         maxLevel: 2
-        baseCost: 1600
-        costGrowth: 3
+        baseCost: 6000
+        costGrowth: 6
     - id: counter
       displayName: "Caf\xE9 Counter"
       kind: 2
@@ -104,19 +104,19 @@ MonoBehaviour:
       upgrades:
       - track: 0
         displayName: Friendly Barista
-        maxLevel: 10
-        baseCost: 200
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 240
+        costGrowth: 1.55
       - track: 1
         displayName: Fancy Latte
-        maxLevel: 10
-        baseCost: 300
-        costGrowth: 1.7
+        maxLevel: 25
+        baseCost: 360
+        costGrowth: 1.55
       - track: 2
         displayName: Add Cashier
         maxLevel: 2
-        baseCost: 1600
-        costGrowth: 3
+        baseCost: 6000
+        costGrowth: 6
     couriers:
     - carry: 6
       walkSeconds: 1.2112033
@@ -125,8 +125,8 @@ MonoBehaviour:
     - carry: 6
       walkSeconds: 1.6180404
     customerIntervalSeconds: 4
-    intervalPerShopLevel: 0.94
-    minCustomerIntervalSeconds: 0.8
+    intervalPerShopLevel: 0.965
+    minCustomerIntervalSeconds: 1
     maxQueue: 6
     itemsPerOrder: 2
     pricePerItem: 70
@@ -141,29 +141,30 @@ MonoBehaviour:
     walkInSeconds: 12.105614
     stepUpSeconds: 0.65
     startCoins: 600
-    startGems: 25
+    startGems: 0
     pricePerOutputLevel: 0.2
-    gemMilestoneEvery: 5
+    gemMilestoneEvery: 15
     gemMilestoneReward: 10
     expansions:
     - displayName: Dining Annex
       description: 'Build on the empty lot next door: a second dining room.'
-      cost: 18000
-      shopLevelNeeded: 14
+      cost: 150000
+      shopLevelNeeded: 50
       priceBonus: 0.15
       customerBonus: 0.25
     - displayName: Grand Interior
       description: Wall lamps, paintings, rugs and big plants. Everything new and
         lovely.
-      cost: 90000
-      shopLevelNeeded: 28
+      cost: 900000
+      shopLevelNeeded: 105
       priceBonus: 0.3
       customerBonus: 0.15
     board:
       columns: 7
       rows: 5
-      energyMax: 100
-      energyRegenSeconds: 6
+      energyMax: 50
+      startEnergy: 12
+      energyRegenSeconds: 24
       sellBase: 5
       chains:
       - id: sweets

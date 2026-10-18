@@ -79,7 +79,7 @@ namespace MergeResto.Sim
                     continue;
                 State.cells[s.cell] = (s.generator >= 0 ? BoardItem.Generator(s.generator) : BoardItem.Item(s.chain, s.tier)).code;
             }
-            State.energy = Def.energyMax;
+            State.energy = Def.startEnergy >= 0 ? Def.startEnergy : Def.energyMax;
             State.seed = 20261017;
         }
 

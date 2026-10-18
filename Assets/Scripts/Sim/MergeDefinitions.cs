@@ -72,6 +72,8 @@ namespace MergeResto.Sim
         public int columns = 7;
         public int rows = 5;
         public int energyMax = 100;
+        [Tooltip("Energy on a brand-new board (-1: full).")]
+        public int startEnergy = -1;
         [Tooltip("Seconds per energy point regained.")]
         public float energyRegenSeconds = 6f;
         [Tooltip("Coins for selling a tier-0 item; each tier doubles it.")]

@@ -22,6 +22,8 @@ namespace MergeResto.Sim
         public int customersServed;
         /// <summary>How many building stages are done (0 = the small starting shop).</summary>
         public int expansion;
+        /// <summary>Seconds of doubled income left (counts down only while playing).</summary>
+        public float boostSeconds;
         /// <summary>Indices of goals whose reward has been collected.</summary>
         public List<int> goalsClaimed = new();
         public BoardState board = new();
