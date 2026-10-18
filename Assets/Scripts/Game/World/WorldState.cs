@@ -18,6 +18,47 @@ namespace MergeResto.Game
         {
             public List<string> unlocked = new() { FirstShop };
             public string last = FirstShop;
+            public List<Idle> idle = new();
+        }
+
+        /// <summary>What a shop earns per hour while closed, so other shops can show it.</summary>
+        [Serializable]
+        public class Idle
+        {
+            public string id;
+            public string name;
+            public double perHour;
+            public float capHours;
+            public long savedAt;
+        }
+
+        public static void RecordIdle(string id, string name, double perHour, float capHours, long savedAt)
+        {
+            var list = Current.idle ??= new List<Idle>();
+            var entry = list.Find(e => e.id == id);
+            if (entry == null)
+                list.Add(entry = new Idle { id = id });
+            entry.name = name;
+            entry.perHour = perHour;
+            entry.capHours = capHours;
+            entry.savedAt = savedAt;
+            Save();
+        }
+
+        /// <summary>Estimated coins waiting in each other open shop right now.</summary>
+        public static List<(string name, double coins)> WaitingElsewhere(string hereId, long now)
+        {
+            var result = new List<(string, double)>();
+            foreach (var e in Current.idle ?? new List<Idle>())
+            {
+                if (e.id == hereId || !IsUnlocked(e.id) || e.savedAt <= 0 || now <= e.savedAt)
+                    continue;
+                double hours = Math.Min((now - e.savedAt) / 3600.0, e.capHours);
+                double coins = e.perHour * hours;
+                if (coins >= 1)
+                    result.Add((e.name, coins));
+            }
+            return result;
         }
 
         static Data _data;

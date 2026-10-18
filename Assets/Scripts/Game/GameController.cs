@@ -26,6 +26,8 @@ namespace MergeResto.Game
         public int SelectedStation { get; private set; } = -1;
 
         double _pendingOffline;
+        /// <summary>Renovation energy regained while away (for the welcome-back summary).</summary>
+        public int OfflineEnergyGained { get; private set; }
         double _pendingOfflineSeconds;
         float _saveTimer;
 
@@ -45,7 +47,12 @@ namespace MergeResto.Game
             {
                 _pendingOfflineSeconds = now - last;
                 _pendingOffline = Sim.OfflineEarnings(_pendingOfflineSeconds);
-                Sim.Board?.Tick(_pendingOfflineSeconds); // energy refills while away
+                if (Sim.Board != null)
+                {
+                    int before = Sim.Board.Energy;
+                    Sim.Board.Tick(_pendingOfflineSeconds); // energy refills while away
+                    OfflineEnergyGained = Sim.Board.Energy - before;
+                }
             }
             if (_pendingOffline > 0)
                 OfflineEarningsReady?.Invoke(_pendingOffline, _pendingOfflineSeconds);
@@ -132,9 +139,29 @@ namespace MergeResto.Game
             _saveTimer = 0f;
             Sim.State.lastSavedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             SaveStore.Save(SaveKey, JsonUtility.ToJson(Sim.State));
+            WorldState.RecordIdle(config.shop.id, config.shop.displayName, Sim.OfflineEarnings(3600), config.shop.offlineCapHours,
+                Sim.State.lastSavedUnixSeconds);
         }
 
         public ShopDefinition Definition => config.shop;
+
+        /// <summary>Coins rewards scale with the shop (the café's goods cost more than bread).</summary>
+        public double CoinScale => Math.Max(1.0, config.shop.pricePerItem / 25.0);
+
+        /// <summary>Applies a daily reward to this shop.</summary>
+        public void GrantDaily(DailyReward reward, int multiplier)
+        {
+            if (reward.coins > 0)
+                Sim.AddCoins(reward.coins * CoinScale * multiplier);
+            if (reward.gems > 0)
+            {
+                Sim.State.gems += reward.gems * multiplier;
+                Sim.AddCoins(0); // refresh counters
+            }
+            if (reward.energy > 0)
+                Sim.Board?.AddEnergy(reward.energy * multiplier);
+            Save();
+        }
 
         /// <summary>Saves this shop and opens another one.</summary>
         public void Travel(string sceneName)

@@ -457,5 +457,38 @@ namespace MergeResto.Sim.Tests
             Assert.Greater(sim.State.coins, coins);
             Assert.IsFalse(sim.Board.Sell(0), "generators cannot be sold");
         }
+
+        // ------------------------------------------------------------------ Daily rewards
+
+        [Test]
+        public void Daily_FirstClaimIsDayOne_OncePerDay()
+        {
+            var state = new DailyRewardState();
+            Assert.IsTrue(DailyRewards.CanClaim(state, 100));
+            Assert.AreEqual(0, DailyRewards.Claim(state, 100));
+            Assert.IsFalse(DailyRewards.CanClaim(state, 100));
+            Assert.AreEqual(-1, DailyRewards.Claim(state, 100));
+        }
+
+        [Test]
+        public void Daily_NextDayAdvances_MissedDayRestarts_WeekRepeats()
+        {
+            var state = new DailyRewardState();
+            for (int d = 0; d < 7; d++)
+                Assert.AreEqual(d, DailyRewards.Claim(state, 100 + d));
+            Assert.AreEqual(0, DailyRewards.Claim(state, 107), "after day 7 the week repeats");
+            Assert.AreEqual(1, DailyRewards.Claim(state, 108));
+            Assert.AreEqual(0, DailyRewards.Claim(state, 110), "a missed day starts again");
+        }
+
+        [Test]
+        public void Board_AddEnergyCanExceedMaximum()
+        {
+            var sim = new ShopSim(WithBoard());
+            sim.Board.AddEnergy(25);
+            Assert.AreEqual(35, sim.Board.Energy);
+            sim.Tick(100f);
+            Assert.AreEqual(35, sim.Board.Energy, "no regeneration above the maximum");
+        }
     }
 }

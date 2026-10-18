@@ -22,6 +22,7 @@ namespace MergeResto.EditorTools
         /// <summary>Shown on the banner; set by the scene builder before Build.</summary>
         public static string ShopName = "Grandma's Bakery";
         static RectTransform _root;
+        static OfflineEarningsDialog _offlineDialog;
         static StationPanel _panel;
         static readonly List<StationHud> _markers = new();
         static readonly Color PinOrange = new(1f, 0.52f, 0.18f);
@@ -60,6 +61,7 @@ namespace MergeResto.EditorTools
                 "sl_disc_honey" => "Frames/250px/Frame_Circle_Honey_250px",
                 "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
                 "sl_heart" => "Icons/Heart",
+                "sl_ad" => "Icons/Add_Video",
                 "sl_music_on" => "Icons/Icon_Music_On",
                 "sl_music_off" => "Icons/Icon_Music_Off",
                 "sl_frame_honey" => "Frames/250px/Frame_Square_Honey_250px",
@@ -139,6 +141,8 @@ namespace MergeResto.EditorTools
             Set(coinFly, "target", coinTarget);
             Set(coinFly, "targetJuice", coinJuice);
             Set(goals, "coinFly", coinFly);
+            Set(_offlineDialog, "coinFly", coinFly);
+            DailyPanel(root, coinFly);
         }
 
         // ------------------------------------------------------------------ Map
@@ -311,6 +315,167 @@ namespace MergeResto.EditorTools
             Set(map, "closeButton", closeButton);
             Set(map, "goSprite", Resolve("sl_btn_orange"));
             Set(map, "lockedSprite", Resolve("sl_btn_white"));
+        }
+
+        // ------------------------------------------------------------------ Ad button
+
+        // A green "watch an ad" button: film icon plus a label (e.g. "x2", "+50").
+        static UnityEngine.UI.Button AdButton(RectTransform parent, string name, Vector2 pos, Vector2 size, string text, float fontSize, out TMP_Text label)
+        {
+            var rt = Rect(name, parent);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+            var bg = Img(rt, "sl_frame_white", new Color(0.45f, 0.78f, 0.36f), 2.2f * 100f / size.y);
+            var button = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
+            button.targetGraphic = bg;
+            rt.gameObject.AddComponent<ButtonJuice>();
+            var icon = Rect("AdIcon", rt);
+            icon.anchorMin = icon.anchorMax = new Vector2(0f, 0.5f);
+            icon.anchoredPosition = new Vector2(size.y * 0.5f + 4f, 2);
+            icon.sizeDelta = new Vector2(size.y * 0.62f, size.y * 0.62f);
+            Img(icon, "sl_ad", Color.white);
+            label = Label("Label", rt, text, fontSize, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(label.rectTransform, new Vector2(size.y * 0.8f, 4), new Vector2(-8, 0));
+            return button;
+        }
+
+        // ------------------------------------------------------------------ Daily rewards
+
+        static void DailyPanel(RectTransform root, CoinFlyLayer coinFly)
+        {
+            var holder = Stretch(Rect("Daily", root));
+            var offline = root.Find("OfflineDialog");
+            if (offline != null)
+                holder.SetSiblingIndex(offline.GetSiblingIndex());
+            var daily = holder.gameObject.AddComponent<DailyRewardsPanel>();
+
+            // Daily button under the mute toggle (top right).
+            var open = Rect("DailyButton", holder);
+            open.anchorMin = open.anchorMax = open.pivot = new Vector2(1f, 1f);
+            open.anchoredPosition = new Vector2(-28, -240);
+            open.sizeDelta = new Vector2(100, 100);
+            var openImage = Img(open, "sl_btn_pink", Color.white, 2.4f);
+            var openButton = open.gameObject.AddComponent<UnityEngine.UI.Button>();
+            openButton.targetGraphic = openImage;
+            open.gameObject.AddComponent<ButtonJuice>();
+            var cake = Rect("Icon", open);
+            cake.anchoredPosition = new Vector2(0, 10);
+            cake.sizeDelta = new Vector2(70, 70);
+            var cakeImage = cake.gameObject.AddComponent<UnityEngine.UI.Image>();
+            cakeImage.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/UI/Icons/sweets_6.png");
+            cakeImage.preserveAspect = true;
+            cakeImage.raycastTarget = false;
+            var openLabel = Label("Label", open, "Daily", 26, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            openLabel.rectTransform.anchorMin = openLabel.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            openLabel.rectTransform.anchoredPosition = new Vector2(0, 4);
+            openLabel.rectTransform.sizeDelta = new Vector2(120, 34);
+            var alert = Rect("Alert", open);
+            alert.anchorMin = alert.anchorMax = new Vector2(0f, 1f);
+            alert.anchoredPosition = new Vector2(10, -10);
+            alert.sizeDelta = new Vector2(40, 40);
+            Img(alert, "sl_btn_red_circle", Color.white, simple: true);
+            var bang = Label("Text", alert, "!", 28, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(bang.rectTransform, new Vector2(0, 3), Vector2.zero);
+
+            var dim = Stretch(Rect("Dim", holder));
+            var dimImage = Img(dim, null, new Color(0.03f, 0.02f, 0.02f, 0.55f));
+            dimImage.raycastTarget = true;
+            var dimGroup = dim.gameObject.AddComponent<CanvasGroup>();
+
+            var panel = Rect("Panel", holder);
+            panel.sizeDelta = new Vector2(1500, 600);
+            var group = panel.gameObject.AddComponent<CanvasGroup>();
+            Window(Stretch(Rect("Background", panel)), 16f).raycastTarget = true;
+            var ribbon = Rect("Ribbon", panel);
+            ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 1f);
+            ribbon.anchoredPosition = new Vector2(0, 12);
+            ribbon.sizeDelta = new Vector2(560, 108);
+            Img(ribbon, "sl_banner", Color.white, BannerSlice(108f));
+            var title = Label("Title", ribbon, "Grandma's Treats", 50, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            BandText(title.rectTransform, 108f);
+            var subtitle = Label("Subtitle", panel, "Come by every day for a little something. Day 7 is Grandma's big gift!", 28, _body, null, SoftBrown, TextAlignmentOptions.Center);
+            Top(subtitle.rectTransform, new Vector2(0, -74), new Vector2(1300, 40), centered: true);
+            var closeButton = CloseButton(panel);
+
+            var days = new List<DailyRewardsPanel.Day>();
+            const float w = 180f, gap = 14f;
+            float x0 = -(7 * w + 6 * gap) / 2f + w / 2f;
+            for (int i = 0; i < 7; i++)
+            {
+                var d = Rect($"Day{i + 1}", panel);
+                d.anchoredPosition = new Vector2(x0 + i * (w + gap), 18);
+                d.sizeDelta = new Vector2(w, i == 6 ? 250 : 230);
+                var frame = Img(d, "sl_frame_white", Color.white, 1.8f);
+                var lbl = Label("Label", d, $"Day {i + 1}", 28, _display, _shadow, Brown, TextAlignmentOptions.Center);
+                Top(lbl.rectTransform, new Vector2(0, -10), new Vector2(w, 36), centered: true);
+                var ic = Rect("Icon", d);
+                ic.anchoredPosition = new Vector2(0, 0);
+                ic.sizeDelta = new Vector2(96, 96);
+                var icImage = ic.gameObject.AddComponent<UnityEngine.UI.Image>();
+                icImage.preserveAspect = true;
+                icImage.raycastTarget = false;
+                var amt = Label("Amount", d, "", 30, _display, _shadow, Brown, TextAlignmentOptions.Center);
+                amt.rectTransform.anchorMin = amt.rectTransform.anchorMax = amt.rectTransform.pivot = new Vector2(0.5f, 0f);
+                amt.rectTransform.anchoredPosition = new Vector2(0, 14);
+                amt.rectTransform.sizeDelta = new Vector2(w, 38);
+                var check = Rect("Check", d);
+                check.anchorMin = check.anchorMax = new Vector2(1f, 1f);
+                check.anchoredPosition = new Vector2(-18, -18);
+                check.sizeDelta = new Vector2(44, 44);
+                Img(check, "sl_green_disc", Color.white);
+                var tick = Label("Tick", check, "OK", 18, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                Fill(tick.rectTransform, new Vector2(0, 2), Vector2.zero);
+                days.Add(new DailyRewardsPanel.Day { frame = frame, label = lbl, icon = icImage, amount = amt, check = check.gameObject });
+            }
+
+            var claim = Rect("Claim", panel);
+            claim.anchorMin = claim.anchorMax = new Vector2(0.5f, 0f);
+            claim.anchoredPosition = new Vector2(-180, 70);
+            claim.sizeDelta = new Vector2(300, 96);
+            var claimButton = claim.gameObject.AddComponent<UnityEngine.UI.Button>();
+            claimButton.targetGraphic = Img(claim, "sl_btn_orange", Color.white, 1.3f);
+            claim.gameObject.AddComponent<ButtonJuice>();
+            var claimLabel = Label("Label", claim, "Claim", 44, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(claimLabel.rectTransform, new Vector2(8, 6), new Vector2(-8, 0));
+            var dbl = AdButton(panel, "Double", new Vector2(180, 70), new Vector2(300, 96), "Claim x2", 38, out var dblText);
+            var dblRt = (RectTransform)dbl.transform;
+            dblRt.anchorMin = dblRt.anchorMax = new Vector2(0.5f, 0f);
+            var footer = Label("Footer", panel, "", 32, _display, _shadow, SoftBrown, TextAlignmentOptions.Center);
+            footer.rectTransform.anchorMin = footer.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            footer.rectTransform.anchoredPosition = new Vector2(0, 70);
+            footer.rectTransform.sizeDelta = new Vector2(900, 60);
+
+            var so = new SerializedObject(daily);
+            var daysProp = so.FindProperty("days");
+            daysProp.arraySize = days.Count;
+            for (int i = 0; i < days.Count; i++)
+            {
+                var e = daysProp.GetArrayElementAtIndex(i);
+                e.FindPropertyRelative("frame").objectReferenceValue = days[i].frame;
+                e.FindPropertyRelative("label").objectReferenceValue = days[i].label;
+                e.FindPropertyRelative("icon").objectReferenceValue = days[i].icon;
+                e.FindPropertyRelative("amount").objectReferenceValue = days[i].amount;
+                e.FindPropertyRelative("check").objectReferenceValue = days[i].check;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Set(daily, "panel", panel);
+            Set(daily, "group", group);
+            Set(daily, "dim", dimGroup);
+            Set(daily, "openButton", openButton);
+            Set(daily, "openAlert", alert.gameObject);
+            Set(daily, "closeButton", closeButton);
+            Set(daily, "claimButton", claimButton);
+            Set(daily, "doubleButton", dbl);
+            Set(daily, "doubleText", dblText);
+            Set(daily, "footer", footer);
+            Set(daily, "coinFly", coinFly);
+            Set(daily, "coinIcon", Resolve("icon_coin"));
+            Set(daily, "gemIcon", Resolve("icon_gem"));
+            Set(daily, "energyIcon", Resolve("icon_speed"));
+            Set(daily, "giftIcon", AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/UI/Icons/sweets_6.png"));
+            Set(daily, "frameToday", Resolve("sl_frame_peach"));
+            Set(daily, "frameOther", Resolve("sl_frame_white"));
+            Set(daily, "frameGift", Resolve("sl_frame_cream"));
         }
 
         // ------------------------------------------------------------------ Sound toggle
@@ -736,7 +901,7 @@ namespace MergeResto.EditorTools
             Img(dim, null, new Color(0.2f, 0.1f, 0.12f, 0.5f)).raycastTarget = true;
 
             var card = Rect("Card", dim);
-            card.sizeDelta = new Vector2(820, 560);
+            card.sizeDelta = new Vector2(860, 640);
             var shadow = Rect("Shadow", card);
             Fill(shadow, new Vector2(-24, -40), new Vector2(24, 8));
             Img(shadow, "shadow", Color.white);
@@ -760,7 +925,7 @@ namespace MergeResto.EditorTools
 
             var amountRow = Rect("AmountRow", card);
             amountRow.anchorMin = amountRow.anchorMax = new Vector2(0.5f, 0f);
-            amountRow.anchoredPosition = new Vector2(0, 200);
+            amountRow.anchoredPosition = new Vector2(0, 268);
             amountRow.sizeDelta = new Vector2(500, 110);
             var shine = Rect("Shine", amountRow);
             shine.anchorMin = shine.anchorMax = new Vector2(0f, 0.5f);
@@ -776,20 +941,34 @@ namespace MergeResto.EditorTools
             var amount = Label("Amount", amountRow, "+0", 84, _display, _outlined, UiArtGenerator.Gold, TextAlignmentOptions.Left);
             Fill(amount.rectTransform, new Vector2(130, 0), Vector2.zero);
 
+            // What happened elsewhere: energy refilled, coins waiting in the other shops.
+            var summary = Label("Summary", card, "", 26, _body, null, new Color(0.2f, 0.52f, 0.16f), TextAlignmentOptions.Center);
+            summary.textWrappingMode = TextWrappingModes.Normal;
+            summary.rectTransform.anchorMin = summary.rectTransform.anchorMax = summary.rectTransform.pivot = new Vector2(0.5f, 0f);
+            summary.rectTransform.anchoredPosition = new Vector2(0, 150);
+            summary.rectTransform.sizeDelta = new Vector2(720, 70);
+
             var btn = Rect("Collect", card);
             btn.anchorMin = btn.anchorMax = new Vector2(0.5f, 0f);
-            btn.anchoredPosition = new Vector2(0, 90);
-            btn.sizeDelta = new Vector2(380, 116);
+            btn.anchoredPosition = new Vector2(-190, 80);
+            btn.sizeDelta = new Vector2(320, 104);
             var button = btn.gameObject.AddComponent<UnityEngine.UI.Button>();
-            button.targetGraphic = Img(btn, "sl_btn_orange", Color.white, 1.1f);
+            button.targetGraphic = Img(btn, "sl_btn_white", Color.white, 1.2f);
             btn.gameObject.AddComponent<ButtonJuice>();
-            var label = Label("Label", btn, "Collect", 56, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            var label = Label("Label", btn, "Collect", 46, _display, _shadow, Brown, TextAlignmentOptions.Center);
             Fill(label.rectTransform, new Vector2(10, 8), new Vector2(-10, 0));
+
+            var dbl = AdButton(card, "Double", new Vector2(190, 80), new Vector2(320, 104), "x2", 44, out var dblText);
+            dbl.GetComponent<RectTransform>().anchorMin = dbl.GetComponent<RectTransform>().anchorMax = new Vector2(0.5f, 0f);
 
             Set(dialog, "root", dim.gameObject);
             Set(dialog, "body", body);
             Set(dialog, "amount", amount);
+            Set(dialog, "summary", summary);
             Set(dialog, "collectButton", button);
+            Set(dialog, "doubleButton", dbl);
+            Set(dialog, "doubleText", dblText);
+            _offlineDialog = dialog;
         }
 
         // ------------------------------------------------------------------ Merge board
@@ -1035,6 +1214,10 @@ namespace MergeResto.EditorTools
             Set(view, "burst", burst);
             Set(view, "energyText", energyText);
             Set(view, "energyTimer", timer);
+            var refill = AdButton(energyPill, "Refill", new Vector2(-8, 0), new Vector2(170, 52), "+50", 28, out _);
+            var refillRt = (RectTransform)refill.transform;
+            refillRt.anchorMin = refillRt.anchorMax = refillRt.pivot = new Vector2(1f, 0.5f);
+            Set(view, "refillButton", refill);
             Set(view, "cozinessText", cozyText);
             Set(view, "infoText", info);
             Set(view, "sellButton", sellButton);
@@ -1249,6 +1432,30 @@ namespace MergeResto.EditorTools
         /// Images are built with raycasts off (so decoration never steals clicks); every button's
         /// own graphic must receive them, or the button can never be pressed.
         /// </summary>
+        /// <summary>
+        /// Corner buttons (Renovate, Shops, Daily, sound) go into one layer under every window,
+        /// so an open window and its dark backdrop always cover them.
+        /// </summary>
+        public static void OrderLayers()
+        {
+            var buttons = Stretch(Rect("HudButtons", _root));
+            var stationPanel = _root.Find("StationPanel");
+            buttons.SetSiblingIndex(stationPanel != null ? stationPanel.GetSiblingIndex() + 1 : 0);
+            foreach (var path in new[] { "SoundToggle", "Board/RenovateButton", "Map/ShopsButton", "Daily/DailyButton" })
+            {
+                var t = _root.Find(path);
+                if (t != null)
+                    t.SetParent(buttons, false);
+            }
+            // Windows above the buttons, then the tutorial, the welcome-back dialog and flying coins.
+            foreach (var name in new[] { "Board", "Map", "Daily", "Tutorial", "OfflineDialog", "CoinFly" })
+            {
+                var t = _root.Find(name);
+                if (t != null)
+                    t.SetAsLastSibling();
+            }
+        }
+
         public static void EnableButtonTargets()
         {
             foreach (var button in _root.GetComponentsInChildren<UnityEngine.UI.Button>(true))

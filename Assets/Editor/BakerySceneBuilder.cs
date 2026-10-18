@@ -139,6 +139,7 @@ namespace MergeResto.EditorTools
             BuildAudio(crowd);
             HudBuilder.BuildSoundToggle();
             BuildMap();
+            HudBuilder.OrderLayers();
             HudBuilder.EnableButtonTargets();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
