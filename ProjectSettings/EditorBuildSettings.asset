@@ -14,6 +14,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Cafe.unity
     guid: ca4c520ad045c994592c4a09ac2c2fde
+  - enabled: 1
+    path: Assets/Scenes/Pizzeria.unity
+    guid: cdf6dc14ae28a5e4f88267c1f7c709a8
+  - enabled: 1
+    path: Assets/Scenes/Patisserie.unity
+    guid: 39db7ca3f5ddf874f9d105b26f2cd619
+  - enabled: 1
+    path: Assets/Scenes/DriveThru.unity
+    guid: ea15d3cc06e42354bb740a78be8a7aa1
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

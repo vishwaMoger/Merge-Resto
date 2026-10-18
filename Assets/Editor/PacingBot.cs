@@ -55,7 +55,8 @@ namespace MergeResto.EditorTools
                 Run("Assets/Game/Config/GrandmasBakery.asset", 90f, nextShop: BakerySceneBuilder.CafeUnlock),
                 Run("Assets/Game/Config/CornerCafe.asset", 120f, nextShop: BakerySceneBuilder.PizzeriaUnlock),
                 Run("Assets/Game/Config/NonnosPizzeria.asset", 120f, nextShop: BakerySceneBuilder.PatisserieUnlock),
-                Run("Assets/Game/Config/BellesPatisserie.asset", 120f, nextShop: null),
+                Run("Assets/Game/Config/BellesPatisserie.asset", 120f, nextShop: BakerySceneBuilder.DriveUnlock),
+                Run("Assets/Game/Config/DriveThru.asset", 120f, nextShop: null),
             };
             var sb = new StringBuilder();
             foreach (var r in reports)

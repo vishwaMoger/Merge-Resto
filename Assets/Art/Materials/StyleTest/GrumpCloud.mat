@@ -33,7 +33,7 @@ Material:
     - _GrimeScale: 5
     - _MidTone: 0.25
     - _RimPower: 3
-    - _RimStrength: 0.1
+    - _RimStrength: 0
     - _ShadeSoftness: 0.06
     - _ShadeThreshold: 0.05
     - _ShadowStrength: 0.85
@@ -42,7 +42,7 @@ Material:
     - _SwayStrength: 0.05
     - _Wear: 0
     m_Colors:
-    - _BaseColor: {r: 0.41960785, g: 0.3529412, b: 0.3882353, a: 1}
+    - _BaseColor: {r: 0.49411765, g: 0.47843137, b: 0.5254902, a: 1}
     - _DirtColor: {r: 0.41999996, g: 0.33999997, b: 0.25999996, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 1, g: 0.96, b: 0.88, a: 1}

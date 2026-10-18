@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: DriveThru
   m_EditorClassIdentifier: Assembly-CSharp::MergeResto.Game.ShopConfig
   shop:
-    id: grandmas_bakery
-    displayName: Grandma's Bakery
-    hasTutorial: 1
+    id: drive_thru
+    displayName: Sunny's Drive-Thru
+    hasTutorial: 0
     stations:
-    - id: flour
-      displayName: Flour Storage
+    - id: fridge
+      displayName: Walk-in Fridge
       kind: 0
       baseCycleSeconds: 2.5
       baseBatch: 6
@@ -28,22 +28,22 @@ MonoBehaviour:
       startsAutomated: 0
       upgrades:
       - track: 0
-        displayName: Quick Unpacking
+        displayName: Quick Restock
         maxLevel: 25
         baseCost: 7800
         costGrowth: 1.55
       - track: 1
-        displayName: Bigger Sacks
+        displayName: Bigger Boxes
         maxLevel: 25
         baseCost: 11700
         costGrowth: 1.55
       - track: 2
-        displayName: Extra Storage
+        displayName: Extra Fridge
         maxLevel: 2
         baseCost: 195000
         costGrowth: 6
-    - id: mixer
-      displayName: Dough Mixer
+    - id: grill
+      displayName: Burger Grill
       kind: 1
       baseCycleSeconds: 3
       baseBatch: 6
@@ -53,24 +53,24 @@ MonoBehaviour:
       startsAutomated: 0
       upgrades:
       - track: 0
-        displayName: Faster Mixing
+        displayName: Hotter Grill
         maxLevel: 25
         baseCost: 7800
         costGrowth: 1.55
       - track: 1
-        displayName: Bigger Bowl
+        displayName: Double Patty
         maxLevel: 25
         baseCost: 11700
         costGrowth: 1.55
       - track: 2
-        displayName: Add Mixer
+        displayName: Add Grill
         maxLevel: 2
         baseCost: 195000
         costGrowth: 6
-    - id: oven
-      displayName: Bread Oven
+    - id: packing
+      displayName: Packing Island
       kind: 1
-      baseCycleSeconds: 4
+      baseCycleSeconds: 3.5
       baseBatch: 6
       outputCapacity: 24
       inputCapacity: 24
@@ -78,22 +78,22 @@ MonoBehaviour:
       startsAutomated: 0
       upgrades:
       - track: 0
-        displayName: Hotter Oven
+        displayName: Swift Packing
         maxLevel: 25
         baseCost: 7800
         costGrowth: 1.55
       - track: 1
-        displayName: Bigger Trays
+        displayName: Combo Meals
         maxLevel: 25
         baseCost: 11700
         costGrowth: 1.55
       - track: 2
-        displayName: Add Oven
+        displayName: Add Station
         maxLevel: 2
         baseCost: 195000
         costGrowth: 6
-    - id: counter
-      displayName: Front Counter
+    - id: window
+      displayName: Pickup Window
       kind: 2
       baseCycleSeconds: 1.2
       baseBatch: 0
@@ -103,12 +103,12 @@ MonoBehaviour:
       startsAutomated: 1
       upgrades:
       - track: 0
-        displayName: Friendly Service
+        displayName: Speedy Service
         maxLevel: 25
         baseCost: 7800
         costGrowth: 1.55
       - track: 1
-        displayName: Fancy Bread
+        displayName: New Menu
         maxLevel: 25
         baseCost: 11700
         costGrowth: 1.55
@@ -119,17 +119,17 @@ MonoBehaviour:
         costGrowth: 6
     couriers:
     - carry: 6
-      walkSeconds: 1.5
+      walkSeconds: 1.5855247
     - carry: 6
-      walkSeconds: 1.5
+      walkSeconds: 2.1666665
     - carry: 6
-      walkSeconds: 1.5
-    customerIntervalSeconds: 4.5
+      walkSeconds: 2.6783597
+    customerIntervalSeconds: 3.8
     intervalPerShopLevel: 0.965
     minCustomerIntervalSeconds: 1
     maxQueue: 6
     itemsPerOrder: 2
-    pricePerItem: 25
+    pricePerItem: 2000
     recipes:
     - Coffee To Go
     - Burger
@@ -137,30 +137,30 @@ MonoBehaviour:
     - Chicken Wrap
     - Family Meal
     levelsPerRecipe: 2
-    patienceSeconds: 22
-    walkInSeconds: 3
-    stepUpSeconds: 0.5
+    patienceSeconds: 24
+    walkInSeconds: 9.516562
+    stepUpSeconds: 0.8045454
     vipIntervalSeconds: 150
     vipItems: 6
     vipPriceMultiplier: 4
     vipGems: 3
     vipPatienceSeconds: 45
-    startCoins: 200
+    startCoins: 100000
     startGems: 0
     pricePerOutputLevel: 0.2
     gemMilestoneEvery: 15
     gemMilestoneReward: 10
     expansions:
-    - displayName: Dining Annex
-      description: 'Build on the empty lot next door: a second dining room.'
-      cost: 150000000
+    - displayName: Neon Lane
+      description: 'Lights along the lane and a big glowing arch: cars come from
+        all over town.'
+      cost: 6000000
       shopLevelNeeded: 50
       priceBonus: 0.15
       customerBonus: 0.25
-    - displayName: Grand Interior
-      description: Wall lamps, paintings, rugs and big plants. Everything new and
-        lovely.
-      cost: 900000000
+    - displayName: Retro Makeover
+      description: Chrome, checkers, neon signs and a shiny new menu board.
+      cost: 40000000
       shopLevelNeeded: 105
       priceBonus: 0.3
       customerBonus: 0.15
@@ -454,90 +454,75 @@ MonoBehaviour:
         tier: 2
         cover: 2
     goals:
-    - kind: 3
-      station: 0
-      target: 1
-      rewardCoins: 200
-      rewardGems: 0
-    - kind: 0
-      station: 2
-      target: 2
-      rewardCoins: 0
-      rewardGems: 15
     - kind: 1
       station: 0
-      target: 15
-      rewardCoins: 150
+      target: 10
+      rewardCoins: 40000
       rewardGems: 0
-    - kind: 3
-      station: 0
-      target: 3
-      rewardCoins: 0
-      rewardGems: 20
     - kind: 0
       station: 1
       target: 2
       rewardCoins: 0
-      rewardGems: 15
+      rewardGems: 30
+    - kind: 0
+      station: 3
+      target: 2
+      rewardCoins: 0
+      rewardGems: 30
+    - kind: 2
+      station: 0
+      target: 1
+      rewardCoins: 70000
+      rewardGems: 0
+    - kind: 3
+      station: 0
+      target: 1
+      rewardCoins: 0
+      rewardGems: 35
     - kind: 2
       station: 1
       target: 1
-      rewardCoins: 300
+      rewardCoins: 120000
       rewardGems: 0
+    - kind: 0
+      station: 2
+      target: 4
+      rewardCoins: 0
+      rewardGems: 40
     - kind: 4
       station: 2
       target: 1
       rewardCoins: 0
-      rewardGems: 20
+      rewardGems: 50
+    - kind: 3
+      station: 0
+      target: 3
+      rewardCoins: 0
+      rewardGems: 70
     - kind: 5
       station: 0
-      target: 3000
+      target: 7000000
       rewardCoins: 0
-      rewardGems: 25
+      rewardGems: 80
     - kind: 2
       station: 2
       target: 1
-      rewardCoins: 600
+      rewardCoins: 400000
       rewardGems: 0
-    - kind: 0
-      station: 3
-      target: 3
-      rewardCoins: 0
-      rewardGems: 20
     - kind: 1
       station: 0
-      target: 100
-      rewardCoins: 0
-      rewardGems: 30
-    - kind: 6
-      station: 0
-      target: 20
-      rewardCoins: 1500
+      target: 300
+      rewardCoins: 800000
       rewardGems: 0
     - kind: 3
       station: 0
       target: 6
       rewardCoins: 0
-      rewardGems: 50
-    - kind: 4
-      station: 1
-      target: 1
-      rewardCoins: 0
-      rewardGems: 30
-    - kind: 5
-      station: 0
-      target: 25000
-      rewardCoins: 0
-      rewardGems: 50
-    - kind: 1
-      station: 0
-      target: 300
-      rewardCoins: 4000
-      rewardGems: 0
+      rewardGems: 140
     - kind: 6
       station: 0
-      target: 40
+      target: 50
       rewardCoins: 0
-      rewardGems: 75
+      rewardGems: 200
     offlineCapHours: 2
     offlineEfficiency: 0.5
