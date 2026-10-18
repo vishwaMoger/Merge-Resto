@@ -63,6 +63,15 @@ namespace MergeResto.EditorTools
             Debug.Log("[Merge Resto] UI art generated.");
         }
 
+        /// <summary>The merge board's covers: a cardboard box for hidden cells, cellophane for wrapped items.</summary>
+        public static void GenerateBoardArt()
+        {
+            LookSetup.EnsureFolder(Folder);
+            Save("board_box", 256, BoardBox);
+            Save("board_wrap", 256, BoardWrap);
+            AssetDatabase.Refresh();
+        }
+
         public static Sprite Load(string name) =>
             AssetDatabase.LoadAssetAtPath<Sprite>($"{Folder}/{name}.png");
 
@@ -325,6 +334,40 @@ namespace MergeResto.EditorTools
             float r = Mathf.Sqrt(x * x + y * y);
             float d = Mathf.Max(r - 0.47f, 0.31f - r);
             return Shape(d, new Color(1f, 1f, 1f, 0.35f), 0.035f, new Color(0.36f, 0.23f, 0.18f, 0.85f));
+        }
+
+        static Color BoardBox(float x, float y)
+        {
+            var edge = Hex("A87A52");
+            float body = RoundBox(x, y + 0.06f, 0.38f, 0.3f, 0.06f);
+            var bodyFill = Color.Lerp(Hex("DDB283"), Hex("F0CFA0"), Mathf.Clamp01(y * 1.6f + 0.6f));
+            var c = Shape(body, bodyFill, 0.02f, edge);
+            // Lid, a little wider, on top.
+            float lid = RoundBox(x, y - 0.25f, 0.43f, 0.09f, 0.05f);
+            var lidC = Shape(lid, Color.Lerp(Hex("E8C08F"), Hex("F6DDB4"), Mathf.Clamp01((y + 0.25f) * 6f + 0.5f)), 0.02f, edge);
+            c = Over(lidC, c);
+            // Tape down the middle and a soft shine on the left.
+            float tape = Mathf.Max(RoundBox(x, y - 0.02f, 0.075f, 0.33f, 0.01f), Union(body, lid));
+            c = Over(new Color(1f, 0.95f, 0.84f, Cover(tape) * 0.85f * c.a), c);
+            float shine = Mathf.Max(RoundBox(x + 0.27f, y + 0.1f, 0.035f, 0.14f, 0.03f), body);
+            c = Over(new Color(1f, 1f, 1f, Cover(shine) * 0.28f), c);
+            return c;
+        }
+
+        static Color BoardWrap(float x, float y)
+        {
+            float d = RoundBox(x, y, 0.46f, 0.46f, 0.16f);
+            var c = Shape(d, new Color(0.86f, 0.95f, 1f, 0.22f), 0.022f, new Color(1f, 1f, 1f, 0.85f));
+            // Diagonal glints, like light on cellophane.
+            float glint = Mathf.Min(Segment(x, y, -0.33f, 0.1f, -0.1f, 0.33f, 0.035f), Segment(x, y, -0.34f, -0.06f, -0.26f, 0.02f, 0.025f));
+            c = Over(new Color(1f, 1f, 1f, Cover(Mathf.Max(glint, d)) * 0.7f), c);
+            float glint2 = Mathf.Max(Segment(x, y, 0.16f, -0.34f, 0.34f, -0.16f, 0.025f), d);
+            c = Over(new Color(1f, 1f, 1f, Cover(glint2) * 0.45f), c);
+            // A little pink bow on top.
+            float bow = Union(Circle(x, y, -0.07f, 0.42f, 0.06f), Circle(x, y, 0.07f, 0.42f, 0.06f));
+            c = Over(Shape(bow, Pink, 0.02f, Darken(Pink, 0.7f)), c);
+            c = Over(Shape(Circle(x, y, 0f, 0.42f, 0.035f), Lighten(Pink, 0.3f), 0.015f, Darken(Pink, 0.7f)), c);
+            return c;
         }
 
         static Color Bubble(float x, float y)

@@ -8,8 +8,9 @@ namespace MergeResto.Game.UI
     /// <summary>
     /// Grandma's short lessons for every feature after the Grand Opening, each shown once (for
     /// the whole game, not per shop) at the moment the feature first matters: the renovation
-    /// board (tap a generator, drag to merge, Fix), goal rewards, growing the shop, opening the
-    /// next shop, VIPs and the x2 boost. One lesson at a time, never over another window.
+    /// board (tap a generator, drag to merge, Fix, and the job pins in the shop), boxes and
+    /// wrapped items, goal rewards, growing the shop, opening the next shop, VIPs and the x2
+    /// boost. One lesson at a time, never over another window.
     /// </summary>
     public class FeatureLessons : MonoBehaviour
     {
@@ -22,6 +23,7 @@ namespace MergeResto.Game.UI
         [SerializeField] SettingsPanel settings;
         [SerializeField] VipBanner vip;
         [SerializeField] BoostButton boost;
+        [SerializeField] JobCardLayer jobs;
         [Tooltip("Seconds of play after the tutorial before the boost tip.")]
         [SerializeField] float boostTipAfter = 240f;
 
@@ -34,8 +36,10 @@ namespace MergeResto.Game.UI
         int _startExpansion;
         int _renovationsAtStart;
         int _goal = -1;
+        int _wrapped = -1;
         bool _boardIntroDone;
         bool _merged;
+        int _stepAfterFix;
 
         void Start()
         {
@@ -62,7 +66,7 @@ namespace MergeResto.Game.UI
 
         bool Busy =>
             TutorialFocus.Active || _sim.State.tutorialStep < ShopState.TutorialFinished || OfflineEarningsDialog.IsOpen
-            || (daily != null && daily.IsOpen) || (settings != null && settings.IsOpen) || RenovationSpot.Showing;
+            || (daily != null && daily.IsOpen) || (settings != null && settings.IsOpen) || RenovationSpot.Showing || JobCardLayer.IsOpen;
 
         bool AnyWindowOpen =>
             (board != null && board.IsOpen) || (expand != null && expand.IsOpen) || (map != null && map.IsOpen)
@@ -89,6 +93,7 @@ namespace MergeResto.Game.UI
                 _startExpansion = _sim.State.expansion;
                 _renovationsAtStart = _sim.Board != null ? _sim.Board.State.renovationsDone.Count : 0;
                 _merged = false;
+                _stepAfterFix = 0;
             }
 
             // A fix playing out in the shop: stay quiet until it is done.
@@ -101,6 +106,7 @@ namespace MergeResto.Game.UI
             switch (_current)
             {
                 case "renovate": Renovate(); break;
+                case "boxes": Boxes(); break;
                 case "goal": Goal(); break;
                 case "expand": Expand(); break;
                 case "shops": Shops(); break;
@@ -115,6 +121,17 @@ namespace MergeResto.Game.UI
             bool Need(string id) => !_done.Contains(id);
             if (Need("renovate") && _sim.Board != null && board != null && _sim.Board.ActiveRenovations(1).Count > 0)
                 return "renovate";
+            // The first wrapped item that shows up on an open board.
+            if (Need("boxes") && !Need("renovate") && board != null && board.IsOpen && !board.Dragging)
+            {
+                var b = _sim.Board;
+                for (int i = 0; i < b.Def.Cells; i++)
+                    if (b.CoverOf(i) == CellCover.Wrapped)
+                    {
+                        _wrapped = i;
+                        return "boxes";
+                    }
+            }
             if (AnyWindowOpen)
                 return null;
             if (Need("goal") && goals != null)
@@ -145,8 +162,20 @@ namespace MergeResto.Game.UI
             // Done: the first fix was made and has played out in the shop.
             if (b.State.renovationsDone.Count > _renovationsAtStart)
             {
-                guide.Present("Look how lovely it is now! Every fix makes the shop cozier, and cozy shops earn more. More jobs are waiting on the board.",
-                    GuideTarget.None, waitTap: true);
+                if (_stepAfterFix == 0)
+                {
+                    guide.Present("Look how lovely it is now! Every fix makes the shop cozier, and cozy shops earn more.",
+                        GuideTarget.None, waitTap: true);
+                    if (guide.ConsumeTap())
+                        _stepAfterFix = 1;
+                    return;
+                }
+                var next = b.ActiveRenovations(1);
+                var pin = next.Count > 0 && jobs != null ? jobs.PinFor(next[0]) : null;
+                guide.Present(pin != null
+                        ? "These little pins show what to fix next, right where it goes. Tap one to see what it needs!"
+                        : "More jobs are waiting on the board. Every job has a Show button that points out its spot.",
+                    GuideTarget.At(pin), waitTap: true);
                 if (guide.ConsumeTap())
                     Finish();
                 return;
@@ -170,7 +199,7 @@ namespace MergeResto.Game.UI
             if (!_boardIntroDone)
             {
                 string needName = b.NameOf(BoardItem.Item(need.chain, need.tier));
-                guide.Present($"This is the renovation board. Each job up here needs items you make below. To \"{job.displayName.ToLowerInvariant()}\" we need a {needName}.",
+                guide.Present($"We fix the shop one part at a time, starting with {b.AreaName(job.area).ToLowerInvariant()}. To {job.displayName.ToLowerInvariant()}, we need a {needName}.",
                     GuideTarget.At(board.TaskCardFor(r)), waitTap: true);
                 if (guide.ConsumeTap())
                     _boardIntroDone = true;
@@ -200,6 +229,12 @@ namespace MergeResto.Game.UI
                 return;
             }
             int gen = board.GeneratorCell(need.chain);
+            if (gen >= 0 && b.CheckSpawn(gen) == SpawnFail.Recharging)
+            {
+                guide.Present($"The {b.NameOf(b[gen])} needs a little rest. Its charges come back by themselves; the number on it shows how many are left.",
+                    GuideTarget.At(board.Cell(gen)), waitTap: false);
+                return;
+            }
             if (gen >= 0 && b.Energy > 0)
             {
                 var g = b[gen];
@@ -229,6 +264,22 @@ namespace MergeResto.Game.UI
         }
 
         static string Plural(string name) => name.EndsWith("s") ? name : name + "s";
+
+        // Boxes and wrapped items, the first time a merge opens a box with something inside.
+        void Boxes()
+        {
+            var b = _sim.Board;
+            if (board == null || !board.IsOpen || _wrapped < 0 || b.CoverOf(_wrapped) != CellCover.Wrapped)
+            {
+                Finish();
+                return;
+            }
+            string name = b.NameOf(b[_wrapped]);
+            guide.Present($"See this wrapped {name}? Merge another {name} onto it and it's yours! Merging also opens the boxes next to it, and there are goodies inside.",
+                GuideTarget.At(board.Cell(_wrapped)), waitTap: true);
+            if (guide.ConsumeTap())
+                Finish();
+        }
 
         // ------------------------------------------------------------------ Others
 

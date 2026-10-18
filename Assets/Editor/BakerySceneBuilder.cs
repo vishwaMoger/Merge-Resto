@@ -228,8 +228,10 @@ namespace MergeResto.EditorTools
             AssetDatabase.SaveAssets();
         }
 
-        // The renovation board: three chains of bakery props (sweets, kitchenware, plants),
-        // a generator for each, and six run-down spots in the shop to fix with them.
+        // The renovation board: three chains of bakery props (sweets, kitchenware, plants) with
+        // a generator each, on a 7x5 board whose border starts boxed up (merging next to a box
+        // opens it, often showing a wrapped bonus item). Ten jobs in four areas of the shop,
+        // each one a visible change in the room (see BuildRenovationSpots).
         static void EnsureBoard(ShopConfig config)
         {
             var b = config.shop.board = new MergeBoardDefinition
@@ -239,6 +241,7 @@ namespace MergeResto.EditorTools
                 energyMax = 100,
                 energyRegenSeconds = 6f,
                 sellBase = 5,
+                unwrapGems = 2,
             };
             MergeChainDefinition Chain(string id, string name, params (string tier, string model)[] tiers)
             {
@@ -263,50 +266,56 @@ namespace MergeResto.EditorTools
                 ("Succulent", "TinyTreats_HousePlants/succulent_plant_pot_small"), ("Little Cactus", "TinyTreats_HousePlants/cacti_plant_pot_small"),
                 ("Pothos", "TinyTreats_HousePlants/pothos_plant_small_potted"), ("ZZ Plant", "TinyTreats_HousePlants/zzplant_plant_medium_potted"),
                 ("Snake Plant", "TinyTreats_HousePlants/sansevieria_plant_large_potted"), ("Monstera", "TinyTreats_HousePlants/monstera_plant_large_potted")));
-            b.generators.Add(new GeneratorDefinition { id = "cookie_jar", displayName = "Cookie Jar", chain = 0, model = "TinyTreats_BakeryInterior/cookie_jar" });
-            b.generators.Add(new GeneratorDefinition { id = "dish_rack", displayName = "Dish Rack", chain = 1, model = "KayKit_RestaurantBits/dishrack_plates" });
-            b.generators.Add(new GeneratorDefinition { id = "watering_can", displayName = "Watering Can", chain = 2, model = "TinyTreats_HousePlants/watering_can_A" });
+            b.generators.Add(new GeneratorDefinition { id = "cookie_jar", displayName = "Cookie Jar", chain = 0, capacity = 12, rechargeSeconds = 20f, model = "TinyTreats_BakeryInterior/cookie_jar" });
+            b.generators.Add(new GeneratorDefinition { id = "dish_rack", displayName = "Dish Rack", chain = 1, capacity = 12, rechargeSeconds = 20f, model = "KayKit_RestaurantBits/dishrack_plates" });
+            b.generators.Add(new GeneratorDefinition { id = "watering_can", displayName = "Watering Can", chain = 2, capacity = 12, rechargeSeconds = 20f, model = "TinyTreats_HousePlants/watering_can_A" });
 
-            b.start.Add(new BoardStartItem { cell = 0, generator = 0 });
-            b.start.Add(new BoardStartItem { cell = 14, generator = 1 });
-            b.start.Add(new BoardStartItem { cell = 28, generator = 2 });
-            b.start.Add(new BoardStartItem { cell = 9, generator = -1, chain = 0, tier = 0 });
-            b.start.Add(new BoardStartItem { cell = 10, generator = -1, chain = 0, tier = 0 });
+            // Rows of 7: the middle 5x3 block is open, the border around it is boxed.
+            for (int r = 1; r <= 3; r++)
+                for (int c = 1; c <= 5; c++)
+                    b.openCells.Add(r * 7 + c);
+            void Start(int cell, int generator, int chain = 0, int tier = 0, CellCover cover = CellCover.Open) =>
+                b.start.Add(new BoardStartItem { cell = cell, generator = generator, chain = chain, tier = tier, cover = cover });
+            int off = Pick(0, 1, 2);
+            int T(int chain, int tier) => Mathf.Min(tier + off, chain == 0 ? 6 : 5);
 
-            RenovationDefinition R(string id, string name, double coins, float cozy, params (int chain, int tier)[] needs)
+            Start(8, 0);
+            Start(22, 1);
+            Start(12, 2);
+            // The first merge (two cookies) stays the lesson; around it, a head start for the jobs after.
+            Start(16, -1, 0, 0);
+            Start(17, -1, 0, 0);
+            Start(23, -1, 1, 1);
+            Start(18, -1, 2, 0);
+            Start(19, -1, 2, 0);
+            // On the edge, wrapped items in plain view: a match merged onto one frees it.
+            foreach (var (cell, chain, tier) in new[] { (13, 0, 0), (20, 1, 0), (14, 2, 0), (27, 1, 1) })
+                Start(cell, -1, chain, tier, CellCover.Wrapped);
+            // Small bonuses waiting in the boxes (shown wrapped once their box opens).
+            foreach (var (cell, chain, tier) in new[] { (2, 0, 0), (5, 2, 0), (7, 1, 0), (21, 0, 1), (29, 1, 1), (33, 0, 1), (31, 2, 1), (0, 2, 2) })
+                Start(cell, -1, chain, tier, CellCover.Boxed);
+            double scale = Pick(1.0, 6.0, 27.0);
+            b.areas.Add(new RenovationArea { id = "counter", displayName = "The Counter", rewardGems = 10 });
+            b.areas.Add(new RenovationArea { id = "windows", displayName = "The Windows", rewardGems = 15 });
+            b.areas.Add(new RenovationArea { id = "dining", displayName = Pick("The Dining Room", "The Café Tables", "The Trattoria"), rewardGems = 20 });
+            b.areas.Add(new RenovationArea { id = "finish", displayName = "Finishing Touches", rewardGems = 30 });
+            void R(string id, int area, string bakery, string cafe, string pizza, double coins, float cozy, params (int chain, int tier)[] needs)
             {
-                var r = new RenovationDefinition { id = id, displayName = name, rewardCoins = coins, coziness = cozy };
+                var r = new RenovationDefinition { id = id, area = area, displayName = Pick(bakery, cafe, pizza), rewardCoins = coins * scale, coziness = cozy };
                 foreach (var n in needs)
-                    r.needs.Add(new ItemRef(n.chain, n.tier));
-                return r;
+                    r.needs.Add(new ItemRef(n.chain, T(n.chain, n.tier)));
+                b.renovations.Add(r);
             }
-            if (IsPizza)
-            {
-                b.renovations.Add(R("pastry_stand", "Restock the dessert stand", 4000, 0.05f, (0, 4)));
-                b.renovations.Add(R("window_plants", "Bring back Nonno's plants", 6000, 0.06f, (2, 4), (2, 3)));
-                b.renovations.Add(R("dining", "Set the trattoria tables", 9000, 0.08f, (1, 4), (1, 4), (1, 3)));
-                b.renovations.Add(R("display_case", "Polish the counter", 15000, 0.08f, (1, 5), (0, 5)));
-                b.renovations.Add(R("corner", "Green up the piazza corner", 25000, 0.08f, (2, 5), (2, 4)));
-                b.renovations.Add(R("shop_sign", "Light Nonno's sign", 60000, 0.15f, (0, 6), (1, 5), (2, 5)));
-            }
-            else if (IsCafe)
-            {
-                b.renovations.Add(R("pastry_stand", "Fill the cake stand", 800, 0.05f, (0, 3)));
-                b.renovations.Add(R("window_plants", "Plant the window pots", 1200, 0.06f, (2, 3), (2, 2)));
-                b.renovations.Add(R("dining", "Lay the café tables", 1800, 0.08f, (1, 3), (1, 3), (1, 2)));
-                b.renovations.Add(R("display_case", "Shine the display case", 3000, 0.08f, (1, 4), (0, 4)));
-                b.renovations.Add(R("corner", "Grow a reading corner", 5000, 0.08f, (2, 5)));
-                b.renovations.Add(R("shop_sign", "Light the café sign", 12000, 0.15f, (0, 6), (1, 5), (2, 5)));
-            }
-            else
-            {
-                b.renovations.Add(R("pastry_stand", "Restock the pastry stand", 150, 0.05f, (0, 2)));
-                b.renovations.Add(R("window_plants", "Revive the window plants", 200, 0.06f, (2, 2), (2, 1)));
-                b.renovations.Add(R("dining", "Set the dining tables", 300, 0.08f, (1, 2), (1, 2), (1, 1)));
-                b.renovations.Add(R("display_case", "Polish the display case", 500, 0.08f, (1, 3), (0, 3)));
-                b.renovations.Add(R("corner", "Green up the cozy corner", 800, 0.08f, (2, 4)));
-                b.renovations.Add(R("shop_sign", "Light up the shop sign", 2000, 0.15f, (0, 5), (1, 4), (2, 4)));
-            }
+            R("stand_cover", 0, "Uncover the pastry stand", "Uncover the cake stand", "Uncover the dessert stand", 60, 0.03f, (0, 1));
+            R("stand_cake", 0, "Bake a cake for the stand", "Fill the cake stand", "Restock the dessert stand", 100, 0.03f, (0, 2));
+            R("display_case", 0, "Polish the display case", "Shine the display case", "Polish the counter", 150, 0.05f, (1, 2), (0, 2));
+            R("window_snake", 1, "Pot a snake plant", "Plant the window pot", "Bring back Nonno's snake plant", 150, 0.05f, (2, 2));
+            R("window_pothos", 1, "Hang the pothos", "Hang a trailing pothos", "Hang Nonno's pothos", 200, 0.05f, (2, 2), (2, 1));
+            R("dining_scrub", 2, "Scrub the dining tables", "Scrub the café tables", "Scrub the trattoria tables", 200, 0.04f, (1, 2), (1, 1));
+            R("dining_set", 2, "Set out plates and mugs", "Set out cups and plates", "Set the tables", 250, 0.05f, (1, 3));
+            R("dining_treats", 2, "A treat on every table", "Pastries on every table", "Dessert on every table", 300, 0.05f, (0, 3), (0, 2));
+            R("corner", 3, "Green up the cozy corner", "Grow a reading corner", "Green up the piazza corner", 500, 0.07f, (2, 4));
+            R("shop_sign", 3, "Light up Grandma's sign", "Light the café sign", "Light Nonno's sign", 1500, 0.08f, (0, 5), (1, 4), (2, 4));
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssets();
         }
@@ -1047,8 +1056,8 @@ namespace MergeResto.EditorTools
         //  - first manager in the tutorial (~5 min), the bakery fully automated by ~12 min
         //  - Dining Annex ~15-20 min, Corner Cafe ready ~35-45 min, Grand Interior ~50-60 min
         //  - the pizzeria a few sessions later
-        public static readonly (int renovations, int level, double cost) CafeUnlock = (5, 90, 80000);
-        public static readonly (int renovations, int level, double cost) PizzeriaUnlock = (5, 100, 600000);
+        public static readonly (int renovations, int level, double cost) CafeUnlock = (8, 90, 80000);
+        public static readonly (int renovations, int level, double cost) PizzeriaUnlock = (8, 100, 600000);
 
         const int UpgradeMaxLevel = 25;
         const double UpgradeGrowth = 1.55;
@@ -1087,7 +1096,7 @@ namespace MergeResto.EditorTools
             // faster with the rewarded refill.
             var (energyMax, regen) = Pick((40, 30f), (50, 24f), (60, 20f));
             shop.board.energyMax = energyMax;
-            shop.board.startEnergy = 12; // enough for the first renovation
+            shop.board.startEnergy = 20; // enough for the first two jobs
             shop.board.energyRegenSeconds = regen;
             EditorUtility.SetDirty(config);
         }
@@ -1767,9 +1776,12 @@ namespace MergeResto.EditorTools
             var sparkle = GameObject.Find("Bakery/FX/SparkleBurst").GetComponent<ParticleSystem>();
             var dust = GameObject.Find("Bakery/FX/FlourPuff").GetComponent<ParticleSystem>();
             string[] captions = Pick(
-                new[] { "Pastry stand restocked!", "The window plants are back!", "The tables are set!", "The display case shines!", "The cozy corner is green again!", "Grandma's sign is lit!" },
-                new[] { "Cake stand filled!", "Fresh plants in the windows!", "Café tables are set!", "The display case shines!", "A reading corner, all green!", "The café sign is lit!" },
-                new[] { "Dessert stand restocked!", "Nonno's plants are back!", "Trattoria tables are set!", "The counter shines!", "The piazza corner is green!", "Nonno's sign is lit!" });
+                new[] { "The pastry stand is back!", "Fresh cake on the stand!", "The display case shines!", "A snake plant for the window!", "The pothos is hanging!",
+                    "The tables are spotless!", "The tables are set!", "Treats on every table!", "The cozy corner is green again!", "Grandma's sign is lit!" },
+                new[] { "The cake stand is back!", "Cake stand filled!", "The display case shines!", "A plant in the window!", "The pothos is hanging!",
+                    "The café tables are spotless!", "Cups and plates are out!", "Pastries on every table!", "A reading corner, all green!", "The café sign is lit!" },
+                new[] { "The dessert stand is back!", "Dessert stand restocked!", "The counter shines!", "Nonno's snake plant is back!", "Nonno's pothos is hanging!",
+                    "The trattoria tables are spotless!", "The tables are set!", "Dessert on every table!", "The piazza corner is green!", "Nonno's sign is lit!" });
             RenovationSpot Spot(int index, string name, Vector3 pos)
             {
                 var go = new GameObject(name);
@@ -1789,6 +1801,7 @@ namespace MergeResto.EditorTools
             GameObject Find(string path) => GameObject.Find(path);
             Renderer[] RenderersOf(params GameObject[] gos) =>
                 gos.Where(g => g != null).SelectMany(g => g.GetComponentsInChildren<Renderer>(true)).ToArray();
+            GameObject[] Present(params GameObject[] gos) => gos.Where(g => g != null).ToArray();
             GameObject Prop(string model, string folder, Transform parent, Vector3 pos, float yaw = 0f, float scale = 1f, bool sway = false)
             {
                 var p = Place(model, folder, parent, pos, yaw);
@@ -1797,64 +1810,77 @@ namespace MergeResto.EditorTools
                 return p;
             }
 
-            // 0: the pastry stand on the counter is dust-sheeted.
+            // The Counter. 0: the pastry stand is dust-sheeted; 1: it gets a cake; 2: the display case is grimy.
             {
                 var stand = Find("Bakery/Dressing/pastry_stand_B_decorated");
                 var cake = Find("Bakery/Dressing/cake_birthday");
                 var spot = Spot(0, "PastryStand", stand.transform.position);
                 var covered = Prop("pastry_stand_A_covered", BakeryArt, spot.transform, stand.transform.position);
                 spot.broken = new[] { covered };
-                spot.fixedObjects = new[] { stand, cake }.Where(g => g != null).ToArray();
+                spot.fixedObjects = Present(stand);
                 spot.worn = RenderersOf(covered);
+                var cakeSpot = Spot(1, "StandCake", cake != null ? cake.transform.position : stand.transform.position);
+                cakeSpot.fixedObjects = Present(cake);
             }
-            // 1: empty pots under the left windows.
             {
-                var spot = Spot(1, "WindowPlants", new Vector3(-7.3f, 0f, -1.6f));
-                var snake = Find("Bakery/Decor/sansevieria_plant_medium_potted");
-                var pothos = Prop("pothos_plant_medium_potted", PlantArt, spot.transform, PothosPos, 40f, sway: true);
-                var potA = Prop("pot_B_medium", PlantArt, spot.transform, SnakePlantPos);
-                var potB = Prop("pot_B_medium", PlantArt, spot.transform, PothosPos, 30f);
-                spot.broken = new[] { potA, potB };
-                spot.fixedObjects = new[] { snake, pothos }.Where(g => g != null).ToArray();
-                spot.worn = RenderersOf(potA, potB);
-            }
-            // 2: dining tables bare and grimy; plates, mugs and treats appear once set.
-            {
-                var spot = Spot(2, "Dining", new Vector3(-4f, 0f, -3.5f));
-                var dining = Find("Bakery/Dining");
-                var tableware = new List<GameObject>();
-                var furniture = new List<GameObject>();
-                foreach (Transform child in dining.transform)
-                {
-                    if (child.name.StartsWith("mug") || child.name.StartsWith("plate") || child.name.StartsWith("cream_puff"))
-                        tableware.Add(child.gameObject);
-                    else
-                        furniture.Add(child.gameObject);
-                }
-                spot.fixedObjects = tableware.ToArray();
-                spot.worn = RenderersOf(furniture.ToArray());
-            }
-            // 3: the display case at the counter is grimy.
-            {
-                var spot = Spot(3, "DisplayCase", stations[3].transform.position + Vector3.left);
+                var spot = Spot(2, "DisplayCase", stations[3].transform.position + Vector3.left);
                 var display = stations[3].transform.Find("display_case_long");
                 spot.worn = RenderersOf(display != null ? display.gameObject : null);
             }
-            // 4: the front-left corner has a dead, empty pot.
+            // The Windows. 3 and 4: empty pots under the left windows get their plants back.
+            {
+                var snake = Find("Bakery/Decor/sansevieria_plant_medium_potted");
+                var potA = Prop("pot_B_medium", PlantArt, root, SnakePlantPos);
+                var spotA = Spot(3, "WindowSnakePlant", SnakePlantPos);
+                potA.transform.SetParent(spotA.transform, true);
+                spotA.broken = new[] { potA };
+                spotA.fixedObjects = Present(snake);
+                spotA.worn = RenderersOf(potA);
+
+                var spotB = Spot(4, "WindowPothos", PothosPos);
+                var pothos = Prop("pothos_plant_medium_potted", PlantArt, spotB.transform, PothosPos, 40f, sway: true);
+                var potB = Prop("pot_B_medium", PlantArt, spotB.transform, PothosPos, 30f);
+                spotB.broken = new[] { potB };
+                spotB.fixedObjects = new[] { pothos };
+                spotB.worn = RenderersOf(potB);
+            }
+            // The dining room. 5: tables and chairs are grimy; 6: plates and mugs; 7: treats.
+            {
+                var dining = Find("Bakery/Dining");
+                var dishes = new List<GameObject>();
+                var treats = new List<GameObject>();
+                var furniture = new List<GameObject>();
+                foreach (Transform child in dining.transform)
+                {
+                    if (child.name.StartsWith("mug") || child.name.StartsWith("plate"))
+                        dishes.Add(child.gameObject);
+                    else if (child.name.StartsWith("cream_puff"))
+                        treats.Add(child.gameObject);
+                    else
+                        furniture.Add(child.gameObject);
+                }
+                var centre = new Vector3(-4f, 0f, -3.5f);
+                var scrub = Spot(5, "DiningScrub", centre);
+                scrub.worn = RenderersOf(furniture.ToArray());
+                var set = Spot(6, "DiningSet", centre);
+                set.fixedObjects = dishes.ToArray();
+                var sweets = Spot(7, "DiningTreats", centre);
+                sweets.fixedObjects = treats.ToArray();
+            }
+            // Finishing touches. 8: the front-left corner has a dead, empty pot; 9: the sign is dull.
             {
                 var monstera = Find("Bakery/Decor/monstera_plant_large_potted");
                 var corner = monstera.transform.position;
-                var spot = Spot(4, "CozyCorner", corner);
+                var spot = Spot(8, "CozyCorner", corner);
                 var pot = Prop("pot_C_large", PlantArt, spot.transform, corner, 10f);
                 var stick = Prop("yucca_branch_small_A", PlantArt, spot.transform, corner + new Vector3(0f, 0.45f, 0f), 60f);
                 spot.broken = new[] { pot, stick };
-                spot.fixedObjects = monstera != null ? new[] { monstera } : new GameObject[0];
+                spot.fixedObjects = Present(monstera);
                 spot.worn = RenderersOf(pot, stick);
             }
-            // 5: the shop sign over the oven is dull until it is lit up.
             {
                 var sign = Find("Bakery/Dressing/wall_sign_large");
-                var spot = Spot(5, "ShopSign", sign != null ? sign.transform.position : new Vector3(4.2f, 3.2f, 5.7f));
+                var spot = Spot(9, "ShopSign", sign != null ? sign.transform.position : new Vector3(4.2f, 3.2f, 5.7f));
                 spot.worn = RenderersOf(sign);
                 var lightGo = new GameObject("SignGlow");
                 lightGo.transform.SetParent(spot.transform, false);

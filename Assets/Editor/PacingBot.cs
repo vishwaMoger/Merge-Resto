@@ -239,7 +239,7 @@ namespace MergeResto.EditorTools
             int chain = need.chain;
             int genCell = -1;
             for (int i = 0; i < board.Def.Cells; i++)
-                if (board[i].IsGenerator && board.Def.generators[board[i].GeneratorIndex].chain == chain)
+                if (board.FreeItem(i).IsGenerator && board.Def.generators[board[i].GeneratorIndex].chain == chain)
                     genCell = i;
             for (int spend = 0; spend < 3 && genCell >= 0 && board.Energy > 0; spend++)
             {
@@ -266,19 +266,34 @@ namespace MergeResto.EditorTools
             while (merged)
             {
                 merged = false;
+                // Free items pair up; a wrapped item is freed by merging a free match onto it.
                 var seen = new Dictionary<int, int>();
-                for (int i = 0; i < board.Def.Cells; i++)
+                var wrapped = new Dictionary<int, int>();
+                for (int i = 0; i < board.Def.Cells && !merged; i++)
                 {
+                    var cover = board.CoverOf(i);
                     var item = board[i];
-                    if (!item.IsItem || item.Tier >= board.MaxTier(item.Chain))
+                    if (cover == CellCover.Boxed || !item.IsItem || item.Tier >= board.MaxTier(item.Chain))
                         continue;
+                    if (cover == CellCover.Wrapped)
+                    {
+                        if (seen.TryGetValue(item.code, out int free))
+                            merged = board.Move(free, i) == MoveResult.Merged;
+                        else
+                            wrapped.TryAdd(item.code, i);
+                        continue;
+                    }
+                    if (wrapped.TryGetValue(item.code, out int w))
+                    {
+                        merged = board.Move(i, w) == MoveResult.Merged;
+                        continue;
+                    }
                     if (keep.TryGetValue(item.code, out int wanted) && board.Count(new ItemRef(item.Chain, item.Tier)) <= wanted)
                         continue;
                     if (seen.TryGetValue(item.code, out int other))
                     {
-                        board.Move(other, i);
-                        merged = true;
-                        break;
+                        merged = board.Move(other, i) == MoveResult.Merged;
+                        continue;
                     }
                     seen[item.code] = i;
                 }
@@ -288,13 +303,13 @@ namespace MergeResto.EditorTools
         static void SellOne(MergeBoard board, int keepChain)
         {
             for (int i = 0; i < board.Def.Cells; i++)
-                if (board[i].IsItem && board[i].Chain != keepChain)
+                if (board.FreeItem(i).IsItem && board[i].Chain != keepChain)
                 {
                     board.Sell(i);
                     return;
                 }
             for (int i = 0; i < board.Def.Cells; i++)
-                if (board[i].IsItem)
+                if (board.FreeItem(i).IsItem)
                 {
                     board.Sell(i);
                     return;
