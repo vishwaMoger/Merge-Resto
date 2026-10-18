@@ -97,6 +97,20 @@ namespace MergeResto.Sim
         public int rewardGems;
     }
 
+    /// <summary>One building stage: the shop grows (more room, nicer interior) and earns more.</summary>
+    [Serializable]
+    public class ExpansionDefinition
+    {
+        public string displayName = "Expansion";
+        [TextArea] public string description;
+        public double cost = 1000;
+        public int shopLevelNeeded;
+        [Tooltip("Added to the price multiplier (0.15 = +15%).")]
+        public float priceBonus = 0.15f;
+        [Tooltip("Customers arrive this much more often (0.2 = 20% shorter gaps).")]
+        public float customerBonus = 0.2f;
+    }
+
     [Serializable]
     public class CourierDefinition
     {
@@ -145,6 +159,10 @@ namespace MergeResto.Sim
         [Tooltip("Gems granted every this many upgrade levels on one station.")]
         public int gemMilestoneEvery = 5;
         public int gemMilestoneReward = 10;
+
+        [Header("Expansions")]
+        [Tooltip("Building stages after the starting shop, in order.")]
+        public List<ExpansionDefinition> expansions = new();
 
         [Header("Merge board")]
         public MergeBoardDefinition board = new();

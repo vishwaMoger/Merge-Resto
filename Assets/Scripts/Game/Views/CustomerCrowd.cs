@@ -20,12 +20,18 @@ namespace MergeResto.Game.Views
         public Transform[] exitPath;
         [Tooltip("Queue positions, front (at the register) first.")]
         public Transform[] queueSlots;
+        [Tooltip("Places to sit and eat (facing the table). Inactive ones (an unbuilt annex) are skipped.")]
+        public Transform[] seats;
+        [Range(0f, 1f)] public float dineInChance = 0.65f;
+        public Vector2 eatSeconds = new(7f, 12f);
         public float walkSpeed = 2.6f;
 
         /// <summary>World position where a customer paid, and how much.</summary>
         public event Action<Vector3, double> CustomerPaid;
         /// <summary>World position where a customer gave up.</summary>
         public event Action<Vector3> CustomerGaveUp;
+        /// <summary>A diner finished eating and left a tip (already added to the coins).</summary>
+        public event Action<Vector3, double> CustomerTipped;
 
         class Walker
         {
@@ -35,6 +41,10 @@ namespace MergeResto.Game.Views
             public Transform grump;
             public bool leaving;
             public float leaveDelay;
+            public int seat = -1;
+            public float eatLeft;
+            public bool seated;
+            public double order;
             public readonly Queue<Vector3> route = new();
         }
 
@@ -47,6 +57,8 @@ namespace MergeResto.Game.Views
 
         readonly Dictionary<int, Walker> _active = new();
         readonly List<Walker> _leaving = new();
+        readonly List<Walker> _diners = new();
+        bool[] _seatTaken;
         ShopSim _sim;
 
         void Start()
@@ -79,11 +91,26 @@ namespace MergeResto.Game.Views
         {
             if (!_active.Remove(c.id, out var w))
                 return;
-            if (w.bag != null) w.bag.gameObject.SetActive(true);
             if (w.anim != null) w.anim.Cheer();
             w.leaveDelay = 0.4f; // a quick cheer before walking off
-            StartLeaving(w);
             CustomerPaid?.Invoke(w.go.transform.position + Vector3.up * 2.6f, coins);
+            int seat = UnityEngine.Random.value < dineInChance ? FreeSeat(w.go.transform.position) : -1;
+            if (seat >= 0)
+            {
+                // Eat in: walk to the table, sit, enjoy, tip, then leave.
+                _seatTaken[seat] = true;
+                w.seat = seat;
+                w.order = coins;
+                w.eatLeft = UnityEngine.Random.Range(eatSeconds.x, eatSeconds.y);
+                w.route.Clear();
+                var s = seats[seat];
+                w.route.Enqueue(s.position - s.forward * 0.55f);
+                w.route.Enqueue(s.position);
+                _diners.Add(w);
+                return;
+            }
+            if (w.bag != null) w.bag.gameObject.SetActive(true);
+            StartLeaving(w);
         }
 
         void OnLeft(CustomerState c)
@@ -135,10 +162,77 @@ namespace MergeResto.Game.Views
             _leaving.Add(w);
         }
 
+        // A random free seat that is in use (its room is built), or -1.
+        int FreeSeat(Vector3 from)
+        {
+            if (seats == null || seats.Length == 0)
+                return -1;
+            _seatTaken ??= new bool[seats.Length];
+            int best = -1;
+            float bestDist = float.MaxValue;
+            for (int i = 0; i < seats.Length; i++)
+            {
+                if (_seatTaken[i] || seats[i] == null || !seats[i].gameObject.activeInHierarchy)
+                    continue;
+                // Any free seat, so diners spread over every table in the shop.
+                float d = UnityEngine.Random.value;
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        void UpdateDiners()
+        {
+            for (int i = _diners.Count - 1; i >= 0; i--)
+            {
+                var w = _diners[i];
+                if (w.leaveDelay > 0f)
+                {
+                    w.leaveDelay -= Time.deltaTime;
+                    continue;
+                }
+                var seat = seats[w.seat];
+                if (!w.seated)
+                {
+                    if (!FollowRoute(w))
+                        continue;
+                    w.seated = true;
+                    w.go.transform.SetPositionAndRotation(seat.position, seat.rotation);
+                    if (w.anim != null)
+                    {
+                        w.anim.FaceWhenIdle(seat.forward);
+                        w.anim.SetSitting(true);
+                    }
+                    continue;
+                }
+                w.eatLeft -= Time.deltaTime;
+                if (w.eatLeft > 0f)
+                    continue;
+                // Done: stand up, leave a tip, and head out.
+                if (w.anim != null)
+                    w.anim.SetSitting(false);
+                double tip = _sim.TipFor(w.order);
+                if (tip > 0)
+                {
+                    _sim.AddCoins(tip);
+                    CustomerTipped?.Invoke(seat.position + Vector3.up * 2.2f, tip);
+                }
+                _seatTaken[w.seat] = false;
+                _diners.RemoveAt(i);
+                w.go.transform.position = seat.position - seat.forward * 0.55f;
+                StartLeaving(w);
+            }
+        }
+
         void Update()
         {
             if (_sim == null)
                 return;
+            UpdateDiners();
             var queue = _sim.State.queue;
             for (int i = 0; i < queue.Count; i++)
             {

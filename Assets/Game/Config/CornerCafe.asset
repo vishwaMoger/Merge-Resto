@@ -130,14 +130,35 @@ MonoBehaviour:
     maxQueue: 6
     itemsPerOrder: 2
     pricePerItem: 70
+    recipes:
+    - Espresso
+    - Cappuccino
+    - "Caff\xE8 Latte"
+    - Mocha
+    - Caramel Macchiato
+    levelsPerRecipe: 2
     patienceSeconds: 22
-    walkInSeconds: 12.161606
+    walkInSeconds: 12.105614
     stepUpSeconds: 0.65
     startCoins: 600
     startGems: 25
     pricePerOutputLevel: 0.2
     gemMilestoneEvery: 5
     gemMilestoneReward: 10
+    expansions:
+    - displayName: Dining Annex
+      description: 'Build on the empty lot next door: a second dining room.'
+      cost: 18000
+      shopLevelNeeded: 14
+      priceBonus: 0.15
+      customerBonus: 0.25
+    - displayName: Grand Interior
+      description: Wall lamps, paintings, rugs and big plants. Everything new and
+        lovely.
+      cost: 90000
+      shopLevelNeeded: 28
+      priceBonus: 0.3
+      customerBonus: 0.15
     board:
       columns: 7
       rows: 5

@@ -28,7 +28,10 @@ namespace MergeResto.Game.Views
             _sim.UpgradePurchased += OnUpgrade;
             _sim.ManagerHired += OnManager;
             if (crowd != null)
+            {
                 crowd.CustomerPaid += OnPaid;
+                crowd.CustomerTipped += OnTipped;
+            }
         }
 
         void OnDestroy()
@@ -40,7 +43,10 @@ namespace MergeResto.Game.Views
                 _sim.ManagerHired -= OnManager;
             }
             if (crowd != null)
+            {
                 crowd.CustomerPaid -= OnPaid;
+                crowd.CustomerTipped -= OnTipped;
+            }
         }
 
         StationView Station(int index) => index >= 0 && index < stations.Length ? stations[index] : null;
@@ -81,6 +87,14 @@ namespace MergeResto.Game.Views
             view.Bounce();
             Emit(sparkleBurst, view.hudAnchor.position, 30);
             popups.Show(view.hudAnchor.position + Vector3.up * 0.5f, "Manager hired!", managerColor);
+        }
+
+        void OnTipped(Vector3 position, double coins)
+        {
+            popups.Show(position, "+" + NumberFormat.Short(coins) + " tip", new Color(1f, 0.85f, 0.35f));
+            Emit(sparkleBurst, position - Vector3.up * 0.6f, 8);
+            if (coinFly != null)
+                coinFly.Fly(position, 2);
         }
 
         void OnPaid(Vector3 position, double coins)

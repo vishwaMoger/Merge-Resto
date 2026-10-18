@@ -102,6 +102,7 @@ namespace MergeResto.EditorTools
             EnsureGoals(config);
             EnsureBoard(config);
             EnsureRecipes(config);
+            EnsureExpansions(config);
             var cam = LookSetup.CreateLookRig(IsPizza ? new Vector3(-1.3f, 1f, 1.4f) : new Vector3(0.3f, 1f, 0.6f), 7.9f);
             var cameraDirector = cam.gameObject.AddComponent<CameraDirector>();
 
@@ -163,9 +164,16 @@ namespace MergeResto.EditorTools
                 ?? IconRenderer.Render($"{CityArt}box_A.fbx", "renovate", yaw: 30f);
             HudBuilder.BuildBoard(config.shop.board, boardIcons.chains, boardIcons.generators, openIcon, coinFly);
             BuildRenovationSpots(world, stations);
+            BuildPartition(world);
+            BuildLotAndAnnex(world);
+            BuildSeats(world, crowd);
             BuildShopAge(world);
+            BuildExpansionView(world, cameraDirector, cam);
             BuildAudio(crowd);
             HudBuilder.BuildSettings();
+            var expandIcon = AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/expand.png")
+                ?? IconRenderer.Render($"{CityArt}building_A.fbx", "expand", yaw: 210f, pitch: 22f, padding: 1.05f);
+            HudBuilder.BuildExpand(expandIcon);
             BuildMap();
             HudBuilder.OrderLayers();
             HudBuilder.EnableButtonTargets();
@@ -545,7 +553,7 @@ namespace MergeResto.EditorTools
             var room = Group("Room", world);
             for (int x = -7; x <= 7; x += 2)
             for (int z = -5; z <= 5; z += 2)
-                Place(IsPizza ? "floor_tiled" : z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
+                Place(IsPizza ? (x <= -5 ? "floor_tiled" : "floor_wood") : z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
 
             // Back wall along z = 6 (kitchen side), windows behind the counter.
             for (int x = -7; x <= 7; x += 2)
@@ -571,17 +579,20 @@ namespace MergeResto.EditorTools
             var low = Group("LowWalls", room);
             // The same panelled bakery wall as the back, cut down to knee height. Pieces are
             // 2 wide with their back face on the pivot; models keep their import scale.
+            // The right wall opens up into the annex once the shop expands.
+            var rightWall = Group("RightWall", low);
+            rightWall.gameObject.AddComponent<StageGroup>().maxStage = 0;
             void Segment(Vector3 from, Vector3 to, float yaw)
             {
                 var mid = (from + to) * 0.5f;
                 float len = Vector3.Distance(from, to);
-                var w = Place("wall_modular_panelled_bakery_straight_A", low, mid, yaw);
+                var w = Place("wall_modular_panelled_bakery_straight_A", yaw == 90f ? rightWall : low, mid, yaw);
                 w.transform.localScale = Vector3.Scale(w.transform.localScale, new Vector3(len / 2f, LowWallHeight / 4f, 1f));
             }
             void Post(Vector3 at)
             {
-                var post = Place("pillar_A", RestaurantArt, low, at);
-                post.transform.localScale = Vector3.Scale(post.transform.localScale, new Vector3(0.75f, 1.75f / 4.1f, 0.75f));
+                bool side = at.x > 8f && at.z > -6f;
+                DoorPost(side ? rightWall : low, at);
             }
             // Wall meshes are single-sided, so the front and right walls face outwards: the
             // camera looks at their outside. They sit just outside the floor edge.
@@ -861,8 +872,9 @@ namespace MergeResto.EditorTools
                 {
                     // Along the front sidewalk, round the corner and in through the side door.
                     Marker("Entry_Street", root, new Vector3(22f, 0f, WalkLaneZ)),
-                    Marker("Entry_Corner", root, new Vector3(9.8f, 0f, WalkLaneZ)),
-                    Marker("Entry_Outside", root, new Vector3(9.8f, 0f, PizzaEntranceZ)),
+                    Marker("Entry_Corner", root, new Vector3(AnnexDoorX, 0f, WalkLaneZ)),
+                    Marker("Entry_Gate", root, new Vector3(AnnexDoorX, 0f, -6.3f)),
+                    Marker("Entry_Outside", root, new Vector3(AnnexDoorX, 0f, PizzaEntranceZ)),
                     Marker("Entry_Door", root, new Vector3(8.25f, 0f, PizzaEntranceZ)),
                     Marker("Entry_Inside", root, new Vector3(6.9f, 0f, PizzaEntranceZ)),
                 }
@@ -898,8 +910,10 @@ namespace MergeResto.EditorTools
                 {
                     Marker("Exit_Inside", root, new Vector3(7.0f, 0f, ExitZ)),
                     Marker("Exit_Door", root, new Vector3(8.25f, 0f, ExitZ)),
-                    Marker("Exit_Outside", root, new Vector3(9.8f, 0f, ExitZ)),
-                    Marker("Exit_Street", root, new Vector3(9.8f, 0f, 20f)),
+                    Marker("Exit_Lot", root, new Vector3(AnnexDoorX, 0f, ExitZ)),
+                    Marker("Exit_Gate", root, new Vector3(AnnexDoorX, 0f, -6.3f)),
+                    Marker("Exit_Outside", root, new Vector3(AnnexDoorX, 0f, WalkLaneZ)),
+                    Marker("Exit_Street", root, new Vector3(30f, 0f, WalkLaneZ)),
                 };
 
             // The line runs from the register towards the entrance, then snakes left.
@@ -1013,6 +1027,309 @@ namespace MergeResto.EditorTools
                 : new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) };
             foreach (var p in lights)
                 WarmLight(dress, p);
+        }
+
+        // ------------------------------------------------------------------ Expansion
+
+        // The empty lot right of every shop (x 8..16): a little garden at first, the dining
+        // annex once the shop expands.
+        const float LotLeft = 8f;
+        const float LotRight = 16f;
+        const float AnnexDoorX = 12f;
+
+        static void EnsureExpansions(ShopConfig config)
+        {
+            ExpansionDefinition E(string name, string desc, double cost, int level, float price, float customers) =>
+                new() { displayName = name, description = desc, cost = cost, shopLevelNeeded = level, priceBonus = price, customerBonus = customers };
+            var (annexCost, annexLevel, grandCost, grandLevel) = Pick((3000.0, 10, 15000.0, 22), (18000.0, 14, 90000.0, 28), (90000.0, 16, 400000.0, 32));
+            config.shop.expansions = new List<ExpansionDefinition>
+            {
+                E("Dining Annex", "Build on the empty lot next door: a second dining room.", annexCost, annexLevel, 0.15f, 0.25f),
+                E("Grand Interior", "Wall lamps, paintings, rugs and big plants. Everything new and lovely.", grandCost, grandLevel, 0.3f, 0.15f),
+            };
+            EditorUtility.SetDirty(config);
+        }
+
+        static void BuildLotAndAnnex(Transform world)
+        {
+            var street = world.Find("Street");
+            var lot = Group("LotGarden", world);
+            lot.gameObject.AddComponent<StageGroup>().maxStage = 0;
+            // Everything already standing on the lot (side beds, bushes) belongs to the garden.
+            var moving = new List<Transform>();
+            foreach (Transform child in street)
+            {
+                var p = child.position;
+                if (child.name != "Grass" && p.x > LotLeft + 0.2f && p.x < LotRight + 0.3f && p.z > -6.4f && p.z < 6.4f)
+                    moving.Add(child);
+            }
+            foreach (var t in moving)
+                t.SetParent(lot, true);
+
+            // A gravel path to the side door, a picket fence and a sign promising more.
+            var gravel = LookSetup.Mat("Gravel", LookSetup.Hex("E8DCC6"), rim: 0f);
+            float doorZ = IsPizza ? PizzaEntranceZ : ExitZ;
+            if (!IsCafe)
+            {
+                LookSetup.Box("Path", lot, new Vector3((LotLeft + AnnexDoorX) / 2f, -0.01f, doorZ), new Vector3(AnnexDoorX - LotLeft + 1.2f, 0.02f, 1.2f), gravel);
+                LookSetup.Box("Path", lot, new Vector3(AnnexDoorX, -0.01f, (doorZ - 6.3f) / 2f), new Vector3(1.2f, 0.02f, doorZ + 6.3f + 0.6f), gravel);
+            }
+            var fence = LookSetup.Mat("Fence", LookSetup.Hex("FFF8EE"));
+            void FenceRun(Vector3 from, Vector3 to)
+            {
+                float len = Vector3.Distance(from, to);
+                int posts = Mathf.Max(2, Mathf.RoundToInt(len / 0.9f) + 1);
+                for (int i = 0; i < posts; i++)
+                {
+                    var p = Vector3.Lerp(from, to, i / (posts - 1f));
+                    LookSetup.Box("FencePost", lot, p + Vector3.up * 0.4f, new Vector3(0.12f, 0.8f, 0.12f), fence);
+                }
+                var mid = (from + to) / 2f;
+                var dir = (to - from).normalized;
+                var size = Mathf.Abs(dir.x) > 0.5f ? new Vector3(len, 0.08f, 0.06f) : new Vector3(0.06f, 0.08f, len);
+                LookSetup.Box("FenceRail", lot, mid + Vector3.up * 0.55f, size, fence);
+                LookSetup.Box("FenceRail", lot, mid + Vector3.up * 0.25f, size, fence);
+            }
+            FenceRun(new Vector3(LotLeft + 0.4f, 0f, -6.2f), new Vector3(AnnexDoorX - 0.9f, 0f, -6.2f));
+            FenceRun(new Vector3(AnnexDoorX + 0.9f, 0f, -6.2f), new Vector3(LotRight, 0f, -6.2f));
+            FenceRun(new Vector3(LotRight, 0f, -6.2f), new Vector3(LotRight, 0f, 5.8f));
+            var sign = Group("ForSaleSign", lot);
+            sign.position = new Vector3(14.2f, 0f, 1.5f);
+            sign.rotation = Quaternion.Euler(0f, -30f, 0f);
+            var wood = LookSetup.Mat("SignWood", LookSetup.Hex("B07A52"));
+            LookSetup.Box("Post", sign, new Vector3(-0.7f, 0.7f, 0f), new Vector3(0.12f, 1.4f, 0.12f), wood);
+            LookSetup.Box("Post", sign, new Vector3(0.7f, 0.7f, 0f), new Vector3(0.12f, 1.4f, 0.12f), wood);
+            LookSetup.Box("Board", sign, new Vector3(0f, 1.2f, -0.02f), new Vector3(1.9f, 0.8f, 0.08f), LookSetup.Mat("SignBoard", LookSetup.Hex("FFF1DC")));
+            var label = new GameObject("Text", typeof(RectTransform));
+            label.transform.SetParent(sign, false);
+            label.transform.localPosition = new Vector3(0f, 1.2f, -0.08f);
+            var tmp = label.AddComponent<TextMeshPro>();
+            tmp.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(UiArtGenerator.DisplayFontPath);
+            tmp.text = "Room to\ngrow!";
+            tmp.fontSize = 3.2f;
+            tmp.color = new Color(0.76f, 0.31f, 0.1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.rectTransform.sizeDelta = new Vector2(1.8f, 0.8f);
+
+            BuildAnnex(world);
+            BuildGrandInterior(world);
+        }
+
+        // Stage 1: a second dining room on the lot, opened up to the main room.
+        static void BuildAnnex(Transform world)
+        {
+            var annex = Group("Annex", world);
+            annex.gameObject.AddComponent<StageGroup>().minStage = 1;
+            string floor = Pick("floor_tiled", "floor_wood", "floor_wood");
+            for (int x = 9; x <= 15; x += 2)
+                for (int z = -5; z <= 5; z += 2)
+                    Place(floor, annex, new Vector3(x, 0f, z));
+            for (int x = 9; x <= 15; x += 2)
+                Place(x == 11 || x == 13 ? "wall_modular_panelled_bakery_window_large_A" : "wall_modular_panelled_bakery_straight_A", annex, new Vector3(x, 0f, 6f), 180f);
+            void Low(Vector3 from, Vector3 to, float yaw)
+            {
+                var w = Place("wall_modular_panelled_bakery_straight_A", annex, (from + to) * 0.5f, yaw);
+                w.transform.localScale = Vector3.Scale(w.transform.localScale, new Vector3(Vector3.Distance(from, to) / 2f, LowWallHeight / 4f, 1f));
+            }
+            Low(new Vector3(LotLeft, 0f, -6f), new Vector3(AnnexDoorX - 1.1f, 0f, -6f), 180f);
+            Low(new Vector3(AnnexDoorX + 1.1f, 0f, -6f), new Vector3(LotRight, 0f, -6f), 180f);
+            Low(new Vector3(LotRight, 0f, -6f), new Vector3(LotRight, 0f, 6f), 90f);
+            foreach (var at in new[] { new Vector3(AnnexDoorX - 1.1f, 0f, -6.15f), new Vector3(AnnexDoorX + 1.1f, 0f, -6.15f), new Vector3(LotRight + 0.15f, 0f, -6.15f) })
+                DoorPost(annex, at);
+            Place("curtains", annex, new Vector3(11f, 3.55f, 5.69f), 180f);
+            Place("curtains", annex, new Vector3(13f, 3.55f, 5.69f), 180f);
+
+            // Tables with chairs front and back, leaving the door path free.
+            foreach (var p in new[] { new Vector3(9.9f, 0f, -4.6f), new Vector3(14.1f, 0f, -4.6f), new Vector3(9.9f, 0f, 0.9f), new Vector3(14.1f, 0f, 0.9f), new Vector3(12f, 0f, 4.2f) })
+            {
+                Place(IsCafe ? "table_round_B" : "table_round_A", annex, p);
+                Place("chair", annex, p + new Vector3(0f, 0f, -1.05f), 0f);
+                Place("chair", annex, p + new Vector3(0f, 0f, 1.05f), 180f);
+                Place("plate", annex, p + new Vector3(0.1f, 1f, 0f));
+                if (IsPizza)
+                    Pizza(annex, Vector3.zero).transform.position = p + new Vector3(0.1f, 1.02f, 0f);
+                else
+                    Place(IsCafe ? "muffin" : "cream_puff", IsCafe ? GoodsArt : BakeryArt, annex, p + new Vector3(0.1f, 1.03f, 0f));
+                Place(IsCafe ? "mug_A_blue" : "mug_A_pink", annex, p + new Vector3(-0.3f, 1f, 0.2f));
+            }
+            var plantA = Place("monstera_plant_large_potted", PlantArt, annex, new Vector3(15.2f, 0f, 5.1f), 20f);
+            ApplySway(plantA);
+            var plantB = Place("yucca_plant_large_potted", PlantArt, annex, new Vector3(15.2f, 0f, -2.0f), -30f);
+            ApplySway(plantB);
+            WarmLight(annex, new Vector3(10.5f, 0f, -1.8f));
+            WarmLight(annex, new Vector3(13.5f, 0f, 2.6f));
+            if (IsCafe)
+                Tint(annex, CafeWall, CafeFloor);
+            if (IsPizza)
+                Tint(annex, PizzaWall, new Color(0.85f, 0.62f, 0.5f));
+        }
+
+        // Tints an annex's walls and floor like the main room.
+        static void Tint(Transform group, Color wall, Color floor)
+        {
+            foreach (Transform child in group)
+            {
+                if (child.name.StartsWith("wall_"))
+                    Tint(child.gameObject, wall, wall == CafeWall ? "Cafe" : "Pizza");
+                else if (child.name.StartsWith("floor_"))
+                    Tint(child.gameObject, floor, floor == CafeFloor ? "Cafe" : "PizzaWood");
+            }
+        }
+
+        // Stage 2: the shop gets dressed up: wall lamps, paintings, rugs and big plants.
+        static void BuildGrandInterior(Transform world)
+        {
+            var grand = Group("GrandInterior", world);
+            grand.gameObject.AddComponent<StageGroup>().minStage = 2;
+            var brass = LookSetup.Mat("Brass", LookSetup.Hex("E0B04F"), rim: 0.4f);
+            var bulb = LookSetup.Mat("SconceBulb", LookSetup.Hex("FFF2C8"), emission: new Color(2.6f, 2.0f, 1.1f));
+            void Sconce(Vector3 at, float yaw)
+            {
+                var s = Group("Sconce", grand);
+                s.position = at;
+                s.rotation = Quaternion.Euler(0f, yaw, 0f);
+                LookSetup.Box("Plate", s, Vector3.zero, new Vector3(0.18f, 0.3f, 0.05f), brass);
+                LookSetup.Box("Arm", s, new Vector3(0f, 0.05f, -0.15f), new Vector3(0.05f, 0.05f, 0.3f), brass);
+                LookSetup.Sphere("Bulb", s, new Vector3(0f, 0.12f, -0.3f), Vector3.one * 0.2f, bulb);
+                var lg = new GameObject("Light");
+                lg.transform.SetParent(s, false);
+                lg.transform.localPosition = new Vector3(0f, 0.1f, -0.5f);
+                var l = lg.AddComponent<Light>();
+                l.type = LightType.Point;
+                l.color = new Color(1f, 0.8f, 0.55f);
+                l.range = 3.2f;
+                l.intensity = 1.4f;
+                l.shadows = LightShadows.None;
+            }
+            foreach (float x in new[] { -6f, 0f, 6f, 10f, 14f })
+                Sconce(new Vector3(x, 2.6f, 5.75f), 0f);
+            foreach (float z in new[] { -4f, 3.5f })
+                Sconce(new Vector3(-7.75f, 2.6f, z), 90f);
+
+            // Framed paintings on the back wall.
+            string[] canvases = { "F2A65A", "7FB5D9", "E87F8F", "9CCB7A" };
+            var frame = LookSetup.Mat("PictureFrame", LookSetup.Hex("8A5A36"));
+            for (int i = 0; i < 4; i++)
+            {
+                var at = new Vector3(new[] { -4.5f, 2.6f, 9f, 13f }[i], 2.2f, 5.78f);
+                LookSetup.Box("Frame", grand, at, new Vector3(1.0f, 0.75f, 0.06f), frame);
+                LookSetup.Box("Canvas", grand, at + new Vector3(0f, 0f, -0.04f), new Vector3(0.82f, 0.58f, 0.03f), LookSetup.Mat($"Canvas{i}", LookSetup.Hex(canvases[i])));
+            }
+            // Rugs under the tables and big plants by the door.
+            foreach (var p in new[] { new Vector3(11f, 0.012f, -2f), new Vector3(12f, 0.012f, 3f) })
+            {
+                var rug = Place("rug", grand, p, 90f);
+                rug.transform.localScale = new Vector3(1.4f, 1f, 1.4f);
+            }
+            var tree = Place("yucca_plant_large_potted", PlantArt, grand, new Vector3(9f, 0f, 5.1f), 40f);
+            tree.transform.localScale *= 1.25f;
+            ApplySway(tree);
+            // Flowers on every table in the annex.
+            var vase = LookSetup.Mat("Vase", LookSetup.Hex("6FA8DC"), rim: 0.4f);
+            foreach (var p in new[] { new Vector3(9.9f, 0f, -4.6f), new Vector3(14.1f, 0f, -4.6f), new Vector3(9.9f, 0f, 0.9f), new Vector3(14.1f, 0f, 0.9f), new Vector3(12f, 0f, 4.2f) })
+            {
+                LookSetup.Cylinder("Vase", grand, p + new Vector3(-0.15f, 1.1f, -0.3f), new Vector3(0.12f, 0.1f, 0.12f), vase);
+                LookSetup.Sphere("Bloom", grand, p + new Vector3(-0.15f, 1.27f, -0.3f), Vector3.one * 0.16f, LookSetup.Mat("Petal0", LookSetup.Hex("FF8FB1"), rim: 0.3f));
+            }
+        }
+
+        // A dividing wall that gives some shops a separate kitchen or bar.
+        static void BuildPartition(Transform world)
+        {
+            if (_shop == ShopKind.Bakery)
+                return;
+            var part = Group("Partition", world);
+            var trim = LookSetup.Mat("PartitionTop", LookSetup.Hex(IsPizza ? "EADBC4" : "C9A27A"));
+            void Wall(Vector3 from, Vector3 to, float yaw, float height)
+            {
+                var w = Place("wall_modular_panelled_bakery_straight_A", part, (from + to) * 0.5f, yaw);
+                w.transform.localScale = Vector3.Scale(w.transform.localScale, new Vector3(Vector3.Distance(from, to) / 2f, height / 4f, 1f));
+            }
+            if (IsPizza)
+            {
+                // The kitchen strip along the left wall, behind a chest-high wall with a pass ledge.
+                Wall(new Vector3(-4.05f, 0f, -6f), new Vector3(-4.05f, 0f, 2.4f), 90f, 1.5f);
+                LookSetup.Box("Ledge", part, new Vector3(-4.0f, 1.52f, -1.8f), new Vector3(0.45f, 0.06f, 8.5f), trim);
+                Pizza(part, new Vector3(-4.0f, 1.55f, -0.6f), box: true);
+                Pizza(part, new Vector3(-4.0f, 1.55f, -2.2f), box: true);
+            }
+            else
+            {
+                // The café's barista bar: a counter-height wall with a wooden top and stools.
+                Wall(new Vector3(0.4f, 0f, 2.6f), new Vector3(7.6f, 0f, 2.6f), 180f, 1.1f);
+                LookSetup.Box("BarTop", part, new Vector3(4f, 1.13f, 2.5f), new Vector3(7.4f, 0.07f, 0.6f), trim);
+                foreach (float x in new[] { 1.5f, 3.2f, 4.9f, 6.6f })
+                    Place("chair_stool", RestaurantArt, part, new Vector3(x, 0f, 1.85f));
+            }
+            if (IsCafe)
+                Tint(part, CafeWall, CafeFloor);
+            if (IsPizza)
+                Tint(part, PizzaWall, PizzaFloor);
+        }
+
+        // A seat for every dining chair (and the cafe's bar stools), facing its table. Seats live
+        // next to their chair, so seats in an unbuilt annex stay inactive.
+        static void BuildSeats(Transform world, CustomerCrowd crowd)
+        {
+            var seats = new List<Transform>();
+            foreach (var group in new[] { "Dining", "Annex", "Partition" })
+            {
+                var g = world.Find(group);
+                if (g == null)
+                    continue;
+                var tables = g.Cast<Transform>().Where(t => t.name.StartsWith("table_")).ToList();
+                foreach (var chair in g.Cast<Transform>().Where(t => t.name.StartsWith("chair")).ToList())
+                {
+                    Vector3 facing;
+                    if (chair.name.StartsWith("chair_stool"))
+                        facing = Vector3.forward; // bar stools face the bar
+                    else
+                    {
+                        var table = tables.OrderBy(t => (t.position - chair.position).sqrMagnitude).FirstOrDefault();
+                        if (table == null)
+                            continue;
+                        facing = table.position - chair.position;
+                        facing.y = 0f;
+                    }
+                    var seat = Marker("Seat", g, chair.position);
+                    seat.rotation = Quaternion.LookRotation(facing.normalized, Vector3.up);
+                    seats.Add(seat);
+                }
+            }
+            crowd.seats = seats.ToArray();
+        }
+
+        // An upright post with a little cap where a knee wall ends (doorways, corners).
+        static void DoorPost(Transform parent, Vector3 at)
+        {
+            var wood = LookSetup.Mat("DoorPost", LookSetup.Hex("C98E5E"));
+            LookSetup.Box("Post", parent, at + Vector3.up * 0.7f, new Vector3(0.3f, 1.4f, 0.3f), wood);
+            LookSetup.Box("PostCap", parent, at + Vector3.up * 1.43f, new Vector3(0.38f, 0.08f, 0.38f), wood);
+        }
+
+        static void BuildExpansionView(Transform world, CameraDirector director, Camera cam)
+        {
+            var view = world.gameObject.AddComponent<ExpansionView>();
+            var groups = world.GetComponentsInChildren<StageGroup>(true);
+            var home = cam.transform.position + cam.transform.forward * 30f;
+            var so = new SerializedObject(view);
+            var g = so.FindProperty("groups");
+            g.arraySize = groups.Length;
+            for (int i = 0; i < groups.Length; i++)
+                g.GetArrayElementAtIndex(i).objectReferenceValue = groups[i];
+            so.FindProperty("cameraDirector").objectReferenceValue = director;
+            so.FindProperty("buildFocus").vector3Value = new Vector3(12f, 1f, 0f);
+            var targets = so.FindProperty("homeTargets");
+            targets.arraySize = 2;
+            targets.GetArrayElementAtIndex(0).vector3Value = home;
+            targets.GetArrayElementAtIndex(1).vector3Value = home + new Vector3(2.8f, 0f, -0.6f);
+            var sizes = so.FindProperty("homeSizes");
+            sizes.arraySize = 2;
+            sizes.GetArrayElementAtIndex(0).floatValue = cam.orthographicSize;
+            sizes.GetArrayElementAtIndex(1).floatValue = cam.orthographicSize + 1.3f;
+            so.FindProperty("dust").objectReferenceValue = GameObject.Find("Bakery/FX/FlourPuff")?.GetComponent<ParticleSystem>();
+            so.FindProperty("sparkle").objectReferenceValue = GameObject.Find("Bakery/FX/SparkleBurst")?.GetComponent<ParticleSystem>();
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // ------------------------------------------------------------------ Pizzeria
@@ -1562,7 +1879,7 @@ namespace MergeResto.EditorTools
             for (float x = -22.5f; x <= 25f; x += tile)
                 City("base", new Vector3(x, -0.13f, -8.0f), 0f, 1.5f);
             for (float z = -5f; z <= 22f; z += tile)
-                City("base", new Vector3(9.95f, -0.13f, z), 0f, 1.5f);
+                City("base", new Vector3(LotRight + 1.4f, -0.13f, z), 0f, 1.5f);
 
             // Road in front of the shop: asphalt, curbs, dashed centre line, zebra crossing.
             var asphalt = LookSetup.Mat("Asphalt", LookSetup.Hex("67626B"), rim: 0f);
@@ -1624,8 +1941,8 @@ namespace MergeResto.EditorTools
             }
             City("firehydrant", new Vector3(11.4f, 0f, -9.2f));
             City("trash_A", IsCafe ? new Vector3(12.4f, 0f, -9.3f) : new Vector3(3.8f, 0f, -9.2f));
-            City("streetlight", new Vector3(11.4f, 0f, 3f), 90f);
-            City("streetlight", new Vector3(11.4f, 0f, 14f), 90f);
+            City("streetlight", new Vector3(LotRight + 2.85f, 0f, 3f), 90f);
+            City("streetlight", new Vector3(LotRight + 2.85f, 0f, 14f), 90f);
 
             // Parked and passing cars. KayKit cars have their origin at the wheel centres, so
             // they are lifted until the tyres rest on the asphalt.
@@ -1664,8 +1981,8 @@ namespace MergeResto.EditorTools
             Nature("Tree_3_A_Color1", new Vector3(9f, 0f, 9f), 140f, 1.3f);
             Nature("Tree_4_A_Color1", new Vector3(-11f, 0f, -2f), 200f, 1.2f);
             Nature("Tree_1_C_Color1", new Vector3(-11.5f, 0f, -9.5f), 60f, 1.1f);
-            Nature("Tree_2_A_Color1", new Vector3(15f, 0f, 4f), 300f, 1.2f);
-            foreach (var (x, z) in new[] { (-9.5f, 4f), (-9.8f, -4.5f), (2f, 7.6f), (6.5f, 7.4f), (12.5f, -4f), (13.5f, 8f) })
+            Nature("Tree_2_A_Color1", new Vector3(21f, 0f, 7f), 300f, 1.2f);
+            foreach (var (x, z) in new[] { (-9.5f, 4f), (-9.8f, -4.5f), (2f, 7.6f), (6.5f, 7.4f), (19.5f, -3f), (13.5f, 8f) })
                 Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x + z) % 7] + "_Color1", new Vector3(x, 0f, z), x * 30f, 1.1f);
             // Grass tufts in little clumps rather than lone blades.
             foreach (var (x, z) in new[] { (-10f, 1f), (-9.2f, 7f), (-6f, 8f), (4f, 8.4f), (-13f, -7f) })
@@ -1674,16 +1991,17 @@ namespace MergeResto.EditorTools
 
             // A little park across the side street: path, bench, lamp, flowers and trees.
             var path = LookSetup.Mat("ParkPath", LookSetup.Hex("E6D3B3"), rim: 0f);
-            LookSetup.Box("ParkPath", street, new Vector3(17f, -0.015f, -5f), new Vector3(1.6f, 0.02f, 9f), path);
-            LookSetup.Box("ParkPath", street, new Vector3(17f, -0.015f, -5f), new Vector3(9f, 0.02f, 1.6f), path);
-            City("bench", new Vector3(15.6f, 0f, -2.5f), 90f);
-            City("streetlight", new Vector3(18.4f, 0f, -7.4f), -90f);
-            FlowerBed(new Vector3(14.2f, 0f, -7.6f), 3.2f, true);
-            FlowerBed(new Vector3(19.6f, 0f, -2.6f), 3.2f, true);
-            Nature("Tree_1_B_Color1", new Vector3(23.5f, 0f, -5.5f), 40f, 1.2f);
-            Nature("Tree_3_B_Color1", new Vector3(21.5f, 0f, 2.5f), 160f, 1.1f);
-            Nature("Bush_2_A_Color1", new Vector3(19.8f, 0f, 0.6f), 30f, 1.1f);
-            Nature("Bush_1_C_Color1", new Vector3(13.6f, 0f, -9.6f), 75f, 1.0f);
+            const float ParkX = 7f; // the park sits past the shop's side lot
+            LookSetup.Box("ParkPath", street, new Vector3(17f + ParkX, -0.015f, -5f), new Vector3(1.6f, 0.02f, 9f), path);
+            LookSetup.Box("ParkPath", street, new Vector3(17f + ParkX, -0.015f, -5f), new Vector3(9f, 0.02f, 1.6f), path);
+            City("bench", new Vector3(15.6f + ParkX, 0f, -2.5f), 90f);
+            City("streetlight", new Vector3(18.4f + ParkX, 0f, -7.4f), -90f);
+            FlowerBed(new Vector3(14.2f + ParkX, 0f, -7.6f), 3.2f, true);
+            FlowerBed(new Vector3(19.6f + ParkX, 0f, -2.6f), 3.2f, true);
+            Nature("Tree_1_B_Color1", new Vector3(23.5f + ParkX, 0f, -5.5f), 40f, 1.2f);
+            Nature("Tree_3_B_Color1", new Vector3(21.5f + ParkX, 0f, 2.5f), 160f, 1.1f);
+            Nature("Bush_2_A_Color1", new Vector3(19.8f + ParkX, 0f, 0.6f), 30f, 1.1f);
+            Nature("Bush_1_C_Color1", new Vector3(13.6f + ParkX, 0f, -9.6f), 75f, 1.0f);
             Nature("Rock_1_A_Color1", new Vector3(-12.5f, 0f, 5f), 30f, 1.2f, sway: false);
 
             // Across the road: a low hedge and flowers, kept short so they never hide the shop.
