@@ -175,6 +175,7 @@ namespace MergeResto.EditorTools
             var expandIcon = AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/expand.png")
                 ?? IconRenderer.Render($"{CityArt}building_A.fbx", "expand", yaw: 210f, pitch: 22f, padding: 1.05f);
             HudBuilder.BuildExpand(expandIcon);
+            HudBuilder.BuildVipBanner(AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/crown.png") ?? RenderCrownIcon());
             BuildMap();
             HudBuilder.OrderLayers();
             HudBuilder.EnableButtonTargets();
@@ -1375,6 +1376,24 @@ namespace MergeResto.EditorTools
             var wood = LookSetup.Mat("DoorPost", LookSetup.Hex("C98E5E"));
             LookSetup.Box("Post", parent, at + Vector3.up * 0.7f, new Vector3(0.3f, 1.4f, 0.3f), wood);
             LookSetup.Box("PostCap", parent, at + Vector3.up * 1.43f, new Vector3(0.38f, 0.08f, 0.38f), wood);
+        }
+
+        // The VIP crown as a HUD icon: a crowned customer's head, rendered like the board icons.
+        static Sprite RenderCrownIcon()
+        {
+            var prefab = CharacterLibrary.LoadPrefab(CharacterLibrary.CustomerLooks[0]);
+            var temp = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            var crown = temp.GetComponentsInChildren<Transform>(true).First(t => t.name == "Crown");
+            var copy = Object.Instantiate(crown.gameObject);
+            copy.SetActive(true);
+            copy.transform.localScale = crown.lossyScale;
+            Object.DestroyImmediate(temp);
+            string path = "Assets/Art/UI/Icons/crown_model.prefab";
+            PrefabUtility.SaveAsPrefabAsset(copy, path);
+            Object.DestroyImmediate(copy);
+            var sprite = IconRenderer.Render(path, "crown", yaw: 20f, pitch: 25f);
+            AssetDatabase.DeleteAsset(path);
+            return sprite;
         }
 
         static void BuildExpansionView(Transform world, CameraDirector director, Camera cam)

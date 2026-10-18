@@ -140,6 +140,11 @@ MonoBehaviour:
     patienceSeconds: 22
     walkInSeconds: 12.105614
     stepUpSeconds: 0.65
+    vipIntervalSeconds: 150
+    vipItems: 6
+    vipPriceMultiplier: 4
+    vipGems: 3
+    vipPatienceSeconds: 45
     startCoins: 600
     startGems: 0
     pricePerOutputLevel: 0.2

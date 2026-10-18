@@ -607,5 +607,45 @@ namespace MergeResto.Sim.Tests
             sim.AddBoost(3000f);
             Assert.AreEqual(plain, sim.OfflineEarnings(3600));
         }
+
+        // ------------------------------------------------------------------ VIPs
+
+        [Test]
+        public void Vip_ArrivesAfterTutorial_PaysBig_AndGivesGems()
+        {
+            var def = Bakery();
+            def.vipIntervalSeconds = 30f;
+            def.vipItems = 4;
+            def.vipPriceMultiplier = 5;
+            def.vipGems = 3;
+            var sim = new ShopSim(def);
+            AutomateAll(sim);
+            CustomerState vip = null;
+            sim.CustomerArrived += c => { if (c.vip) vip = c; };
+            sim.State.tutorialStep = 0;
+            sim.Tick(60f);
+            Assert.IsNull(vip, "no VIPs during the tutorial");
+            sim.State.tutorialStep = ShopState.TutorialFinished;
+            double paid = 0;
+            int gems = sim.State.gems;
+            sim.CustomerServed += (c, coins) => { if (c.vip) paid = coins; };
+            for (int i = 0; i < 1200 && paid == 0; i++)
+                sim.Tick(0.1f);
+            Assert.IsNotNull(vip);
+            Assert.AreEqual(4 * sim.PricePerItem * 5, paid, 1e-6);
+            Assert.GreaterOrEqual(sim.State.gems, gems + 3);
+        }
+
+        [Test]
+        public void Vip_OnlyOneAtATime()
+        {
+            var def = Bakery();
+            def.vipIntervalSeconds = 5f;
+            def.vipPatienceSeconds = 1000f;
+            var sim = new ShopSim(def) { PatienceScale = 0f };
+            sim.State.tutorialStep = ShopState.TutorialFinished;
+            sim.Tick(120f);
+            Assert.AreEqual(1, sim.State.queue.FindAll(c => c.vip).Count);
+        }
     }
 }

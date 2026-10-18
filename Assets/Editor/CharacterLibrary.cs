@@ -293,6 +293,13 @@ namespace MergeResto.EditorTools
             BuildGrumpCloud(grump);
             grump.gameObject.SetActive(false);
 
+            // A gold crown for VIP customers.
+            if (head != null && !look.chefHat)
+            {
+                var crown = BuildCrown(head, headTop);
+                crown.gameObject.SetActive(false);
+            }
+
             var anim = root.AddComponent<ChibiAnimator>();
             anim.animator = animator;
             anim.carryAnchor = carry;
@@ -350,6 +357,28 @@ namespace MergeResto.EditorTools
             float top = mesh.vertices.Max(v => headMesh.transform.TransformPoint(v).y);
             Object.DestroyImmediate(mesh);
             return top - model.transform.position.y;
+        }
+
+        static Transform BuildCrown(Transform head, float headTop)
+        {
+            var gold = LookSetup.Mat("CrownGold", LookSetup.Hex("FFC83D"), emission: new Color(0.35f, 0.24f, 0.02f), rim: 0.5f);
+            var gem = LookSetup.Mat("CrownGem", LookSetup.Hex("E8455A"), emission: new Color(0.5f, 0.05f, 0.1f), rim: 0.4f);
+            var crown = new GameObject("Crown").transform;
+            crown.SetParent(head, false);
+            crown.position = new Vector3(head.position.x, headTop - 0.04f, head.position.z);
+            crown.rotation = Quaternion.identity;
+            var band = LookSetup.Cylinder("Band", crown, Vector3.zero, Vector3.one, gold);
+            SetWorld(band.transform, crown.position + Vector3.up * 0.08f, new Vector3(0.62f, 0.09f, 0.62f));
+            for (int i = 0; i < 5; i++)
+            {
+                float a = i * Mathf.PI * 2f / 5f;
+                var p = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 0.27f;
+                var spike = LookSetup.Sphere($"Point{i}", crown, Vector3.zero, Vector3.one, gold);
+                SetWorld(spike.transform, crown.position + p + Vector3.up * 0.22f, new Vector3(0.12f, 0.22f, 0.12f));
+            }
+            var jewel = LookSetup.Sphere("Jewel", crown, Vector3.zero, Vector3.one, gem);
+            SetWorld(jewel.transform, crown.position + new Vector3(0f, 0.1f, -0.31f), Vector3.one * 0.11f);
+            return crown;
         }
 
         static void BuildChefHat(Transform head, float headTop)

@@ -28,6 +28,7 @@ namespace MergeResto.Sim
         public List<int> goalsClaimed = new();
         public BoardState board = new();
         public float customerTimer;
+        public float vipTimer;
         public List<StationState> stations = new();
         public List<CourierState> couriers = new();
         public List<CustomerState> queue = new();
@@ -117,5 +118,7 @@ namespace MergeResto.Sim
         public float walkLeft;
         /// <summary>Index of the cashier serving this customer, or -1 while queuing.</summary>
         public int servedBy = -1;
+        /// <summary>A VIP: a big order, longer patience, a big payout and gems.</summary>
+        public bool vip;
     }
 }
