@@ -1821,6 +1821,28 @@ namespace MergeResto.EditorTools
             }
         }
 
+        /// <summary>Touch-size HUD and the portrait "turn your device" screen.</summary>
+        public static void BuildScreenFit()
+        {
+            var fit = _root.gameObject.AddComponent<ScreenFit>();
+            var prompt = Stretch(Rect("RotatePrompt", _root));
+            Img(prompt, null, new Color(0.99f, 0.91f, 0.8f, 1f)).raycastTarget = true;
+            var phone = Rect("Phone", prompt);
+            phone.anchoredPosition = new Vector2(0, 90);
+            phone.sizeDelta = new Vector2(150, 260);
+            Img(phone, "sl_frame_white", new Color(0.66f, 0.42f, 0.27f), 1.2f);
+            var screen = Rect("Screen", phone);
+            Fill(screen, new Vector2(14, 22), new Vector2(-14, -22));
+            Img(screen, "sl_frame_cream", Color.white, 2f);
+            var text = Label("Text", prompt, "Turn your device sideways\nto visit Grandma's shops!", 46, _display, _shadow, Brown, TextAlignmentOptions.Center);
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.rectTransform.anchoredPosition = new Vector2(0, -150);
+            text.rectTransform.sizeDelta = new Vector2(900, 160);
+            prompt.gameObject.SetActive(false);
+            Set(fit, "rotatePrompt", prompt.gameObject);
+            Set(fit, "rotateIcon", phone);
+        }
+
         public static void EnableButtonTargets()
         {
             foreach (var button in _root.GetComponentsInChildren<UnityEngine.UI.Button>(true))

@@ -178,6 +178,7 @@ namespace MergeResto.EditorTools
             HudBuilder.BuildVipBanner(AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/crown.png") ?? RenderCrownIcon());
             BuildMap();
             HudBuilder.OrderLayers();
+            HudBuilder.BuildScreenFit();
             HudBuilder.EnableButtonTargets();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
