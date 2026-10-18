@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -445,6 +446,156 @@ namespace MergeResto.Sim.Tests
             var restored = new ShopSim(def, JsonUtility.FromJson<ShopState>(json));
             CollectionAssert.AreEqual(sim.State.board.cells, restored.State.board.cells);
             Assert.AreEqual(sim.Board.Energy, restored.Board.Energy);
+        }
+
+        // 4x3 board:  0  1  2  3 /  4  5  6  7 /  8  9 10 11
+        static ShopDefinition WithBoxes()
+        {
+            var def = WithBoard();
+            def.board.openCells = new() { 0, 1, 2 };
+            def.board.start.RemoveAll(s => s.cell == 11);
+            def.board.start.Add(new BoardStartItem { cell = 5, generator = -1, chain = 0, tier = 0, cover = CellCover.Boxed });
+            def.board.start.Add(new BoardStartItem { cell = 9, generator = 1, cover = CellCover.Boxed });
+            return def;
+        }
+
+        [Test]
+        public void Boxes_CoverEverythingButTheOpenCells_AndItemsLandOnlyInOpenCells()
+        {
+            var sim = new ShopSim(WithBoxes());
+            Assert.AreEqual(CellCover.Open, sim.Board.CoverOf(1));
+            Assert.AreEqual(CellCover.Boxed, sim.Board.CoverOf(3));
+            Assert.AreEqual(CellCover.Boxed, sim.Board.CoverOf(5));
+            Assert.AreEqual(2, sim.Board.EmptyCells);
+            Assert.IsTrue(sim.Board.Spawn(0, out int a));
+            Assert.IsTrue(sim.Board.Spawn(0, out int b));
+            Assert.AreEqual(SpawnFail.BoardFull, sim.Board.CheckSpawn(0), "boxed cells take no items");
+            Assert.AreEqual(MoveResult.None, sim.Board.Move(a, 3), "can't move into a box");
+            Assert.AreEqual(1, a);
+            Assert.AreEqual(2, b);
+        }
+
+        [Test]
+        public void Merging_OpensTheBoxesNextToIt_ShowingWrappedItems()
+        {
+            var sim = new ShopSim(WithBoxes());
+            sim.Board.Spawn(0, out int a);
+            sim.Board.Spawn(0, out int b);
+            var opened = new List<int>();
+            sim.Board.CellOpened += (cell, cover) => opened.Add(cell);
+            Assert.AreEqual(MoveResult.Merged, sim.Board.Move(b, a)); // merges into cell 1
+            CollectionAssert.AreEquivalent(new[] { 5 }, opened, "only the box under cell 1 (cell 5) is a neighbour that was boxed");
+            Assert.AreEqual(CellCover.Wrapped, sim.Board.CoverOf(5), "it held a cookie");
+            Assert.AreEqual(CellCover.Boxed, sim.Board.CoverOf(3), "not a neighbour");
+
+            // Merging next to the empty box at 6 (from cell 2) opens it straight to an empty cell.
+            sim.State.board.cells[2] = BoardItem.Item(1, 0).code;
+            sim.State.board.cells[1] = BoardItem.Item(1, 0).code;
+            Assert.AreEqual(MoveResult.Merged, sim.Board.Move(1, 2));
+            Assert.AreEqual(CellCover.Open, sim.Board.CoverOf(6));
+            Assert.AreEqual(CellCover.Open, sim.Board.CoverOf(3));
+        }
+
+        [Test]
+        public void WrappedItems_DontMoveOrCount_UntilAMatchIsMergedOntoThem()
+        {
+            var def = WithBoard();
+            def.board.start.Add(new BoardStartItem { cell = 6, generator = -1, chain = 0, tier = 0, cover = CellCover.Wrapped });
+            def.board.start.Add(new BoardStartItem { cell = 1, generator = -1, chain = 0, tier = 0 });
+            var sim = new ShopSim(def);
+            Assert.AreEqual(1, sim.Board.Count(new ItemRef(0, 0)), "the wrapped cookie doesn't count");
+            Assert.AreEqual(MoveResult.None, sim.Board.Move(6, 7), "wrapped items stay put");
+            Assert.AreEqual(MoveResult.None, sim.Board.Move(2, 6), "and nothing but a match goes on them");
+            Assert.AreEqual(MoveResult.Merged, sim.Board.Move(1, 6));
+            Assert.AreEqual(CellCover.Open, sim.Board.CoverOf(6));
+            Assert.AreEqual(BoardItem.Item(0, 1), sim.Board[6]);
+        }
+
+        [Test]
+        public void WrappedItems_CanBeFreedForGems()
+        {
+            var def = WithBoard();
+            def.board.unwrapGems = 2;
+            def.board.start.Add(new BoardStartItem { cell = 6, generator = -1, chain = 0, tier = 1, cover = CellCover.Wrapped });
+            var sim = new ShopSim(def);
+            sim.State.gems = 2;
+            Assert.AreEqual(3, sim.Board.UnwrapCost(6), "base plus one per tier");
+            Assert.IsFalse(sim.Board.Unwrap(6));
+            sim.State.gems = 5;
+            Assert.IsTrue(sim.Board.Unwrap(6));
+            Assert.AreEqual(2, sim.State.gems);
+            Assert.AreEqual(CellCover.Open, sim.Board.CoverOf(6));
+        }
+
+        [Test]
+        public void Generators_UseTheirOwnCharges_AndRecharge()
+        {
+            var def = WithBoard();
+            def.board.generators[0].capacity = 2;
+            def.board.generators[0].rechargeSeconds = 10f;
+            var sim = new ShopSim(def);
+            Assert.AreEqual(2, sim.Board.Charges(0));
+            Assert.IsTrue(sim.Board.Spawn(0, out _));
+            Assert.IsTrue(sim.Board.Spawn(0, out _));
+            Assert.AreEqual(SpawnFail.Recharging, sim.Board.CheckSpawn(0));
+            Assert.AreEqual(10f, sim.Board.NextChargeIn(0), 1e-4);
+            Assert.AreEqual(int.MaxValue, sim.Board.Charges(1), "no capacity: energy only");
+            sim.Tick(10.5f);
+            Assert.AreEqual(1, sim.Board.Charges(0));
+            Assert.IsTrue(sim.Board.Spawn(0, out _));
+            sim.Tick(1000f);
+            Assert.AreEqual(2, sim.Board.Charges(0), "never above capacity");
+        }
+
+        [Test]
+        public void Jobs_AreWorkedAreaByArea_AndAFinishedAreaPaysGems()
+        {
+            var def = WithBoard();
+            def.board.areas.Add(new RenovationArea { id = "counter", displayName = "Counter", rewardGems = 7 });
+            def.board.areas.Add(new RenovationArea { id = "garden", displayName = "Garden", rewardGems = 9 });
+            def.board.renovations[1].area = 1;
+            def.board.start.Add(new BoardStartItem { cell = 4, generator = -1, chain = 0, tier = 2 });
+            var sim = new ShopSim(def);
+            int areaDone = -1;
+            sim.Board.AreaDone += a => areaDone = a;
+            Assert.AreEqual(0, sim.Board.CurrentArea);
+            CollectionAssert.AreEqual(new[] { 0 }, sim.Board.ActiveRenovations(3), "only the current area's jobs");
+            int gems = sim.State.gems;
+            sim.State.board.cells[5] = BoardItem.Item(1, 1).code;
+            sim.State.board.cells[6] = BoardItem.Item(1, 1).code;
+            Assert.IsFalse(sim.Board.CanRenovate(1), "a later area waits, even with its items ready");
+            Assert.IsTrue(sim.Board.Renovate(0));
+            Assert.AreEqual(0, areaDone);
+            Assert.AreEqual(gems + 7, sim.State.gems);
+            Assert.AreEqual(1, sim.Board.CurrentArea);
+            Assert.AreEqual((0, 1), sim.Board.AreaProgress(1));
+            CollectionAssert.AreEqual(new[] { 1 }, sim.Board.ActiveRenovations(3));
+        }
+
+        [Test]
+        public void Jobs_OnlyTakeFreeItems()
+        {
+            var def = WithBoard();
+            def.board.start.Add(new BoardStartItem { cell = 4, generator = -1, chain = 0, tier = 2, cover = CellCover.Wrapped });
+            var sim = new ShopSim(def);
+            Assert.IsFalse(sim.Board.CanRenovate(0));
+            sim.State.board.cells[5] = BoardItem.Item(0, 2).code;
+            Assert.IsTrue(sim.Board.Renovate(0));
+            Assert.IsTrue(sim.Board[5].IsEmpty, "the free one was used");
+            Assert.AreEqual(BoardItem.Item(0, 2), sim.Board[4], "the wrapped one stays");
+        }
+
+        [Test]
+        public void BoardCovers_AndCharges_SurviveSaveAndLoad()
+        {
+            var def = WithBoxes();
+            def.board.generators[0].capacity = 5;
+            var sim = new ShopSim(def);
+            sim.Board.Spawn(0, out _);
+            var json = JsonUtility.ToJson(sim.State);
+            var restored = new ShopSim(def, JsonUtility.FromJson<ShopState>(json));
+            CollectionAssert.AreEqual(sim.State.board.covers, restored.State.board.covers);
+            Assert.AreEqual(4, restored.Board.Charges(0));
         }
 
         [Test]

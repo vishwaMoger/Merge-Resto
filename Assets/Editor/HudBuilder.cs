@@ -1385,11 +1385,12 @@ namespace MergeResto.EditorTools
             dimButton.transition = UnityEngine.UI.Selectable.Transition.None;
             var dimGroup = dim.gameObject.AddComponent<CanvasGroup>();
 
-            // Panel.
+            // Panel: pills, the area strip, the three next jobs across the top, the board below.
+            const float panelW = 860f, panelH = 990f;
             var panel = Rect("Panel", holder);
             panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0.5f);
-            panel.anchoredPosition = new Vector2(-30, -22);
-            panel.sizeDelta = new Vector2(860, 950);
+            panel.anchoredPosition = new Vector2(-30, -30);
+            panel.sizeDelta = new Vector2(panelW, panelH);
             var group = panel.gameObject.AddComponent<CanvasGroup>();
             Window(Stretch(Rect("Background", panel)), 16f).raycastTarget = true;
 
@@ -1423,16 +1424,53 @@ namespace MergeResto.EditorTools
             var energyPill = Pill("Energy", 40, 330, "icon_speed", out var energyText);
             var timer = Label("Timer", energyPill, "Full", 24, _body, null, SoftBrown, TextAlignmentOptions.Right);
             Fill(timer.rectTransform, new Vector2(150, 2), new Vector2(-18, 0));
-            Pill("Coziness", 860 - 40 - 290 - 54, 290, "sl_heart", out var cozyText);
+            Pill("Coziness", panelW - 40 - 290 - 54, 290, "sl_heart", out var cozyText);
 
-            // Renovation tasks.
+            // Area strip: which part of the shop is being fixed up, its progress and the gems for finishing it.
+            var areaBox = Rect("Area", panel);
+            areaBox.anchorMin = areaBox.anchorMax = new Vector2(0.5f, 1f);
+            areaBox.pivot = new Vector2(0.5f, 1f);
+            areaBox.anchoredPosition = new Vector2(0, -142);
+            areaBox.sizeDelta = new Vector2(panelW - 68, 46);
+            var areaTitle = Label("Title", areaBox, "The Counter", 28, _display, _shadow, Brown, TextAlignmentOptions.Left);
+            areaTitle.enableAutoSizing = true;
+            areaTitle.fontSizeMin = 20;
+            areaTitle.fontSizeMax = 28;
+            areaTitle.rectTransform.anchorMin = areaTitle.rectTransform.anchorMax = areaTitle.rectTransform.pivot = new Vector2(0f, 0.5f);
+            areaTitle.rectTransform.anchoredPosition = new Vector2(8, 2);
+            areaTitle.rectTransform.sizeDelta = new Vector2(280, 44);
+            var bar = Rect("Bar", areaBox);
+            bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0f, 0.5f);
+            bar.anchoredPosition = new Vector2(300, 0);
+            bar.sizeDelta = new Vector2(360, 34);
+            Img(bar, "sl_frame_white", new Color(0.55f, 0.32f, 0.2f), 3f);
+            var fillHolder = Rect("FillArea", bar);
+            Fill(fillHolder, new Vector2(5, 5), new Vector2(-5, -5));
+            var areaFill = Rect("Fill", fillHolder);
+            areaFill.anchorMin = Vector2.zero;
+            areaFill.anchorMax = new Vector2(0.3f, 1f);
+            areaFill.offsetMin = areaFill.offsetMax = Vector2.zero;
+            Img(areaFill, "sl_frame_white", new Color(0.45f, 0.82f, 0.36f), 4f);
+            var areaCount = Label("Count", bar, "0/3", 24, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(areaCount.rectTransform, new Vector2(0, 2), Vector2.zero);
+            var gem = Rect("Gem", areaBox);
+            gem.anchorMin = gem.anchorMax = new Vector2(1f, 0.5f);
+            gem.anchoredPosition = new Vector2(-96, 0);
+            gem.sizeDelta = new Vector2(44, 44);
+            Img(gem, "icon_gem", Color.white);
+            var areaReward = Label("Reward", areaBox, "+10", 28, _display, _shadow, Brown, TextAlignmentOptions.Left);
+            areaReward.rectTransform.anchorMin = areaReward.rectTransform.anchorMax = areaReward.rectTransform.pivot = new Vector2(1f, 0.5f);
+            areaReward.rectTransform.anchoredPosition = new Vector2(-8, 2);
+            areaReward.rectTransform.sizeDelta = new Vector2(66, 44);
+
+            // The next three jobs of the area.
             var tasks = new List<MergeBoardView.Task>();
             for (int i = 0; i < 3; i++)
             {
                 var card = Rect($"Task{i}", panel);
                 card.anchorMin = card.anchorMax = new Vector2(0f, 1f);
                 card.pivot = new Vector2(0.5f, 1f);
-                card.anchoredPosition = new Vector2(34 + 128 + i * 268, -146);
+                card.anchoredPosition = new Vector2(34 + 128 + i * 268, -194);
                 card.sizeDelta = new Vector2(256, 196);
                 Img(card, "sl_frame_white", Color.white, 1.4f);
                 var tt = Label("Title", card, "Renovation", 24, _body, null, Brown, TextAlignmentOptions.Center);
@@ -1469,42 +1507,51 @@ namespace MergeResto.EditorTools
                     checks.Add(check.gameObject);
                 }
 
-                var fix = Rect("Fix", card);
-                fix.anchorMin = fix.anchorMax = new Vector2(0.5f, 0f);
-                fix.pivot = new Vector2(0.5f, 0f);
-                fix.anchoredPosition = new Vector2(0, 8);
-                fix.sizeDelta = new Vector2(196, 46);
-                var fixImage = Img(fix, "sl_btn_orange", Color.white, 2.6f);
-                fixImage.raycastTarget = true;
-                var fixButton = fix.gameObject.AddComponent<UnityEngine.UI.Button>();
-                fixButton.targetGraphic = fixImage;
-                var colors = fixButton.colors;
-                colors.disabledColor = Color.white;
-                fixButton.colors = colors;
-                fix.gameObject.AddComponent<ButtonJuice>();
-                var fixText = Label("Text", fix, "Fix", 26, _display, _shadow, Color.white, TextAlignmentOptions.Center);
-                Fill(fixText.rectTransform, new Vector2(4, 4), Vector2.zero);
+                UnityEngine.UI.Button CardButton(string name, float x, float width, string sprite, string text, int fontSize, Color textColor,
+                    out UnityEngine.UI.Image image, out TMP_Text label)
+                {
+                    var rt = Rect(name, card);
+                    rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);
+                    rt.anchoredPosition = new Vector2(x, 8);
+                    rt.sizeDelta = new Vector2(width, 46);
+                    image = Img(rt, sprite, Color.white, 2.6f);
+                    image.raycastTarget = true;
+                    var b = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
+                    b.targetGraphic = image;
+                    var colors = b.colors;
+                    colors.disabledColor = Color.white;
+                    b.colors = colors;
+                    rt.gameObject.AddComponent<ButtonJuice>();
+                    label = Label("Text", rt, text, fontSize, _display, _shadow, textColor, TextAlignmentOptions.Center);
+                    Fill(label.rectTransform, new Vector2(4, 4), Vector2.zero);
+                    return b;
+                }
+                var fixButton = CardButton("Fix", 12, 146, "sl_btn_orange", "Fix", 25, Color.white, out var fixImage, out var fixText);
+                var showButton = CardButton("Show", 164, 80, "sl_btn_yellow", "Show", 21, Brown, out _, out _);
 
                 tasks.Add(new MergeBoardView.Task
                 {
                     root = card, title = tt, bonus = bonus, needFrames = frames.ToArray(), needIcons = needIcons.ToArray(),
-                    needChecks = checks.ToArray(), fix = fixButton, fixImage = fixImage, fixText = fixText,
+                    needChecks = checks.ToArray(), fix = fixButton, fixImage = fixImage, fixText = fixText, show = showButton,
                 });
             }
 
             // The grid.
-            const float cell = 92f, gap = 6f;
+            const float cell = 90f, gap = 6f;
+            const float gridTop = -402f;
             var grid = Rect("Grid", panel);
             grid.anchorMin = grid.anchorMax = new Vector2(0.5f, 1f);
             grid.pivot = new Vector2(0.5f, 1f);
             float gridW = def.columns * cell + (def.columns - 1) * gap + 24f;
             float gridH = def.rows * cell + (def.rows - 1) * gap + 24f;
-            grid.anchoredPosition = new Vector2(0, -356);
+            grid.anchoredPosition = new Vector2(0, gridTop);
             grid.sizeDelta = new Vector2(gridW, gridH);
             Img(grid, "sl_frame_white", new Color(0.86f, 0.66f, 0.46f), 1.2f);
             var cellRects = new List<RectTransform>();
             var frameImages = new List<UnityEngine.UI.Image>();
             var iconImages = new List<UnityEngine.UI.Image>();
+            var coverImages = new List<UnityEngine.UI.Image>();
+            var badgeTexts = new List<TMP_Text>();
             for (int r = 0; r < def.rows; r++)
             {
                 for (int c = 0; c < def.columns; c++)
@@ -1520,37 +1567,65 @@ namespace MergeResto.EditorTools
                     var icImg = ic.gameObject.AddComponent<UnityEngine.UI.Image>();
                     icImg.preserveAspect = true;
                     icImg.raycastTarget = false;
+                    var cv = Rect("Cover", rt);
+                    cv.sizeDelta = new Vector2(cell - 22, cell - 22);
+                    var cvImg = cv.gameObject.AddComponent<UnityEngine.UI.Image>();
+                    cvImg.preserveAspect = true;
+                    cvImg.raycastTarget = false;
+                    cvImg.enabled = false;
+                    var bd = Rect("Charges", rt);
+                    bd.anchorMin = bd.anchorMax = bd.pivot = new Vector2(1f, 0f);
+                    bd.anchoredPosition = new Vector2(-3, 3);
+                    bd.sizeDelta = new Vector2(42, 28);
+                    Img(bd, "sl_btn_orange", Color.white, 3.5f);
+                    var bdText = Label("Text", bd, "12", 19, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                    Fill(bdText.rectTransform, new Vector2(0, 2), Vector2.zero);
                     cellRects.Add(rt);
                     frameImages.Add(frame);
                     iconImages.Add(icImg);
+                    coverImages.Add(cvImg);
+                    badgeTexts.Add(bdText);
                 }
             }
 
-            // Info bar under the grid.
+            // Info bar under the grid: what the selected thing is, its level, and Sell or Unwrap.
             var info = Label("Info", panel, "", 25, _body, null, Brown, TextAlignmentOptions.Left);
             info.textWrappingMode = TextWrappingModes.Normal;
             info.enableAutoSizing = true;
-            info.fontSizeMin = 20;
+            info.fontSizeMin = 19;
             info.fontSizeMax = 25;
             info.rectTransform.anchorMin = info.rectTransform.anchorMax = info.rectTransform.pivot = new Vector2(0f, 0f);
             info.rectTransform.anchoredPosition = new Vector2(40, 22);
-            info.rectTransform.sizeDelta = new Vector2(600, 64);
-            var sell = Rect("Sell", panel);
-            sell.anchorMin = sell.anchorMax = sell.pivot = new Vector2(1f, 0f);
-            sell.anchoredPosition = new Vector2(-36, 26);
-            sell.sizeDelta = new Vector2(170, 56);
-            var sellImage = Img(sell, "sl_btn_yellow", Color.white, 2.4f);
-            sellImage.raycastTarget = true;
-            var sellButton = sell.gameObject.AddComponent<UnityEngine.UI.Button>();
-            sellButton.targetGraphic = sellImage;
-            sell.gameObject.AddComponent<ButtonJuice>();
-            var sellText = Label("Text", sell, "Sell +5", 28, _display, _shadow, Brown, TextAlignmentOptions.Center);
-            Fill(sellText.rectTransform, new Vector2(4, 4), Vector2.zero);
+            info.rectTransform.sizeDelta = new Vector2(590, 64);
+            UnityEngine.UI.Button InfoButton(string name, string sprite, string text, out TMP_Text label)
+            {
+                var rt = Rect(name, panel);
+                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 0f);
+                rt.anchoredPosition = new Vector2(-36, 26);
+                rt.sizeDelta = new Vector2(180, 56);
+                var image = Img(rt, sprite, Color.white, 2.4f);
+                image.raycastTarget = true;
+                var b = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
+                b.targetGraphic = image;
+                rt.gameObject.AddComponent<ButtonJuice>();
+                label = Label("Text", rt, text, 27, _display, _shadow, Brown, TextAlignmentOptions.Center);
+                Fill(label.rectTransform, new Vector2(4, 4), Vector2.zero);
+                return b;
+            }
+            var sellButton = InfoButton("Sell", "sl_btn_yellow", "Sell +5", out var sellText);
+            var unwrapButton = InfoButton("Unwrap", "sl_btn_pink", "Unwrap 2", out var unwrapText);
+            unwrapText.color = Color.white;
+            var unwrapGem = Rect("Gem", unwrapButton.transform);
+            unwrapGem.anchorMin = unwrapGem.anchorMax = new Vector2(1f, 0.5f);
+            unwrapGem.anchoredPosition = new Vector2(-22, 2);
+            unwrapGem.sizeDelta = new Vector2(34, 34);
+            Img(unwrapGem, "icon_gem", Color.white);
+            unwrapText.rectTransform.offsetMax = new Vector2(-30, 0);
 
             // "New: Cupcake!" / "Combo x3!" banner just above the grid.
             var discovery = Label("Discovery", panel, "", 46, _display, _outlined, new Color(1f, 0.85f, 0.35f), TextAlignmentOptions.Center);
             discovery.rectTransform.anchorMin = discovery.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-            discovery.rectTransform.anchoredPosition = new Vector2(0, -372);
+            discovery.rectTransform.anchoredPosition = new Vector2(0, gridTop - gridH * 0.42f);
             discovery.rectTransform.sizeDelta = new Vector2(700, 64);
             Set(view, "discoveryText", discovery);
             Set(view, "sparkSprite", Resolve("sl_star"));
@@ -1583,6 +1658,19 @@ namespace MergeResto.EditorTools
             SetArray(view, "cells", cellRects.ToArray());
             SetArray(view, "cellFrames", frameImages.ToArray());
             SetArray(view, "icons", iconImages.ToArray());
+            SetArray(view, "covers", coverImages.ToArray());
+            SetArray(view, "badges", badgeTexts.ToArray());
+            Set(view, "unwrapButton", unwrapButton);
+            Set(view, "unwrapText", unwrapText);
+            Set(view, "areaTitle", areaTitle);
+            Set(view, "areaCount", areaCount);
+            Set(view, "areaFill", areaFill);
+            Set(view, "areaReward", areaReward);
+            if (UiArtGenerator.Load("board_box") == null)
+                UiArtGenerator.GenerateBoardArt();
+            Set(view, "boxSprite", UiArtGenerator.Load("board_box"));
+            Set(view, "wrapSprite", UiArtGenerator.Load("board_wrap"));
+            Set(view, "frameBoxed", Resolve("sl_frame_white"));
             Set(view, "dragGhost", ghostImg);
             Set(view, "flyer", flyImg);
             Set(view, "burst", burst);
@@ -1636,8 +1724,162 @@ namespace MergeResto.EditorTools
                 e.FindPropertyRelative("fix").objectReferenceValue = t.fix;
                 e.FindPropertyRelative("fixImage").objectReferenceValue = t.fixImage;
                 e.FindPropertyRelative("fixText").objectReferenceValue = t.fixText;
+                e.FindPropertyRelative("show").objectReferenceValue = t.show;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
+
+            Set(view, "jobCards", BuildJobs(view, openIcon));
+        }
+
+        // The jobs out in the shop: a pin over each spot the current area still needs, and the
+        // job card that opens over a spot (from a pin or the board's Show button).
+        static JobCardLayer BuildJobs(MergeBoardView board, Sprite pinIcon)
+        {
+            var holder = Stretch(Rect("Jobs", _root));
+            var layer = holder.gameObject.AddComponent<JobCardLayer>();
+
+            var pins = new List<JobCardLayer.Pin>();
+            for (int i = 0; i < 3; i++)
+            {
+                var pin = Rect($"Pin{i}", holder);
+                pin.pivot = new Vector2(0.5f, 0f);
+                pin.sizeDelta = new Vector2(92, 104);
+                var tail = Rect("Tail", pin);
+                tail.anchorMin = tail.anchorMax = new Vector2(0.5f, 0f);
+                tail.anchoredPosition = new Vector2(0, 16);
+                tail.sizeDelta = new Vector2(40, 40);
+                tail.localRotation = Quaternion.Euler(0f, 0f, -90f);
+                Img(tail, "sl_play", new Color(1f, 0.97f, 0.9f));
+                var disc = Rect("Disc", pin);
+                disc.anchorMin = disc.anchorMax = new Vector2(0.5f, 0f);
+                disc.pivot = new Vector2(0.5f, 0f);
+                disc.anchoredPosition = new Vector2(0, 20);
+                disc.sizeDelta = new Vector2(84, 84);
+                var bg = Img(disc, "sl_disc_white", Color.white, simple: true);
+                bg.raycastTarget = true;
+                var button = pin.gameObject.AddComponent<UnityEngine.UI.Button>();
+                button.targetGraphic = bg;
+                pin.gameObject.AddComponent<ButtonJuice>();
+                var ic = Rect("Icon", disc);
+                ic.sizeDelta = new Vector2(58, 58);
+                ic.anchoredPosition = new Vector2(0, 2);
+                var icImg = ic.gameObject.AddComponent<UnityEngine.UI.Image>();
+                icImg.sprite = pinIcon;
+                icImg.preserveAspect = true;
+                icImg.raycastTarget = false;
+                var ready = Rect("Ready", disc);
+                ready.anchorMin = ready.anchorMax = new Vector2(1f, 1f);
+                ready.anchoredPosition = new Vector2(-10, -10);
+                ready.sizeDelta = new Vector2(34, 34);
+                Img(ready, "sl_green_disc", Color.white);
+                pins.Add(new JobCardLayer.Pin { root = pin, button = button, background = bg, ready = ready.gameObject });
+            }
+
+            // Tapping anywhere else closes the card.
+            var blocker = Stretch(Rect("Blocker", holder));
+            var blockerImage = Img(blocker, null, new Color(0f, 0f, 0f, 0.001f));
+            blockerImage.raycastTarget = true;
+            var blockerButton = blocker.gameObject.AddComponent<UnityEngine.UI.Button>();
+            blockerButton.transition = UnityEngine.UI.Selectable.Transition.None;
+
+            var card = Rect("Card", holder);
+            card.pivot = new Vector2(0.5f, 0f);
+            card.sizeDelta = new Vector2(380, 330);
+            var cardGroup = card.gameObject.AddComponent<CanvasGroup>();
+            // A little tail under the card, pointing down at the spot.
+            var cardTail = Rect("Tail", card);
+            cardTail.anchorMin = cardTail.anchorMax = new Vector2(0.5f, 0f);
+            cardTail.anchoredPosition = new Vector2(0, -14);
+            cardTail.sizeDelta = new Vector2(56, 56);
+            cardTail.localRotation = Quaternion.Euler(0f, 0f, -90f);
+            Img(cardTail, "sl_play", FrameBrown);
+            Window(Stretch(Rect("Background", card)), 10f, 1.2f).raycastTarget = true;
+            var head = Rect("Head", card);
+            head.anchorMin = head.anchorMax = new Vector2(0.5f, 1f);
+            head.anchoredPosition = new Vector2(0, -4);
+            head.sizeDelta = new Vector2(330, 76);
+            Img(head, "sl_banner", Color.white, BannerSlice(76f));
+            var cardTitle = Label("Title", head, "Job", 28, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            cardTitle.enableAutoSizing = true;
+            cardTitle.fontSizeMin = 18;
+            cardTitle.fontSizeMax = 28;
+            Fill(cardTitle.rectTransform, new Vector2(34, 6), new Vector2(-34, 0));
+            var cardArea = Label("Area", card, "The Counter", 22, _body, null, SoftBrown, TextAlignmentOptions.Center);
+            Top(cardArea.rectTransform, new Vector2(0, -52), new Vector2(340, 32), centered: true);
+            var needs = Label("Needs", card, "Needs", 20, _body, null, Brown, TextAlignmentOptions.Center);
+            Top(needs.rectTransform, new Vector2(0, -86), new Vector2(340, 26), centered: true);
+            var frames = new List<UnityEngine.UI.Image>();
+            var icons = new List<UnityEngine.UI.Image>();
+            var checks = new List<GameObject>();
+            for (int n = 0; n < 3; n++)
+            {
+                var slot = Rect($"Need{n}", card);
+                slot.anchorMin = slot.anchorMax = new Vector2(0.5f, 1f);
+                slot.anchoredPosition = new Vector2((n - 1) * 90, -160);
+                slot.sizeDelta = new Vector2(80, 80);
+                frames.Add(Img(slot, "sl_frame_cream", Color.white, 3f));
+                var ni = Rect("Icon", slot);
+                ni.sizeDelta = new Vector2(70, 70);
+                var niImg = ni.gameObject.AddComponent<UnityEngine.UI.Image>();
+                niImg.preserveAspect = true;
+                niImg.raycastTarget = false;
+                icons.Add(niImg);
+                var check = Rect("Check", slot);
+                check.anchorMin = check.anchorMax = new Vector2(1f, 0f);
+                check.anchoredPosition = new Vector2(-4, 6);
+                check.sizeDelta = new Vector2(30, 30);
+                Img(check, "sl_green_disc", Color.white);
+                checks.Add(check.gameObject);
+            }
+            var reward = Label("Reward", card, "+150 coins", 22, _display, _shadow, new Color(0.2f, 0.52f, 0.16f), TextAlignmentOptions.Center);
+            Top(reward.rectTransform, new Vector2(0, -210), new Vector2(340, 30), centered: true);
+            var act = Rect("Action", card);
+            act.anchorMin = act.anchorMax = act.pivot = new Vector2(0.5f, 0f);
+            act.anchoredPosition = new Vector2(0, 18);
+            act.sizeDelta = new Vector2(220, 64);
+            var actImage = Img(act, "sl_btn_yellow", Color.white, 2.4f);
+            actImage.raycastTarget = true;
+            var actButton = act.gameObject.AddComponent<UnityEngine.UI.Button>();
+            actButton.targetGraphic = actImage;
+            act.gameObject.AddComponent<ButtonJuice>();
+            var actText = Label("Text", act, "Merge", 32, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(actText.rectTransform, new Vector2(4, 4), Vector2.zero);
+            var close = CloseButton(card);
+            ((RectTransform)close.transform).anchoredPosition = new Vector2(14, 14);
+            ((RectTransform)close.transform).sizeDelta = new Vector2(52, 52);
+
+            Set(layer, "layer", holder);
+            Set(layer, "pinWaiting", Resolve("sl_disc_white"));
+            Set(layer, "pinReady", Resolve("sl_disc_honey"));
+            Set(layer, "card", card);
+            Set(layer, "cardGroup", cardGroup);
+            Set(layer, "blocker", blockerButton);
+            Set(layer, "cardTitle", cardTitle);
+            Set(layer, "cardArea", cardArea);
+            SetArray(layer, "needFrames", frames.ToArray());
+            SetArray(layer, "needIcons", icons.ToArray());
+            SetArray(layer, "needChecks", checks.ToArray());
+            Set(layer, "reward", reward);
+            Set(layer, "action", actButton);
+            Set(layer, "actionImage", actImage);
+            Set(layer, "actionText", actText);
+            Set(layer, "close", close);
+            Set(layer, "actionMerge", Resolve("sl_btn_yellow"));
+            Set(layer, "actionFix", Resolve("sl_btn_orange"));
+            Set(layer, "board", board);
+            var so = new SerializedObject(layer);
+            var pinsProp = so.FindProperty("pins");
+            pinsProp.arraySize = pins.Count;
+            for (int i = 0; i < pins.Count; i++)
+            {
+                var e = pinsProp.GetArrayElementAtIndex(i);
+                e.FindPropertyRelative("root").objectReferenceValue = pins[i].root;
+                e.FindPropertyRelative("button").objectReferenceValue = pins[i].button;
+                e.FindPropertyRelative("background").objectReferenceValue = pins[i].background;
+                e.FindPropertyRelative("ready").objectReferenceValue = pins[i].ready;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return layer;
         }
 
         // ------------------------------------------------------------------ Tutorial
@@ -1778,6 +2020,7 @@ namespace MergeResto.EditorTools
             Set(lessons, "settings", _root.GetComponentInChildren<SettingsPanel>(true));
             Set(lessons, "vip", _root.GetComponentInChildren<VipBanner>(true));
             Set(lessons, "boost", _root.GetComponentInChildren<BoostButton>(true));
+            Set(lessons, "jobs", _root.GetComponentInChildren<JobCardLayer>(true));
         }
 
         public static void BuildTutorial(StationView[] stations, FxDirector fx, CoinFlyLayer coinFly, ChibiAnimator grandma, Sprite portraitSprite,
@@ -1883,7 +2126,7 @@ namespace MergeResto.EditorTools
                     t.SetParent(buttons, false);
             }
             // Windows above the buttons, then the tutorial, the welcome-back dialog and flying coins.
-            foreach (var name in new[] { "Vip", "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "Guide", "OfflineDialog", "CoinFly" })
+            foreach (var name in new[] { "Jobs", "Vip", "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "Guide", "OfflineDialog", "CoinFly" })
             {
                 var t = _root.Find(name);
                 if (t != null)

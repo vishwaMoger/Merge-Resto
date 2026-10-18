@@ -34,11 +34,18 @@ namespace MergeResto.Sim
         public List<CustomerState> queue = new();
     }
 
-    /// <summary>The merge board: one int per cell (see BoardItem), energy and finished renovations.</summary>
+    /// <summary>
+    /// The merge board: one int per cell (see BoardItem) and how it is covered (see CellCover),
+    /// energy, each generator's charges and the finished renovations.
+    /// </summary>
     [Serializable]
     public class BoardState
     {
         public List<int> cells = new();
+        public List<int> covers = new();
+        public List<int> genCharges = new();
+        public List<float> genTimers = new();
+        public List<int> areasDone = new();
         public int energy;
         public float energyTimer;
         public int seed;

@@ -9,8 +9,10 @@ namespace MergeResto.Game.UI
 {
     /// <summary>
     /// The renovation board: tap generators for items, drag equal items together to merge,
-    /// and hand finished items in to fix up the shop. Slides in from the right while the
-    /// bakery keeps running; the HUD's Renovate button opens it.
+    /// and hand finished items in to fix up the shop, one area at a time. Most of the board
+    /// starts boxed: merges open the boxes next to them, and wrapped items inside are freed
+    /// by merging a match onto them. Slides in from the right while the shop keeps running;
+    /// the HUD's Renovate button opens it, and each job's Show button points it out in the shop.
     /// Feel: a dragged item lifts and tilts under the finger, matching items glow, a merge
     /// fuses the two with a flash, rays, sparks and a rising combo sound, a new item type is
     /// announced, and an idle board nudges a pair that can be merged.
@@ -35,6 +37,7 @@ namespace MergeResto.Game.UI
             public Button fix;
             public Image fixImage;
             public TMP_Text fixText;
+            public Button show;
             [System.NonSerialized] public int renovation = -1;
             [System.NonSerialized] public float slide;
         }
@@ -54,6 +57,10 @@ namespace MergeResto.Game.UI
         [SerializeField] RectTransform[] cells;
         [SerializeField] Image[] cellFrames;
         [SerializeField] Image[] icons;
+        [Tooltip("Box or wrap drawn over each cell's item.")]
+        [SerializeField] Image[] covers;
+        [Tooltip("Charges left, on generator cells.")]
+        [SerializeField] TMP_Text[] badges;
         [SerializeField] Image dragGhost;
         [SerializeField] Image flyer;
         [SerializeField] RectTransform burst;
@@ -71,7 +78,16 @@ namespace MergeResto.Game.UI
         [SerializeField] TMP_Text infoText;
         [SerializeField] Button sellButton;
         [SerializeField] TMP_Text sellText;
+        [SerializeField] Button unwrapButton;
+        [SerializeField] TMP_Text unwrapText;
         [SerializeField] Task[] tasks;
+
+        [Header("Area")]
+        [SerializeField] TMP_Text areaTitle;
+        [SerializeField] TMP_Text areaCount;
+        [SerializeField] RectTransform areaFill;
+        [SerializeField] TMP_Text areaReward;
+        [SerializeField] JobCardLayer jobCards;
 
         [Header("Art")]
         [SerializeField] ChainIcons[] chainIcons;
@@ -79,6 +95,9 @@ namespace MergeResto.Game.UI
         [SerializeField] Sprite frameNormal;
         [SerializeField] Sprite frameSelected;
         [SerializeField] Sprite frameGenerator;
+        [SerializeField] Sprite frameBoxed;
+        [SerializeField] Sprite boxSprite;
+        [SerializeField] Sprite wrapSprite;
         [SerializeField] Sprite fixReady;
         [SerializeField] Sprite fixWaiting;
         [SerializeField] Color readyFrame = new(0.55f, 0.85f, 0.4f);
@@ -129,6 +148,7 @@ namespace MergeResto.Game.UI
         float _dragTilt;
         float[] _pop;
         float[] _hiddenUntilGlide;
+        float[] _boxOpen;  // 1 -> 0 while a box bursts open
         float _burstT = -1f;
         float _noEnergyShake;
         float _idle;
@@ -149,6 +169,7 @@ namespace MergeResto.Game.UI
         public bool Dragging => _dragFrom >= 0;
         public RectTransform RefillRect => refillButton.gameObject.activeInHierarchy ? (RectTransform)refillButton.transform : null;
         public Sprite IconFor(BoardItem item) => SpriteFor(item);
+        public MergeBoard Board => _board;
 
         /// <summary>A board cell (for the lessons' pointer).</summary>
         public RectTransform Cell(int index) => cells[index];
@@ -178,7 +199,7 @@ namespace MergeResto.Game.UI
         public int GeneratorCell(int chain)
         {
             for (int i = 0; i < cells.Length; i++)
-                if (_board[i].IsGenerator && _board.Def.generators[_board[i].GeneratorIndex].chain == chain)
+                if (_board.FreeItem(i).IsGenerator && _board.Def.generators[_board[i].GeneratorIndex].chain == chain)
                     return i;
             return -1;
         }
@@ -191,7 +212,7 @@ namespace MergeResto.Game.UI
             var seen = new Dictionary<int, int>();
             for (int i = 0; i < cells.Length; i++)
             {
-                var item = _board[i];
+                var item = _board.FreeItem(i);
                 if (!item.IsItem || item.Tier >= _board.MaxTier(item.Chain) || (chain >= 0 && item.Chain != chain))
                     continue;
                 if (seen.TryGetValue(item.code, out int other))
@@ -225,6 +246,7 @@ namespace MergeResto.Game.UI
             group.blocksRaycasts = false;
             _pop = new float[cells.Length];
             _hiddenUntilGlide = new float[cells.Length];
+            _boxOpen = new float[cells.Length];
             _everOpened = PlayerPrefs.GetInt("board_opened", 0) == 1;
             _discovered = LoadDiscovered();
 
@@ -234,6 +256,7 @@ namespace MergeResto.Game.UI
             dim.alpha = 0f;
             dim.blocksRaycasts = false;
             sellButton.onClick.AddListener(SellSelected);
+            unwrapButton.onClick.AddListener(UnwrapSelected);
             refillButton.onClick.AddListener(() => AdService.ShowRewarded(() =>
             {
                 _board.AddEnergy(refillAmount);
@@ -243,6 +266,7 @@ namespace MergeResto.Game.UI
             {
                 var task = t;
                 task.fix.onClick.AddListener(() => Fix(task));
+                task.show.onClick.AddListener(() => ShowJob(task));
             }
             for (int i = 0; i < cells.Length; i++)
             {
@@ -257,6 +281,8 @@ namespace MergeResto.Game.UI
                 discoveryText.gameObject.SetActive(false);
 
             _board.ItemsMerged += OnMerged;
+            _board.CellOpened += OnCellOpened;
+            _board.AreaDone += OnAreaDone;
             GameController.Instance.StationSelected += OnStationSelected;
         }
 
@@ -264,7 +290,11 @@ namespace MergeResto.Game.UI
         {
             AnyOpen = false;
             if (_board != null)
+            {
                 _board.ItemsMerged -= OnMerged;
+                _board.CellOpened -= OnCellOpened;
+                _board.AreaDone -= OnAreaDone;
+            }
             if (GameController.Instance != null)
                 GameController.Instance.StationSelected -= OnStationSelected;
         }
@@ -303,6 +333,15 @@ namespace MergeResto.Game.UI
         public void OnCellTapped(int cell)
         {
             _idle = 0f;
+            var cover = _board.CoverOf(cell);
+            if (cover != CellCover.Open)
+            {
+                // Boxes and wrapped items only say what they are (the info bar explains).
+                _selected = cell;
+                _pop[cell] = 0.3f;
+                AudioDirector.Play(Sfx.Blip, cover == CellCover.Boxed ? 0.8f : 1.1f, 0.4f);
+                return;
+            }
             var item = _board[cell];
             if (item.IsGenerator)
             {
@@ -315,7 +354,7 @@ namespace MergeResto.Game.UI
                 }
                 else
                 {
-                    if (_board.Energy <= 0)
+                    if (_board.CheckSpawn(cell) == SpawnFail.NoEnergy)
                         _noEnergyShake = 1f;
                     _pop[cell] = 0.3f;
                     AudioDirector.Play(Sfx.Deny);
@@ -333,7 +372,7 @@ namespace MergeResto.Game.UI
 
         public void OnDragBegin(int cell, PointerEventData e)
         {
-            if (_board[cell].IsEmpty || _hiddenUntilGlide[cell] > 0f)
+            if (_board.FreeItem(cell).IsEmpty || _hiddenUntilGlide[cell] > 0f)
                 return;
             _idle = 0f;
             _dragFrom = cell;
@@ -403,12 +442,7 @@ namespace MergeResto.Game.UI
             AudioDirector.Play(Sfx.Blip, 1f, 0.4f);
         }
 
-        bool CanMerge(int a, int b)
-        {
-            var x = _board[a];
-            var y = _board[b];
-            return x.IsItem && x == y && x.Tier < _board.MaxTier(x.Chain);
-        }
+        bool CanMerge(int a, int b) => _board.CanMerge(a, b);
 
         void CancelDrag(bool snapBack)
         {
@@ -442,16 +476,68 @@ namespace MergeResto.Game.UI
             _selected = -1;
         }
 
+        void UnwrapSelected()
+        {
+            if (_selected < 0 || _board.CoverOf(_selected) != CellCover.Wrapped)
+                return;
+            if (_board.Unwrap(_selected))
+            {
+                _pop[_selected] = 1f;
+                AudioDirector.Play(Sfx.Claim);
+                SparkBurst(Center(_selected), 14, new Color(0.75f, 0.92f, 1f));
+            }
+            else
+                AudioDirector.Play(Sfx.Deny);
+        }
+
         void Fix(Task task)
         {
-            if (task.renovation < 0 || !_board.Renovate(task.renovation))
+            if (task.renovation < 0)
                 return;
-            SparkBurst(task.fix.transform.position, 18, new Color(1f, 0.85f, 0.35f));
-            task.renovation = -1;
+            var at = task.fix.transform.position;
+            if (TryFix(task.renovation))
+                SparkBurst(at, 18, new Color(1f, 0.85f, 0.35f));
+        }
+
+        /// <summary>Does the job if everything is there; the board closes so the player watches it happen in the shop.</summary>
+        public bool TryFix(int renovation)
+        {
+            if (!_board.Renovate(renovation))
+                return false;
+            foreach (var t in tasks)
+                if (t.renovation == renovation)
+                    t.renovation = -1;
             if (_selected >= 0 && _board[_selected].IsEmpty)
                 _selected = -1;
-            // Close the board so the player watches the spot get fixed (RenovationSpot plays it).
             SetOpen(false);
+            return true;
+        }
+
+        // Show: close the board and point the job out where it happens in the shop.
+        void ShowJob(Task task)
+        {
+            if (task.renovation < 0 || jobCards == null)
+                return;
+            AudioDirector.Play(Sfx.Click);
+            SetOpen(false);
+            jobCards.Show(task.renovation);
+        }
+
+        void OnCellOpened(int cell, CellCover now)
+        {
+            _boxOpen[cell] = 1f;
+            _pop[cell] = 1f;
+            AudioDirector.Play(Sfx.Whoosh, 1.3f, 0.45f);
+            SparkBurst(Center(cell), 8, new Color(0.87f, 0.65f, 0.4f));
+        }
+
+        void OnAreaDone(int area)
+        {
+            if (area >= _board.Def.areas.Count)
+                return;
+            var def = _board.Def.areas[area];
+            ShowBanner($"{def.displayName}: all done! +{def.rewardGems} gems");
+            AudioDirector.Play(Sfx.Celebrate);
         }
 
         void OnMerged(int cell, BoardItem item)
@@ -646,13 +732,51 @@ namespace MergeResto.Game.UI
             for (int i = 0; i < cells.Length; i++)
             {
                 var item = _board[i];
+                var cover = _board.CoverOf(i);
                 _hiddenUntilGlide[i] = Mathf.Max(0f, _hiddenUntilGlide[i] - dt);
-                var sprite = item.IsEmpty ? null : SpriteFor(item);
+                _boxOpen[i] = Mathf.Max(0f, _boxOpen[i] - dt * 3f);
+                var sprite = item.IsEmpty || cover == CellCover.Boxed ? null : SpriteFor(item);
                 icons[i].enabled = sprite != null && _hiddenUntilGlide[i] <= 0f;
                 icons[i].sprite = sprite;
-                // The picked-up item leaves a faint copy behind.
-                icons[i].color = i == _dragFrom ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
-                cellFrames[i].sprite = i == _selected && _dragFrom < 0 ? frameSelected : item.IsGenerator ? frameGenerator : frameNormal;
+                // The picked-up item leaves a faint copy behind; wrapped ones look a little faded.
+                icons[i].color = i == _dragFrom ? new Color(1f, 1f, 1f, 0.3f) : cover == CellCover.Wrapped ? new Color(0.92f, 0.96f, 1f, 0.82f) : Color.white;
+                cellFrames[i].sprite = cover == CellCover.Boxed ? frameBoxed
+                    : i == _selected && _dragFrom < 0 ? frameSelected : item.IsGenerator ? frameGenerator : frameNormal;
+
+                // Covers: the box (bursting open for a moment after a merge next to it) or the wrap.
+                var coverImage = covers[i];
+                float burstOpen = _boxOpen[i];
+                if (cover == CellCover.Boxed || burstOpen > 0f)
+                {
+                    coverImage.enabled = true;
+                    coverImage.sprite = boxSprite;
+                    float k = cover == CellCover.Boxed ? 0f : 1f - burstOpen;
+                    coverImage.color = new Color(1f, 1f, 1f, 0.92f * (1f - k));
+                    float wobble = cover == CellCover.Boxed && i == _selected ? Mathf.Sin(time * 30f) * 4f * _pop[i] : 0f;
+                    coverImage.rectTransform.localScale = Vector3.one * (1f + k * 0.5f);
+                    coverImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, wobble + k * 25f);
+                }
+                else if (cover == CellCover.Wrapped)
+                {
+                    coverImage.enabled = true;
+                    coverImage.sprite = wrapSprite;
+                    coverImage.color = Color.white;
+                    coverImage.rectTransform.localScale = Vector3.one * (1f + Mathf.Sin(time * 2.2f + i) * 0.015f);
+                    coverImage.rectTransform.localRotation = Quaternion.identity;
+                }
+                else
+                    coverImage.enabled = false;
+
+                // Generators show their charges; at zero, how long until the next one.
+                var badge = badges[i];
+                bool showBadge = item.IsGenerator && cover == CellCover.Open && _board.Capacity(item.GeneratorIndex) > 0;
+                badge.transform.parent.gameObject.SetActive(showBadge);
+                if (showBadge)
+                {
+                    int left = _board.Charges(item.GeneratorIndex);
+                    badge.text = left > 0 ? left.ToString() : $"{Mathf.CeilToInt(_board.NextChargeIn(item.GeneratorIndex))}s";
+                    badge.color = left > 0 ? Color.white : new Color(1f, 0.85f, 0.7f);
+                }
 
                 // Glow: matching partners while dragging, the cell under the finger, the idle hint pair.
                 bool partner = _dragFrom >= 0 && i != _dragFrom && CanMerge(_dragFrom, i);
@@ -666,7 +790,7 @@ namespace MergeResto.Game.UI
                     frame = hoverGlow;
                 else if (hinted)
                     frame = Color.Lerp(Color.white, matchGlow, 0.3f + 0.3f * pulse);
-                cellFrames[i].color = frame;
+                cellFrames[i].color = cover == CellCover.Boxed ? new Color(0.96f, 0.9f, 0.82f) : frame;
 
                 _pop[i] = Mathf.Max(0f, _pop[i] - dt * 3.2f);
                 float p = _pop[i];
@@ -674,7 +798,7 @@ namespace MergeResto.Game.UI
                 float sx = 1f + Mathf.Sin(p * Mathf.PI) * 0.28f;
                 float sy = 1f + Mathf.Sin(p * Mathf.PI * 2f) * 0.12f;
                 var scale = new Vector3(sx, sy, 1f);
-                if (item.IsGenerator && _board.Energy > 0 && i != _selected)
+                if (item.IsGenerator && cover == CellCover.Open && _board.Energy > 0 && _board.Charges(item.GeneratorIndex) > 0 && i != _selected)
                     scale *= 1f + Mathf.Sin(time * 3f + i) * 0.03f;
                 if (partner)
                     scale *= 1f + 0.06f * pulse;
@@ -716,32 +840,70 @@ namespace MergeResto.Game.UI
             cozinessText.text = $"Coziness +{Mathf.RoundToInt(_board.Coziness * 100f)}%";
 
             int shown = _dragFrom >= 0 ? _dragFrom : _selected;
+            var cover = shown >= 0 ? _board.CoverOf(shown) : CellCover.Open;
             var item = shown >= 0 ? _board[shown] : BoardItem.Empty;
-            if (item.IsItem)
+            unwrapButton.gameObject.SetActive(false);
+            sellButton.gameObject.SetActive(false);
+            if (cover == CellCover.Boxed)
+                infoText.text = "<b>A box!</b>  Merge something next to it to open it.";
+            else if (cover == CellCover.Wrapped)
+            {
+                string name = _board.NameOf(item);
+                infoText.text = $"<b>Wrapped {name}</b>  Lv {item.Tier + 1}/{_board.MaxTier(item.Chain) + 1}  \u00b7  merge a {name} onto it to free it";
+                unwrapButton.gameObject.SetActive(_dragFrom < 0);
+                unwrapText.text = $"Unwrap  {_board.UnwrapCost(shown)}";
+            }
+            else if (item.IsItem)
             {
                 int max = _board.MaxTier(item.Chain);
-                string upgrade = item.Tier < max ? $"  ·  merge two for <b>{_board.Def.chains[item.Chain].tiers[item.Tier + 1]}</b>" : "  ·  top tier!";
-                infoText.text = $"<b>{_board.NameOf(item)}</b>  Lv {item.Tier + 1}{upgrade}";
+                string upgrade = item.Tier < max ? $"  \u00b7  merge two for <b>{_board.Def.chains[item.Chain].tiers[item.Tier + 1]}</b>" : "  \u00b7  top level!";
+                infoText.text = $"<b>{_board.NameOf(item)}</b>  Lv {item.Tier + 1}/{max + 1}{upgrade}";
                 sellButton.gameObject.SetActive(_dragFrom < 0);
                 sellText.text = $"Sell +{NumberFormat.Short(_board.SellValue(item))}";
             }
             else if (item.IsGenerator)
             {
-                var def = _board.Def.generators[item.GeneratorIndex];
-                infoText.text = energy > 0
-                    ? $"<b>{def.displayName}</b>  ·  tap to make {_board.Def.chains[def.chain].displayName.ToLowerInvariant()} (1 energy)"
-                    : $"<b>{def.displayName}</b>  ·  out of energy, it refills over time";
-                sellButton.gameObject.SetActive(false);
+                int g = item.GeneratorIndex;
+                var def = _board.Def.generators[g];
+                string makes = _board.Def.chains[def.chain].displayName.ToLowerInvariant();
+                string charges = def.capacity > 0
+                    ? _board.Charges(g) >= def.capacity ? $"  \u00b7  {def.capacity}/{def.capacity} charges"
+                    : $"  \u00b7  {_board.Charges(g)}/{def.capacity} charges, +1 in {Mathf.CeilToInt(_board.NextChargeIn(g))}s"
+                    : "";
+                infoText.text = _board.CheckSpawn(shown) switch
+                {
+                    SpawnFail.NoEnergy => $"<b>{def.displayName}</b>  \u00b7  out of energy, it refills over time",
+                    SpawnFail.Recharging => $"<b>{def.displayName}</b>  \u00b7  recharging, next one in {Mathf.CeilToInt(_board.NextChargeIn(g))}s",
+                    SpawnFail.BoardFull => $"<b>{def.displayName}</b>  \u00b7  no room! Merge or sell something first",
+                    _ => $"<b>{def.displayName}</b>  \u00b7  tap to make {makes}{charges}",
+                };
             }
             else
-            {
                 infoText.text = _board.EmptyCells == 0 ? "The board is full: sell or merge something to make room." : Hint;
-                sellButton.gameObject.SetActive(false);
-            }
         }
 
         void RefreshTasks(float dt)
         {
+            int area = _board.CurrentArea;
+            if (areaTitle != null)
+            {
+                if (area >= 0)
+                {
+                    var (done, total) = _board.AreaProgress(area);
+                    areaTitle.text = _board.AreaName(area);
+                    areaCount.text = $"{done}/{total}";
+                    var max = areaFill.anchorMax;
+                    max.x = Mathf.Lerp(max.x, total > 0 ? Mathf.Max(0.04f, done / (float)total) : 1f, 1f - Mathf.Exp(-dt * 6f));
+                    areaFill.anchorMax = max;
+                    areaReward.text = $"+{_board.Def.areas[area].rewardGems}";
+                }
+                else
+                {
+                    areaTitle.text = "All fixed up!";
+                    areaCount.text = "";
+                    areaReward.text = "";
+                }
+            }
             var active = _board.ActiveRenovations(tasks.Length);
             for (int i = 0; i < tasks.Length; i++)
             {

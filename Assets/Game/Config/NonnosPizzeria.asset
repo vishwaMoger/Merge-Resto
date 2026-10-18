@@ -169,9 +169,24 @@ MonoBehaviour:
       columns: 7
       rows: 5
       energyMax: 60
-      startEnergy: 12
+      startEnergy: 20
       energyRegenSeconds: 20
       sellBase: 5
+      openCells: 08000000090000000a0000000b0000000c0000000f00000010000000110000001200000013000000160000001700000018000000190000001a000000
+      unwrapGems: 2
+      areas:
+      - id: counter
+        displayName: The Counter
+        rewardGems: 10
+      - id: windows
+        displayName: The Windows
+        rewardGems: 15
+      - id: dining
+        displayName: The Trattoria
+        rewardGems: 20
+      - id: finish
+        displayName: Finishing Touches
+        rewardGems: 30
       chains:
       - id: sweets
         displayName: Sweets
@@ -228,65 +243,107 @@ MonoBehaviour:
         displayName: Cookie Jar
         chain: 0
         luckyChance: 0.12
+        capacity: 12
+        rechargeSeconds: 20
         model: TinyTreats_BakeryInterior/cookie_jar
       - id: dish_rack
         displayName: Dish Rack
         chain: 1
         luckyChance: 0.12
+        capacity: 12
+        rechargeSeconds: 20
         model: KayKit_RestaurantBits/dishrack_plates
       - id: watering_can
         displayName: Watering Can
         chain: 2
         luckyChance: 0.12
+        capacity: 12
+        rechargeSeconds: 20
         model: TinyTreats_HousePlants/watering_can_A
       renovations:
-      - id: pastry_stand
+      - id: stand_cover
+        displayName: Uncover the dessert stand
+        area: 0
+        needs:
+        - chain: 0
+          tier: 3
+        rewardCoins: 1620
+        coziness: 0.03
+      - id: stand_cake
         displayName: Restock the dessert stand
+        area: 0
         needs:
         - chain: 0
           tier: 4
-        rewardCoins: 4000
-        coziness: 0.05
-      - id: window_plants
-        displayName: Bring back Nonno's plants
-        needs:
-        - chain: 2
-          tier: 4
-        - chain: 2
-          tier: 3
-        rewardCoins: 6000
-        coziness: 0.06
-      - id: dining
-        displayName: Set the trattoria tables
-        needs:
-        - chain: 1
-          tier: 4
-        - chain: 1
-          tier: 4
-        - chain: 1
-          tier: 3
-        rewardCoins: 9000
-        coziness: 0.08
+        rewardCoins: 2700
+        coziness: 0.03
       - id: display_case
         displayName: Polish the counter
+        area: 0
+        needs:
+        - chain: 1
+          tier: 4
+        - chain: 0
+          tier: 4
+        rewardCoins: 4050
+        coziness: 0.05
+      - id: window_snake
+        displayName: Bring back Nonno's snake plant
+        area: 1
+        needs:
+        - chain: 2
+          tier: 4
+        rewardCoins: 4050
+        coziness: 0.05
+      - id: window_pothos
+        displayName: Hang Nonno's pothos
+        area: 1
+        needs:
+        - chain: 2
+          tier: 4
+        - chain: 2
+          tier: 3
+        rewardCoins: 5400
+        coziness: 0.05
+      - id: dining_scrub
+        displayName: Scrub the trattoria tables
+        area: 2
+        needs:
+        - chain: 1
+          tier: 4
+        - chain: 1
+          tier: 3
+        rewardCoins: 5400
+        coziness: 0.04
+      - id: dining_set
+        displayName: Set the tables
+        area: 2
         needs:
         - chain: 1
           tier: 5
+        rewardCoins: 6750
+        coziness: 0.05
+      - id: dining_treats
+        displayName: Dessert on every table
+        area: 2
+        needs:
         - chain: 0
           tier: 5
-        rewardCoins: 15000
-        coziness: 0.08
+        - chain: 0
+          tier: 4
+        rewardCoins: 8100
+        coziness: 0.05
       - id: corner
         displayName: Green up the piazza corner
+        area: 3
         needs:
         - chain: 2
           tier: 5
-        - chain: 2
-          tier: 4
-        rewardCoins: 25000
-        coziness: 0.08
+        rewardCoins: 13500
+        coziness: 0.07
       - id: shop_sign
         displayName: Light Nonno's sign
+        area: 3
         needs:
         - chain: 0
           tier: 6
@@ -294,29 +351,109 @@ MonoBehaviour:
           tier: 5
         - chain: 2
           tier: 5
-        rewardCoins: 60000
-        coziness: 0.15
+        rewardCoins: 40500
+        coziness: 0.08
       start:
-      - cell: 0
+      - cell: 8
         generator: 0
         chain: 0
         tier: 0
-      - cell: 14
+        cover: 0
+      - cell: 22
         generator: 1
         chain: 0
         tier: 0
-      - cell: 28
+        cover: 0
+      - cell: 12
         generator: 2
         chain: 0
         tier: 0
-      - cell: 9
+        cover: 0
+      - cell: 16
         generator: -1
         chain: 0
         tier: 0
-      - cell: 10
+        cover: 0
+      - cell: 17
         generator: -1
         chain: 0
         tier: 0
+        cover: 0
+      - cell: 23
+        generator: -1
+        chain: 1
+        tier: 1
+        cover: 0
+      - cell: 18
+        generator: -1
+        chain: 2
+        tier: 0
+        cover: 0
+      - cell: 19
+        generator: -1
+        chain: 2
+        tier: 0
+        cover: 0
+      - cell: 13
+        generator: -1
+        chain: 0
+        tier: 0
+        cover: 1
+      - cell: 20
+        generator: -1
+        chain: 1
+        tier: 0
+        cover: 1
+      - cell: 14
+        generator: -1
+        chain: 2
+        tier: 0
+        cover: 1
+      - cell: 27
+        generator: -1
+        chain: 1
+        tier: 1
+        cover: 1
+      - cell: 2
+        generator: -1
+        chain: 0
+        tier: 0
+        cover: 2
+      - cell: 5
+        generator: -1
+        chain: 2
+        tier: 0
+        cover: 2
+      - cell: 7
+        generator: -1
+        chain: 1
+        tier: 0
+        cover: 2
+      - cell: 21
+        generator: -1
+        chain: 0
+        tier: 1
+        cover: 2
+      - cell: 29
+        generator: -1
+        chain: 1
+        tier: 1
+        cover: 2
+      - cell: 33
+        generator: -1
+        chain: 0
+        tier: 1
+        cover: 2
+      - cell: 31
+        generator: -1
+        chain: 2
+        tier: 1
+        cover: 2
+      - cell: 0
+        generator: -1
+        chain: 2
+        tier: 2
+        cover: 2
     goals:
     - kind: 1
       station: 0
