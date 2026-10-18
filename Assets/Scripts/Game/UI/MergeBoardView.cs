@@ -58,6 +58,10 @@ namespace MergeResto.Game.UI
         [Header("Info")]
         [SerializeField] TMP_Text energyText;
         [SerializeField] TMP_Text energyTimer;
+        [Tooltip("Watch an ad for energy; shown when energy runs low.")]
+        [SerializeField] Button refillButton;
+        [SerializeField] int refillAmount = 50;
+        [SerializeField] int refillBelow = 10;
         [SerializeField] TMP_Text cozinessText;
         [SerializeField] TMP_Text infoText;
         [SerializeField] Button sellButton;
@@ -119,6 +123,11 @@ namespace MergeResto.Game.UI
             dim.alpha = 0f;
             dim.blocksRaycasts = false;
             sellButton.onClick.AddListener(SellSelected);
+            refillButton.onClick.AddListener(() => AdService.ShowRewarded(() =>
+            {
+                _board.AddEnergy(refillAmount);
+                AudioDirector.Play(Sfx.Claim);
+            }));
             foreach (var t in tasks)
             {
                 var task = t;
@@ -370,6 +379,11 @@ namespace MergeResto.Game.UI
         {
             int energy = _board.Energy;
             energyText.text = $"{energy}/{_board.Def.energyMax}";
+            bool low = energy < refillBelow && !AdService.Busy;
+            refillButton.gameObject.SetActive(low);
+            energyTimer.gameObject.SetActive(!low);
+            if (low)
+                refillButton.transform.localScale = Vector3.one * (1f + Mathf.Sin(Time.unscaledTime * 6f) * 0.05f);
             float next = _board.NextEnergyIn;
             energyTimer.text = energy >= _board.Def.energyMax ? "Full" : $"+1 in {Mathf.CeilToInt(next)}s";
             if (_noEnergyShake > 0f)

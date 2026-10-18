@@ -268,6 +268,15 @@ namespace MergeResto.Sim
                 State.energyTimer = 0f;
         }
 
+        /// <summary>Adds energy (rewards); it may go above the maximum, regeneration then waits.</summary>
+        public void AddEnergy(int amount)
+        {
+            if (amount <= 0)
+                return;
+            State.energy += amount;
+            Changed?.Invoke();
+        }
+
         /// <summary>Seconds until the next energy point, or 0 when full.</summary>
         public float NextEnergyIn => State.energy >= Def.energyMax ? 0f : Def.energyRegenSeconds - State.energyTimer;
 
