@@ -254,7 +254,8 @@ namespace MergeResto.Game
         void OnManager(int station) => Play(Sfx.Manager);
         void OnGoal(int goal) => Play(Sfx.Claim);
         void OnSpawn(int from, int to, BoardItem item) => Play(Sfx.Spawn);
-        void OnMerged(int cell, BoardItem item) => Play(Sfx.Merge, 1f + item.Tier * 0.06f);
+        // The board view plays merges itself (combo pitch), so nothing here.
+        void OnMerged(int cell, BoardItem item) { }
         void OnRenovated(int renovation) => Play(Sfx.Renovate);
         void OnPaid(Vector3 position, double coins) => Play(Sfx.Sale, 1f, 0.55f);
         void OnGaveUp(Vector3 position) => Play(Sfx.Grumpy, 0.9f, 0.6f);

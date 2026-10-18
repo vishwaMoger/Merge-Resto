@@ -20,6 +20,11 @@ namespace MergeResto.Game.UI
         [SerializeField] Color urgentColor = new(0.9f, 0.3f, 0.25f);
 
         ShopSim _sim;
+        MergeBoardView _board;
+        MapPanel _map;
+        ExpandPanel _expand;
+
+        public RectTransform Panel => panel;
         float _shown;
         Vector2 _home;
 
@@ -27,12 +32,19 @@ namespace MergeResto.Game.UI
         {
             _sim = GameController.Instance.Sim;
             _home = panel.anchoredPosition;
+            _board = FindAnyObjectByType<MergeBoardView>(FindObjectsInactive.Include);
+            _map = FindAnyObjectByType<MapPanel>(FindObjectsInactive.Include);
+            _expand = FindAnyObjectByType<ExpandPanel>(FindObjectsInactive.Include);
         }
+
+        // Big windows reach the top of the screen; the banner steps aside until they close.
+        bool Covered =>
+            (_board != null && _board.IsOpen) || (_map != null && _map.IsOpen) || (_expand != null && _expand.IsOpen);
 
         void Update()
         {
             var vip = _sim.State.queue.Find(c => c.vip && c.servedBy < 0);
-            _shown = Mathf.MoveTowards(_shown, vip != null ? 1f : 0f, UiTime.Delta * 4f);
+            _shown = Mathf.MoveTowards(_shown, vip != null && !Covered ? 1f : 0f, UiTime.Delta * 4f);
             panel.anchoredPosition = _home + new Vector2(0f, (1f - Mathf.SmoothStep(0f, 1f, _shown)) * 200f);
             panel.gameObject.SetActive(_shown > 0.01f);
             if (vip == null)

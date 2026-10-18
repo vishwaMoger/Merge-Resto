@@ -59,6 +59,24 @@ namespace MergeResto.Game.UI
         ShopSim _sim;
         string _here;
         bool _isOpen;
+
+        public bool IsOpen => _isOpen;
+        public RectTransform OpenButtonRect => (RectTransform)openButton.transform;
+
+        /// <summary>The action button of the first shop that can be opened right now, or null.</summary>
+        public RectTransform UnlockableActionRect
+        {
+            get
+            {
+                for (int i = 0; i < shops.Length && i < cards.Length; i++)
+                {
+                    var s = shops[i];
+                    if (!s.comingSoon && !WorldState.IsUnlocked(s.id) && RequirementsMet(s) && _sim.State.coins >= s.unlockCost)
+                        return (RectTransform)cards[i].action.transform;
+                }
+                return null;
+            }
+        }
         float _open;
         float _velocity;
 
@@ -139,7 +157,7 @@ namespace MergeResto.Game.UI
                 Refresh();
         }
 
-        bool AnythingToUnlock()
+        public bool AnythingToUnlock()
         {
             foreach (var s in shops)
                 if (!s.comingSoon && !WorldState.IsUnlocked(s.id) && RequirementsMet(s) && _sim.State.coins >= s.unlockCost)

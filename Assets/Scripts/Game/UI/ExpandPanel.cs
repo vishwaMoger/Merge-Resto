@@ -40,6 +40,10 @@ namespace MergeResto.Game.UI
 
         ShopSim _sim;
         bool _isOpen;
+
+        public bool IsOpen => _isOpen;
+        public RectTransform OpenButtonRect => (RectTransform)openButton.transform;
+        public RectTransform BuildButtonRect => (RectTransform)buildButton.transform;
         float _open;
         float _velocity;
 

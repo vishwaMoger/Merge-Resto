@@ -64,7 +64,7 @@ namespace MergeResto.Game.UI
                 ringFill.fillAmount = progress;
 
             // Tap pin: its tip rests on the machine and it hops, so it is obvious what to click.
-            bool wantsTap = visible && sim.NeedsTap(i) && !TutorialFocus.Active;
+            bool wantsTap = visible && sim.NeedsTap(i) && !TutorialFocus.Active && !GuideOverlay.Showing && !MergeBoardView.AnyOpen;
             _pinShown = Mathf.MoveTowards(_pinShown, wantsTap ? 1f : 0f, dt * 6f);
             tapPin.gameObject.SetActive(_pinShown > 0.01f);
             bool hasTip = ToLocal(station.tapAnchor != null ? station.tapAnchor.position : station.hudAnchor.position, out var tip);
