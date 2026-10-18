@@ -20,14 +20,17 @@ namespace MergeResto.EditorTools
     /// </summary>
     public static class BakerySceneBuilder
     {
-        enum ShopKind { Bakery, Cafe }
+        enum ShopKind { Bakery, Cafe, Pizzeria }
 
         static ShopKind _shop = ShopKind.Bakery;
         static bool IsCafe => _shop == ShopKind.Cafe;
-        static string ScenePath => IsCafe ? "Assets/Scenes/Cafe.unity" : "Assets/Scenes/Bakery.unity";
-        static string ConfigPath => IsCafe ? "Assets/Game/Config/CornerCafe.asset" : "Assets/Game/Config/GrandmasBakery.asset";
+        static bool IsPizza => _shop == ShopKind.Pizzeria;
+        static T Pick<T>(T bakery, T cafe, T pizza) => _shop switch { ShopKind.Cafe => cafe, ShopKind.Pizzeria => pizza, _ => bakery };
+        static string ScenePath => Pick("Assets/Scenes/Bakery.unity", "Assets/Scenes/Cafe.unity", "Assets/Scenes/Pizzeria.unity");
+        static string ConfigPath => Pick("Assets/Game/Config/GrandmasBakery.asset", "Assets/Game/Config/CornerCafe.asset", "Assets/Game/Config/NonnosPizzeria.asset");
         public const string BakeryScene = "Bakery";
         public const string CafeScene = "Cafe";
+        public const string PizzeriaScene = "Pizzeria";
         const string UiFolder = "Assets/Art/UI";
         const string BakeryArt = "Assets/Art/ThirdParty/TinyTreats_BakeryInterior/Models/";
         const string GoodsArt = "Assets/Art/ThirdParty/TinyTreats_BakedGoods/Models/";
@@ -43,17 +46,25 @@ namespace MergeResto.EditorTools
         const float ExitZ = -2.2f;
         const float CafeEntranceX = 0.6f;
         const float CafeExitX = -6.3f;
-        static float EntranceX => IsCafe ? CafeEntranceX : BakeryEntranceX;
+        // The pizzeria: production along the left wall front to back, ending in the wood-fired
+        // oven; counter at the back right; customers come in through a side door on the right and
+        // leave through the front.
+        const float PizzaEntranceZ = -3.2f;
+        const float PizzaExitX = 1.0f;
+        static float EntranceX => Pick(BakeryEntranceX, CafeEntranceX, 7.3f);
         static readonly Vector3 BakeryCounter = new(4f, 0f, 0.8f);
-        static Vector3 CounterPos => IsCafe ? new Vector3(-4.2f, 0f, 0.6f) : BakeryCounter;
+        static Vector3 CounterPos => Pick(BakeryCounter, new Vector3(-4.2f, 0f, 0.6f), new Vector3(3.2f, 0f, 3.6f));
         static Vector3 CounterShift => CounterPos - BakeryCounter;
         // Customers walk along the front sidewalk on this line.
         static float WalkLaneZ => IsCafe ? -8.85f : -8.2f;
+        // Where the window plants (a renovation) stand.
+        static Vector3 SnakePlantPos => IsPizza ? new Vector3(7.25f, 0f, 1.7f) : new Vector3(-7.3f, 0f, -0.2f);
+        static Vector3 PothosPos => IsPizza ? new Vector3(7.25f, 0f, 0.3f) : new Vector3(-7.3f, 0f, -2.9f);
 
         // Moves a built station (with its work point, anchors and props) to a new spot.
-        static StationView MoveStation(StationView view, Vector3 pos)
+        static StationView MoveStation(StationView view, Vector3 pos, float yaw = 0f)
         {
-            view.transform.position = pos;
+            view.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
             return view;
         }
         // KayKit City Builder is a miniature set; this brings it to character scale.
@@ -69,9 +80,13 @@ namespace MergeResto.EditorTools
         [MenuItem("Merge Resto/Game/Build All Shops")]
         public static void BuildAll()
         {
+            BuildShop(ShopKind.Pizzeria);
             BuildShop(ShopKind.Cafe);
             BuildShop(ShopKind.Bakery);
         }
+
+        [MenuItem("Merge Resto/Game/Build Nonno's Pizzeria Scene")]
+        public static void BuildPizzeria() => BuildShop(ShopKind.Pizzeria);
 
         static void BuildShop(ShopKind kind)
         {
@@ -86,16 +101,27 @@ namespace MergeResto.EditorTools
             var config = AssetDatabase.LoadAssetAtPath<ShopConfig>(ConfigPath);
             EnsureGoals(config);
             EnsureBoard(config);
-            var cam = LookSetup.CreateLookRig(new Vector3(0.3f, 1f, 0.6f), 7.9f);
+            EnsureRecipes(config);
+            var cam = LookSetup.CreateLookRig(IsPizza ? new Vector3(-1.3f, 1f, 1.4f) : new Vector3(0.3f, 1f, 0.6f), 7.9f);
             var cameraDirector = cam.gameObject.AddComponent<CameraDirector>();
 
             var world = new GameObject("Bakery").transform;
             BuildRoom(world);
 
             var stations = new StationView[4];
-            stations[0] = IsCafe ? MoveStation(BuildBeanStorage(world), new Vector3(5.6f, 0f, 4.45f)) : BuildFlourStorage(world);
-            stations[1] = IsCafe ? MoveStation(BuildEspresso(world), new Vector3(2.8f, 0f, 5f)) : BuildMixer(world);
-            stations[2] = IsCafe ? MoveStation(BuildLatteBar(world), new Vector3(-1.4f, 0f, 5f)) : BuildOven(world);
+            if (IsPizza)
+            {
+                // Along the left wall, facing into the room.
+                stations[0] = MoveStation(BuildDoughStation(world), new Vector3(-6.9f, 0f, -3.4f), -90f);
+                stations[1] = MoveStation(BuildToppingTable(world), new Vector3(-6.9f, 0f, 0.4f), -90f);
+                stations[2] = MoveStation(BuildWoodOven(world), new Vector3(-6.9f, 0f, 3.95f), -90f);
+            }
+            else
+            {
+                stations[0] = IsCafe ? MoveStation(BuildBeanStorage(world), new Vector3(5.6f, 0f, 4.45f)) : BuildFlourStorage(world);
+                stations[1] = IsCafe ? MoveStation(BuildEspresso(world), new Vector3(2.8f, 0f, 5f)) : BuildMixer(world);
+                stations[2] = IsCafe ? MoveStation(BuildLatteBar(world), new Vector3(-1.4f, 0f, 5f)) : BuildOven(world);
+            }
             stations[3] = MoveStation(BuildCounter(world), CounterPos);
             for (int i = 0; i < stations.Length; i++)
                 stations[i].stationIndex = i;
@@ -120,9 +146,11 @@ namespace MergeResto.EditorTools
             BuildStreet(world);
             if (IsCafe)
                 StyleCafe(world, cam);
+            if (IsPizza)
+                StylePizzeria(world, cam);
 
             // Grandma guides the Grand Opening in the bakery; her portrait is rendered from the 3D model.
-            if (!IsCafe)
+            if (_shop == ShopKind.Bakery)
             {
                 var portrait = PortraitRenderer.Render(CharacterLibrary.GrandmaLook, LookSetup.Hex("FFD9A8"));
                 var grandma = stations[3].GetComponentsInChildren<ChibiAnimator>(true).First(a => a.name == "Grandma");
@@ -158,6 +186,11 @@ namespace MergeResto.EditorTools
             if (IsCafe)
             {
                 EnsureCafeGoals(config);
+                return;
+            }
+            if (IsPizza)
+            {
+                EnsurePizzaGoals(config);
                 return;
             }
             GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
@@ -235,7 +268,16 @@ namespace MergeResto.EditorTools
                     r.needs.Add(new ItemRef(n.chain, n.tier));
                 return r;
             }
-            if (IsCafe)
+            if (IsPizza)
+            {
+                b.renovations.Add(R("pastry_stand", "Restock the dessert stand", 4000, 0.05f, (0, 4)));
+                b.renovations.Add(R("window_plants", "Bring back Nonno's plants", 6000, 0.06f, (2, 4), (2, 3)));
+                b.renovations.Add(R("dining", "Set the trattoria tables", 9000, 0.08f, (1, 4), (1, 4), (1, 3)));
+                b.renovations.Add(R("display_case", "Polish the counter", 15000, 0.08f, (1, 5), (0, 5)));
+                b.renovations.Add(R("corner", "Green up the piazza corner", 25000, 0.08f, (2, 5), (2, 4)));
+                b.renovations.Add(R("shop_sign", "Light Nonno's sign", 60000, 0.15f, (0, 6), (1, 5), (2, 5)));
+            }
+            else if (IsCafe)
             {
                 b.renovations.Add(R("pastry_stand", "Fill the cake stand", 800, 0.05f, (0, 3)));
                 b.renovations.Add(R("window_plants", "Plant the window pots", 1200, 0.06f, (2, 3), (2, 2)));
@@ -315,6 +357,8 @@ namespace MergeResto.EditorTools
                 return config;
             if (IsCafe)
                 return CreateCafeConfig();
+            if (IsPizza)
+                return CreatePizzaConfig();
 
             LookSetup.EnsureFolder("Assets/Game/Config");
             config = ScriptableObject.CreateInstance<ShopConfig>();
@@ -341,6 +385,73 @@ namespace MergeResto.EditorTools
             for (int i = 0; i < 3; i++)
                 shop.couriers.Add(new CourierDefinition { carry = 6, walkSeconds = 1.5f });
 
+            AssetDatabase.CreateAsset(config, ConfigPath);
+            return config;
+        }
+
+        // What each counter sells, unlocked by its output upgrades.
+        static void EnsureRecipes(ShopConfig config)
+        {
+            config.shop.recipes = Pick(
+                new List<string> { "Country Bread", "Croissants", "Cinnamon Rolls", "Fruit Tarts", "Celebration Cakes" },
+                new List<string> { "Espresso", "Cappuccino", "Caffè Latte", "Mocha", "Caramel Macchiato" },
+                new List<string> { "Margherita", "Pepperoni", "Funghi", "Quattro Formaggi", "Calzone", "Nonno's Special" });
+            config.shop.levelsPerRecipe = 2;
+            EditorUtility.SetDirty(config);
+        }
+
+        static void EnsurePizzaGoals(ShopConfig config)
+        {
+            var goals = config.shop.goals;
+            GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
+                new() { kind = kind, target = target, station = station, rewardCoins = coins, rewardGems = gems };
+            goals.Add(G(GoalKind.ServeCustomers, 10, coins: 3000));
+            goals.Add(G(GoalKind.StationLevel, 2, station: 2, gems: 20));
+            goals.Add(G(GoalKind.StationLevel, 2, station: 3, gems: 20));
+            goals.Add(G(GoalKind.HireManager, 1, station: 0, coins: 5000));
+            goals.Add(G(GoalKind.Renovations, 1, gems: 25));
+            goals.Add(G(GoalKind.HireManager, 1, station: 1, coins: 9000));
+            goals.Add(G(GoalKind.StationLevel, 4, station: 3, gems: 30));
+            goals.Add(G(GoalKind.AddMachines, 1, station: 2, gems: 40));
+            goals.Add(G(GoalKind.Renovations, 3, gems: 50));
+            goals.Add(G(GoalKind.LifetimeCoins, 200000, gems: 60));
+            goals.Add(G(GoalKind.HireManager, 1, station: 2, coins: 30000));
+            goals.Add(G(GoalKind.ServeCustomers, 300, coins: 60000));
+            goals.Add(G(GoalKind.Renovations, 6, gems: 100));
+            goals.Add(G(GoalKind.ShopLevel, 50, gems: 150));
+            EditorUtility.SetDirty(config);
+        }
+
+        // The third shop: pizza from Nonno's old wood-fired oven. Pricier than the café again.
+        static ShopConfig CreatePizzaConfig()
+        {
+            LookSetup.EnsureFolder("Assets/Game/Config");
+            var config = ScriptableObject.CreateInstance<ShopConfig>();
+            var shop = config.shop;
+            shop.id = "nonnos_pizzeria";
+            shop.displayName = "Nonno's Pizzeria";
+            shop.hasTutorial = false;
+            shop.customerIntervalSeconds = 4.2f;
+            shop.itemsPerOrder = 2;
+            shop.pricePerItem = 180;
+            shop.patienceSeconds = 24f;
+            shop.startCoins = 3000;
+            shop.startGems = 30;
+            shop.stations.Add(Station("dough", "Dough Station", StationKind.Source, 2.5f, 6, 30,
+                "Quick Kneading", "Bigger Batches", "Extra Bench"));
+            shop.stations.Add(Station("toppings", "Topping Table", StationKind.Processor, 3f, 6, 45,
+                "Swift Hands", "Extra Cheese", "Add Table"));
+            shop.stations.Add(Station("oven", "Wood-fired Oven", StationKind.Processor, 4f, 6, 60,
+                "Hotter Fire", "Bigger Peel", "Add Oven"));
+            var counter = Station("counter", "Pizza Counter", StationKind.Seller, 1.2f, 0, 0,
+                "Friendly Service", "New Recipes", "Add Cashier");
+            counter.startsAutomated = true;
+            shop.stations.Add(counter);
+            foreach (var st in shop.stations)
+                foreach (var up in st.upgrades)
+                    up.baseCost *= 12;
+            for (int i = 0; i < 3; i++)
+                shop.couriers.Add(new CourierDefinition { carry = 6, walkSeconds = 1.5f });
             AssetDatabase.CreateAsset(config, ConfigPath);
             return config;
         }
@@ -434,7 +545,7 @@ namespace MergeResto.EditorTools
             var room = Group("Room", world);
             for (int x = -7; x <= 7; x += 2)
             for (int z = -5; z <= 5; z += 2)
-                Place(z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
+                Place(IsPizza ? "floor_tiled" : z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
 
             // Back wall along z = 6 (kitchen side), windows behind the counter.
             for (int x = -7; x <= 7; x += 2)
@@ -474,8 +585,8 @@ namespace MergeResto.EditorTools
             }
             // Wall meshes are single-sided, so the front and right walls face outwards: the
             // camera looks at their outside. They sit just outside the floor edge.
-            float[] frontGaps = IsCafe ? new[] { CafeExitX, CafeEntranceX } : new[] { BakeryEntranceX };
-            float[] sideGaps = IsCafe ? new float[0] : new[] { ExitZ };
+            float[] frontGaps = Pick(new[] { BakeryEntranceX }, new[] { CafeExitX, CafeEntranceX }, new[] { PizzaExitX });
+            float[] sideGaps = Pick(new[] { ExitZ }, new float[0], new[] { PizzaEntranceZ });
             float edge = -8f;
             foreach (float g in frontGaps)
             {
@@ -668,10 +779,14 @@ namespace MergeResto.EditorTools
             Place("cash_register", t, new Vector3(0.75f, 1f, 0.1f), 180f, local: true);
             Place("pricing_card", t, new Vector3(-1.6f, 1.55f, -0.4f), 0f, local: true);
 
-            var shelfA = IsCafe
+            var shelfA = IsPizza
+                ? PizzaRow(t, new Vector3(-1.65f, 0.55f, -0.1f), new Vector3(0.36f, 0f, 0f), 4, box: true)
+                : IsCafe
                 ? Row("coffee_cup_takeaway", t, new Vector3(-1.65f, 0.55f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f)
                 : Row("bread", GoodsArt, t, new Vector3(-1.65f, 0.55f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 90f);
-            var shelfB = IsCafe
+            var shelfB = IsPizza
+                ? PizzaRow(t, new Vector3(-1.65f, 0.95f, -0.1f), new Vector3(0.36f, 0f, 0f), 4, box: false)
+                : IsCafe
                 ? Row("muffin", GoodsArt, t, new Vector3(-1.65f, 0.95f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f)
                 : Row("croissant", GoodsArt, t, new Vector3(-1.65f, 0.95f, -0.1f), new Vector3(0.33f, 0f, 0f), 4, 0f);
             view.stockVisuals = shelfA.Concat(shelfB).ToArray();
@@ -682,7 +797,7 @@ namespace MergeResto.EditorTools
             for (int m = 0; m < 3; m++)
             {
                 // Grandma herself runs the first till.
-                bool grandma = m == 0 && !IsCafe;
+                bool grandma = m == 0 && _shop == ShopKind.Bakery;
                 var c = Character(grandma ? CharacterLibrary.GrandmaLook : CharacterLibrary.CashierLook, t, grandma ? "Grandma" : $"Cashier{m}");
                 c.transform.localPosition = new Vector3(xs[m], 0f, 1.25f);
                 c.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
@@ -697,20 +812,31 @@ namespace MergeResto.EditorTools
         static void BuildCouriers(Transform world, StationView[] stations)
         {
             var staff = Group("Staff", world);
-            string[] carryModels = IsCafe
+            string[] carryModels = IsPizza
+                ? new[] { "dough_ball", "dough_ball", "dough_ball" }
+                : IsCafe
                 ? new[] { "flour_sack_closed", "mug_A_blue", "coffee_cup_takeaway" }
                 : new[] { "flour_sack_closed", "dough_ball", "bread" };
-            string[] carryFolders = IsCafe ? new[] { BakeryArt, BakeryArt, BakeryArt } : new[] { BakeryArt, BakeryArt, GoodsArt };
+            string[] carryFolders = IsCafe || IsPizza ? new[] { BakeryArt, BakeryArt, BakeryArt } : new[] { BakeryArt, BakeryArt, GoodsArt };
             Vector3[] offsets = { new(0f, 0f, -0.35f), new(0f, 0f, 0.35f), new(0f, 0f, -0.35f) };
             for (int i = 0; i < 3; i++)
             {
-                var baker = Character(IsCafe ? CharacterLibrary.BaristaLook : CharacterLibrary.BakerLook, staff, $"Baker{i}");
+                var baker = Character(IsCafe ? CharacterLibrary.BaristaLook : CharacterLibrary.BakerLook, staff, IsPizza ? $"Pizzaiolo{i}" : $"Baker{i}");
                 var anim = baker.GetComponent<ChibiAnimator>();
 
                 var carry = Place(carryModels[i], carryFolders[i], anim.carryAnchor, Vector3.zero, 0f, local: true);
                 carry.transform.localRotation = Quaternion.identity;
                 carry.transform.localScale = Vector3.one * (i == 0 ? 1.1f : 1.5f);
                 carry.name = "Carry";
+                if (IsPizza && i > 0)
+                {
+                    // Raw pizzas to the oven, boxed pizzas to the counter.
+                    Object.DestroyImmediate(carry);
+                    carry = Pizza(anim.carryAnchor, Vector3.zero, raw: i == 1, box: i == 2);
+                    carry.transform.localScale = Vector3.one * 1.3f;
+                    carry.name = "Carry";
+                    carry.SetActive(false);
+                }
                 if (IsCafe && i == 0)
                     Tint(carry, CoffeeBrown, "Coffee");
                 carry.SetActive(false);
@@ -730,7 +856,17 @@ namespace MergeResto.EditorTools
             var root = Group("Customers", world);
             var crowd = root.gameObject.AddComponent<CustomerCrowd>();
             // In from the street along the front sidewalk, through the entrance.
-            crowd.entryPath = new[]
+            crowd.entryPath = IsPizza
+                ? new[]
+                {
+                    // Along the front sidewalk, round the corner and in through the side door.
+                    Marker("Entry_Street", root, new Vector3(22f, 0f, WalkLaneZ)),
+                    Marker("Entry_Corner", root, new Vector3(9.8f, 0f, WalkLaneZ)),
+                    Marker("Entry_Outside", root, new Vector3(9.8f, 0f, PizzaEntranceZ)),
+                    Marker("Entry_Door", root, new Vector3(8.25f, 0f, PizzaEntranceZ)),
+                    Marker("Entry_Inside", root, new Vector3(6.9f, 0f, PizzaEntranceZ)),
+                }
+                : new[]
             {
                 Marker("Entry_Street", root, new Vector3(22f, 0f, WalkLaneZ)),
                 Marker("Entry_Outside", root, new Vector3(EntranceX, 0f, WalkLaneZ)),
@@ -738,7 +874,17 @@ namespace MergeResto.EditorTools
                 Marker("Entry_Inside", root, new Vector3(EntranceX, 0f, -5.0f)),
             };
             // Out through the side exit and away down the right-hand sidewalk.
-            crowd.exitPath = IsCafe
+            crowd.exitPath = IsPizza
+                ? new[]
+                {
+                    // Out through the front door and away to the left.
+                    Marker("Exit_Inside", root, new Vector3(2.4f, 0f, 1.0f)),
+                    Marker("Exit_Near", root, new Vector3(PizzaExitX, 0f, -4.8f)),
+                    Marker("Exit_Door", root, new Vector3(PizzaExitX, 0f, -6.25f)),
+                    Marker("Exit_Outside", root, new Vector3(PizzaExitX, 0f, WalkLaneZ)),
+                    Marker("Exit_Street", root, new Vector3(-24f, 0f, WalkLaneZ)),
+                }
+                : IsCafe
                 ? new[]
                 {
                     // Out through the left front door and away along the sidewalk.
@@ -760,11 +906,12 @@ namespace MergeResto.EditorTools
             var slots = new List<Transform>();
             // In front of the register, then along the front towards the entrance.
             float lineX = CounterPos.x + 0.75f;
-            float turn = IsCafe ? 1.25f : -1.25f;
+            float turn = IsCafe || IsPizza ? 1.25f : -1.25f;
+            float z0 = CounterPos.z - 1.4f;
             Vector3[] slotPositions =
             {
-                new(lineX, 0f, -0.6f), new(lineX, 0f, -1.9f), new(lineX, 0f, -3.2f),
-                new(lineX, 0f, -4.5f), new(lineX + turn, 0f, -4.5f), new(lineX + 2f * turn, 0f, -4.5f),
+                new(lineX, 0f, z0), new(lineX, 0f, z0 - 1.3f), new(lineX, 0f, z0 - 2.6f),
+                new(lineX, 0f, z0 - 3.9f), new(lineX + turn, 0f, z0 - 3.9f), new(lineX + 2f * turn, 0f, z0 - 3.9f),
             };
             for (int i = 0; i < slotPositions.Length; i++)
             {
@@ -800,19 +947,19 @@ namespace MergeResto.EditorTools
                 ApplySway(p);
             }
             // The café's reading corner is at the back left; the bakery's at the front left.
-            Plant("monstera_plant_large_potted", IsCafe ? new Vector3(-7.2f, 0f, 4.9f) : new Vector3(-7.2f, 0f, -5.2f), 30f);
+            Plant("monstera_plant_large_potted", Pick(new Vector3(-7.2f, 0f, -5.2f), new Vector3(-7.2f, 0f, 4.9f), new Vector3(-0.9f, 0f, -5.25f)), 30f);
             Plant("yucca_plant_large_potted", IsCafe ? new Vector3(7.3f, 0f, -1.4f) : new Vector3(7.3f, 0f, 4.9f), -20f);
-            Plant("sansevieria_plant_medium_potted", new Vector3(-7.3f, 0f, -0.2f), 10f);
+            Plant("sansevieria_plant_medium_potted", SnakePlantPos, 10f);
             Plant("pothos_plant_small_potted", new Vector3(-7.55f, 2.45f, 1.0f), 90f);
             Plant("succulent_plant_pot_small", new Vector3(-7.55f, 2.45f, 3.0f), 0f);
             Plant("zzplant_plant_medium_potted", IsCafe ? new Vector3(7.3f, 0f, 2.3f) : new Vector3(7.4f, 0f, -5.4f), -40f);
-            if (!IsCafe) // the café's latte bar runs along this wall
+            if (_shop == ShopKind.Bakery) // the café's latte bar runs along this wall
                 Plant("monstera_plant_medium_potted", new Vector3(2.2f, 0f, 5.3f), 0f);
 
             // Mats at the entrance and the exit.
-            var inMat = Place("rug", decor, new Vector3(EntranceX, 0.01f, -5.3f), 0f);
+            var inMat = IsPizza ? Place("rug", decor, new Vector3(7.25f, 0.01f, PizzaEntranceZ), 90f) : Place("rug", decor, new Vector3(EntranceX, 0.01f, -5.3f), 0f);
             inMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
-            var outMat = IsCafe ? Place("rug", decor, new Vector3(CafeExitX, 0.01f, -5.3f), 0f) : Place("rug", decor, new Vector3(7.3f, 0.01f, ExitZ), 90f);
+            var outMat = IsPizza ? Place("rug", decor, new Vector3(PizzaExitX, 0.01f, -5.3f), 0f) : IsCafe ? Place("rug", decor, new Vector3(CafeExitX, 0.01f, -5.3f), 0f) : Place("rug", decor, new Vector3(7.3f, 0.01f, ExitZ), 90f);
             outMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
         }
 
@@ -838,8 +985,11 @@ namespace MergeResto.EditorTools
             Place("curtains", dress, new Vector3(-7.69f, 3.55f, -1f), 90f);
 
             // Hanging vines under the shelves.
-            var vine = Place("pothos_vine_medium_A", PlantArt, dress, new Vector3(-7.55f, 2.0f, 1.4f), 90f);
-            ApplySway(vine);
+            if (!IsPizza) // the pizzeria's topping table sits under this shelf
+            {
+                var vine = Place("pothos_vine_medium_A", PlantArt, dress, new Vector3(-7.55f, 2.0f, 1.4f), 90f);
+                ApplySway(vine);
+            }
             var vine2 = Place("pothos_vine_medium_A", PlantArt, dress, new Vector3(-2.2f, 2.25f, 5.45f), 180f);
             ApplySway(vine2);
 
@@ -849,16 +999,226 @@ namespace MergeResto.EditorTools
             Place("cookie_jar", dress, new Vector3(3.95f, 1.0f, 1.15f) + CounterShift);
 
             // Chalkboard menu by the door.
-            var menu = Place("menu", RestaurantArt, dress, new Vector3(EntranceX - 1.3f, 0f, -5.25f), 200f);
+            var menu = IsPizza
+                ? Place("menu", RestaurantArt, dress, new Vector3(6.9f, 0f, -4.7f), 250f)
+                : Place("menu", RestaurantArt, dress, new Vector3(EntranceX - 1.3f, 0f, -5.25f), 200f);
             menu.transform.localScale *= 1.6f;
 
             // Warm light pools over the counter and the dining tables. The room has no ceiling,
             // so these are bare lights rather than hanging lamps floating in the air.
-            var lights = IsCafe
+            var lights = IsPizza
+                ? new[] { CounterPos + new Vector3(0.6f, 0f, 0.6f), new Vector3(-2.5f, 0f, -1.4f), new Vector3(-2.4f, 0f, -4.4f) }
+                : IsCafe
                 ? new[] { CounterPos + new Vector3(0.2f, 0f, 0.6f), new Vector3(4.3f, 0f, -1.6f), new Vector3(3.2f, 0f, -3.8f) }
                 : new[] { new Vector3(4.2f, 0f, 1.4f), new Vector3(-4.2f, 0f, -2.6f), new Vector3(-1.6f, 0f, -3.6f) };
             foreach (var p in lights)
                 WarmLight(dress, p);
+        }
+
+        // ------------------------------------------------------------------ Pizzeria
+
+        static Material PizzaMat(string name, string hex, float rim = 0.15f) => LookSetup.Mat(name, LookSetup.Hex(hex), rim: rim);
+
+        // A pizza made of simple shapes: crust, sauce, cheese and pepperoni (raw: pale, no
+        // pepperoni). As a box it is a takeaway carton with a red label.
+        static GameObject Pizza(Transform parent, Vector3 localPos, bool raw = false, bool box = false)
+        {
+            var root = new GameObject(box ? "PizzaBox" : raw ? "RawPizza" : "Pizza");
+            root.transform.SetParent(parent, false);
+            root.transform.localPosition = localPos;
+            var t = root.transform;
+            if (box)
+            {
+                LookSetup.Box("Carton", t, new Vector3(0f, 0.05f, 0f), new Vector3(0.46f, 0.1f, 0.46f), PizzaMat("PizzaBox", "D9AE78"));
+                LookSetup.Box("Label", t, new Vector3(0f, 0.101f, 0f), new Vector3(0.2f, 0.005f, 0.2f), PizzaMat("PizzaLabel", "D9452B"));
+                return root;
+            }
+            LookSetup.Cylinder("Crust", t, new Vector3(0f, 0.03f, 0f), new Vector3(0.44f, 0.03f, 0.44f), PizzaMat(raw ? "CrustRaw" : "Crust", raw ? "F3E2BF" : "E3A75A"));
+            LookSetup.Cylinder("Sauce", t, new Vector3(0f, 0.04f, 0f), new Vector3(0.37f, 0.03f, 0.37f), PizzaMat("Sauce", "D8452B"));
+            LookSetup.Cylinder("Cheese", t, new Vector3(0f, 0.05f, 0f), new Vector3(0.31f, 0.03f, 0.31f), PizzaMat(raw ? "CheeseRaw" : "Cheese", raw ? "FFF6DA" : "FFD46B"));
+            if (!raw)
+                for (int i = 0; i < 5; i++)
+                {
+                    float a = i * Mathf.PI * 2f / 5f + 0.4f;
+                    var p = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (i == 4 ? 0f : 0.09f);
+                    if (i == 4) p = Vector3.zero;
+                    LookSetup.Cylinder("Pepperoni", t, p + new Vector3(0f, 0.062f, 0f), new Vector3(0.07f, 0.012f, 0.07f), PizzaMat("Pepperoni", "A8322A"));
+                }
+            return root;
+        }
+
+        static GameObject[] PizzaRow(Transform parent, Vector3 start, Vector3 step, int count, bool box = false, bool raw = false)
+        {
+            var items = new GameObject[count];
+            for (int i = 0; i < count; i++)
+                items[i] = Pizza(parent, start + step * i, raw, box);
+            return items;
+        }
+
+        // A plain wooden work bench (the pizzeria builds its own, longer than the bakery's).
+        static void Bench(Transform parent, Vector3 localPos, float length)
+        {
+            LookSetup.Box("Bench", parent, localPos + new Vector3(0f, 0.45f, 0f), new Vector3(length, 0.9f, 0.9f), PizzaMat("BenchWood", "B07A52"));
+            LookSetup.Box("BenchTop", parent, localPos + new Vector3(0f, 0.92f, 0f), new Vector3(length + 0.08f, 0.06f, 0.98f), PizzaMat("BenchTop", "EADBC4"));
+        }
+
+        static StationView BuildDoughStation(Transform world)
+        {
+            var view = NewStation(world, "DoughStation", Vector3.zero, new Vector3(0f, 0f, -1.7f), 2.4f);
+            var t = view.transform;
+            Bench(t, Vector3.zero, 3.6f);
+            var slots = new List<GameObject>();
+            for (int m = 0; m < 3; m++)
+            {
+                // One kneading spot: flour sack, a rolled-out dough and a rolling pin.
+                var group = Group($"DoughSpot{m}", t);
+                group.localPosition = new Vector3(-1.2f + m * 1.2f, 0.95f, 0.1f);
+                Place("dough_rolled_A", group, Vector3.zero, 0f, local: true);
+                Place("dough_roller", group, new Vector3(0.05f, 0.08f, 0f), 30f, local: true);
+                slots.Add(group.gameObject);
+            }
+            Place("flour_sack_open", t, new Vector3(-1.6f, 0f, 0.75f), 20f, local: true);
+            view.machineVisuals = slots.ToArray();
+            view.stockVisuals = Row("dough_ball", t, new Vector3(-1.4f, 0.95f, -0.32f), new Vector3(0.55f, 0f, 0f), 6, 0f);
+            AddClickCollider(view);
+            return view;
+        }
+
+        static StationView BuildToppingTable(Transform world)
+        {
+            var view = NewStation(world, "ToppingTable", Vector3.zero, new Vector3(0f, 0f, -1.7f), 2.4f);
+            var t = view.transform;
+            Bench(t, Vector3.zero, 3.6f);
+            var slots = new List<GameObject>();
+            for (int m = 0; m < 3; m++)
+            {
+                // One topping spot: a pizza being dressed, tomato and cheese beside it.
+                var group = Group($"ToppingSpot{m}", t);
+                group.localPosition = new Vector3(-1.2f + m * 1.2f, 0.95f, 0.15f);
+                Place("cuttingboard", RestaurantArt, group, Vector3.zero, 0f, local: true);
+                Pizza(group, new Vector3(0f, 0.04f, 0f), raw: true);
+                Place("food_ingredient_tomato", RestaurantArt, group, new Vector3(0.38f, 0f, 0.22f), 0f, local: true);
+                Place("food_ingredient_cheese", RestaurantArt, group, new Vector3(-0.38f, 0f, 0.25f), 40f, local: true);
+                slots.Add(group.gameObject);
+            }
+            Place("crate_tomatoes", RestaurantArt, t, new Vector3(1.7f, 0f, 0.8f), 0f, local: true);
+            view.machineVisuals = slots.ToArray();
+            view.stockVisuals = PizzaRow(t, new Vector3(-1.35f, 0.95f, -0.32f), new Vector3(0.54f, 0f, 0f), 6, raw: true);
+            AddClickCollider(view);
+            return view;
+        }
+
+        // Nonno's oven: brick domes with a glowing mouth and smoke from the chimney.
+        static StationView BuildWoodOven(Transform world)
+        {
+            var view = NewStation(world, "WoodOven", Vector3.zero, new Vector3(0f, 0f, -1.75f), 2.6f);
+            var t = view.transform;
+            var brick = PizzaMat("OvenBrick", "8E3B2B");
+            var dome = PizzaMat("OvenDome", "B9553A", rim: 0.3f);
+            var trim = PizzaMat("OvenTrim", "E9D5B8");
+            // Embers glow faintly in the mouth even when the oven is idle.
+            var mouth = LookSetup.Mat("OvenMouth", LookSetup.Hex("2E1A14"), emission: new Color(0.35f, 0.1f, 0.02f), rim: 0f);
+            var fireMat = LookSetup.Mat("OvenFire", LookSetup.Hex("FFB347"), emission: new Color(3.5f, 1.6f, 0.4f), rim: 0f);
+            var slots = new List<GameObject>();
+            var fires = new List<GameObject>();
+            for (int m = 0; m < 3; m++)
+            {
+                var oven = Group($"Oven{m}", t);
+                oven.localPosition = new Vector3(-1.25f + m * 1.25f, 0f, 0.15f);
+                LookSetup.Box("Base", oven, new Vector3(0f, 0.42f, 0f), new Vector3(1.2f, 0.84f, 1.2f), brick);
+                LookSetup.Box("Ledge", oven, new Vector3(0f, 0.86f, -0.08f), new Vector3(1.28f, 0.06f, 1.36f), trim);
+                LookSetup.Sphere("Dome", oven, new Vector3(0f, 0.92f, 0.05f), new Vector3(1.18f, 1.25f, 1.18f), dome);
+                LookSetup.Box("Arch", oven, new Vector3(0f, 1.12f, -0.52f), new Vector3(0.62f, 0.48f, 0.12f), trim);
+                LookSetup.Box("Mouth", oven, new Vector3(0f, 1.1f, -0.56f), new Vector3(0.44f, 0.34f, 0.08f), mouth);
+                LookSetup.Cylinder("Chimney", oven, new Vector3(0.25f, 1.75f, 0.3f), new Vector3(0.22f, 0.32f, 0.22f), brick);
+                var fire = LookSetup.Sphere("Fire", oven, new Vector3(0f, 1.06f, -0.58f), new Vector3(0.34f, 0.22f, 0.1f), fireMat);
+                fire.SetActive(false);
+                fires.Add(fire);
+                slots.Add(oven.gameObject);
+            }
+            // Firewood stacked beside the ovens.
+            var wood = PizzaMat("Firewood", "8A5A36");
+            for (int i = 0; i < 6; i++)
+            {
+                var log = LookSetup.Cylinder("Log", t, new Vector3(2.1f + (i % 3) * 0.0f, 0.1f + (i / 3) * 0.2f, -0.35f + (i % 3) * 0.22f), new Vector3(0.18f, 0.32f, 0.18f), wood);
+                log.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            }
+            // A bench in front holds the finished pizzas.
+            LookSetup.Box("PeelBench", t, new Vector3(0f, 0.4f, -0.85f), new Vector3(3.4f, 0.8f, 0.42f), PizzaMat("BenchWood", "B07A52"));
+            view.machineVisuals = slots.ToArray();
+            view.stockVisuals = PizzaRow(t, new Vector3(-1.2f, 0.8f, -0.85f), new Vector3(0.6f, 0f, 0f), 5);
+
+            var glow = new GameObject("OvenGlow");
+            glow.transform.SetParent(t, false);
+            glow.transform.localPosition = new Vector3(-1.25f, 1.1f, -0.9f);
+            var light = glow.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.55f, 0.2f);
+            light.range = 3.5f;
+            light.intensity = 2.4f;
+            light.shadows = LightShadows.None;
+            glow.SetActive(false);
+            var smoke = SteamEmitter(t, new Vector3(-1.05f, 1.95f, 0.4f));
+            view.runningEffects = fires.Append(glow).Append(smoke).ToArray();
+            AddClickCollider(view);
+            return view;
+        }
+
+        // Trattoria tables in the middle of the room: checked cloth, a pizza and drinks.
+        static void BuildPizzaDining(Transform world)
+        {
+            var dining = Group("Dining", world);
+            void Table(Vector3 p, float yaw)
+            {
+                Place("table_round_A", dining, p, yaw);
+                Place("chair", dining, p + Quaternion.Euler(0f, yaw, 0f) * new Vector3(-1.1f, 0f, 0f), yaw + 90f);
+                Place("chair", dining, p + Quaternion.Euler(0f, yaw, 0f) * new Vector3(1.1f, 0f, 0f), yaw - 90f);
+                Place("plate", dining, p + new Vector3(0.05f, 1f, -0.05f));
+                var pizza = Pizza(dining, Vector3.zero);
+                pizza.transform.position = p + new Vector3(0.05f, 1.02f, -0.05f);
+                pizza.transform.localScale = Vector3.one * 1.1f;
+                Place("mug_A_yellow", dining, p + new Vector3(-0.35f, 1f, 0.2f), yaw);
+            }
+            Table(new Vector3(-2.5f, 0f, -1.4f), 0f);
+            Table(new Vector3(-2.6f, 0f, -4.4f), 0f);
+            Table(new Vector3(-1.8f, 0f, 1.9f), 0f);
+        }
+
+        static readonly Color PizzaWall = new(1f, 0.86f, 0.74f);   // warm terracotta plaster
+        static readonly Color PizzaFloor = new(1f, 0.7f, 0.58f);   // red clay tiles
+
+        // Repaints the shared room as an Italian pizzeria: warm plaster, clay tiles, red
+        // curtains, garlic and oil on the shelves, and golden sunset light.
+        static void StylePizzeria(Transform world, Camera cam)
+        {
+            var room = world.Find("Room");
+            foreach (Transform child in room)
+            {
+                if (child.name.StartsWith("wall_"))
+                    Tint(child.gameObject, PizzaWall, "Pizza");
+                else if (child.name.StartsWith("floor_"))
+                    Tint(child.gameObject, PizzaFloor, "Pizza");
+                else if (child.name == "LowWalls")
+                    foreach (Transform w in child)
+                        if (w.name.StartsWith("wall_"))
+                            Tint(w.gameObject, PizzaWall, "Pizza");
+            }
+            var dress = world.Find("Dressing");
+            foreach (Transform child in dress)
+                if (child.name.StartsWith("curtains"))
+                    Tint(child.gameObject, new Color(1f, 0.55f, 0.5f), "Red");
+            // Italian kitchen jars on the back shelf.
+            Place("jar_A_medium", RestaurantArt, dress, new Vector3(-2.4f, 2.78f, 5.3f));
+            Place("ketchup", RestaurantArt, dress, new Vector3(-3.95f, 2.78f, 5.3f));
+
+            var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
+            if (sun != null)
+            {
+                sun.color = new Color(1f, 0.74f, 0.52f);
+                sun.intensity = 0.95f;
+                sun.transform.rotation = Quaternion.Euler(28f, -18f, 0f);
+            }
+            cam.backgroundColor = new Color(0.99f, 0.82f, 0.68f);
         }
 
         // ------------------------------------------------------------------ Café look
@@ -969,9 +1329,16 @@ namespace MergeResto.EditorTools
                 },
                 new MapPanel.Shop
                 {
-                    id = "nonnos_pizzeria", displayName = "Nonno's Pizzeria", comingSoon = true,
+                    id = "nonnos_pizzeria", displayName = "Nonno's Pizzeria", sceneName = PizzeriaScene,
                     blurb = "Wood-fired pizza from Grandma's old friend.",
                     picture = Picture("building_E", "map_pizzeria", 210f),
+                    requiresShop = "corner_cafe", renovationsNeeded = 3, shopLevelNeeded = 15, unlockCost = 25000,
+                },
+                new MapPanel.Shop
+                {
+                    id = "patisserie", displayName = "Patisserie", comingSoon = true,
+                    blurb = "Cakes, macarons and special orders.",
+                    picture = Picture("building_F", "map_patisserie", 210f),
                 },
                 new MapPanel.Shop
                 {
@@ -1029,9 +1396,9 @@ namespace MergeResto.EditorTools
             {
                 var spot = Spot(1, "WindowPlants", new Vector3(-7.3f, 0f, -1.6f));
                 var snake = Find("Bakery/Decor/sansevieria_plant_medium_potted");
-                var pothos = Prop("pothos_plant_medium_potted", PlantArt, spot.transform, new Vector3(-7.3f, 0f, -2.9f), 40f, sway: true);
-                var potA = Prop("pot_B_medium", PlantArt, spot.transform, new Vector3(-7.3f, 0f, -0.2f));
-                var potB = Prop("pot_B_medium", PlantArt, spot.transform, new Vector3(-7.3f, 0f, -2.9f), 30f);
+                var pothos = Prop("pothos_plant_medium_potted", PlantArt, spot.transform, PothosPos, 40f, sway: true);
+                var potA = Prop("pot_B_medium", PlantArt, spot.transform, SnakePlantPos);
+                var potB = Prop("pot_B_medium", PlantArt, spot.transform, PothosPos, 30f);
                 spot.broken = new[] { potA, potB };
                 spot.fixedObjects = new[] { snake, pothos }.Where(g => g != null).ToArray();
                 spot.worn = RenderersOf(potA, potB);
@@ -1127,9 +1494,12 @@ namespace MergeResto.EditorTools
         {
             var spotRenderers = new HashSet<Renderer>(world.GetComponentsInChildren<RenovationSpot>(true).SelectMany(s => s.worn));
             var renderers = new List<Renderer>();
-            foreach (string group in new[] { "Room", "Dressing", "Decor", "FlourStorage", "Mixer", "Oven", "Counter" })
+            var groups = new List<Transform>();
+            foreach (string group in new[] { "Room", "Dressing", "Decor" })
+                groups.Add(world.Find(group));
+            groups.AddRange(world.GetComponentsInChildren<StationView>(true).Select(v => v.transform));
+            foreach (var t in groups)
             {
-                var t = world.Find(group);
                 if (t == null)
                     continue;
                 foreach (var r in t.GetComponentsInChildren<Renderer>(true))
@@ -1169,7 +1539,8 @@ namespace MergeResto.EditorTools
 
             // The café sits on a paved little square; the bakery on a grassy street.
             var grass = LookSetup.Box("Grass", street, new Vector3(0f, -0.12f, 4f), new Vector3(90f, 0.2f, 70f),
-                IsCafe ? LookSetup.Mat("Plaza", LookSetup.Hex("D9C7AE"), rim: 0f) : LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f));
+                Pick(LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f), LookSetup.Mat("Plaza", LookSetup.Hex("D9C7AE"), rim: 0f),
+                    LookSetup.Mat("Piazza", LookSetup.Hex("E2BE98"), rim: 0f)));
             grass.name = "Grass";
 
             GameObject City(string model, Vector3 pos, float yaw = 0f, float scale = CityScale)
@@ -1224,7 +1595,12 @@ namespace MergeResto.EditorTools
                         LookSetup.Mat($"Petal{i % petals.Length}", LookSetup.Hex(petals[i % petals.Length]), rim: 0.3f, sway: true));
                 }
             }
-            if (IsCafe)
+            if (IsPizza)
+            {
+                FlowerBed(new Vector3(-4.0f, 0f, -6.75f), 7.0f, true);
+                FlowerBed(new Vector3(5.0f, 0f, -6.75f), 5.6f, true);
+            }
+            else if (IsCafe)
             {
                 FlowerBed(new Vector3(-2.85f, 0f, -6.75f), 4.4f, true);
                 FlowerBed(new Vector3(4.6f, 0f, -6.75f), 5.6f, true);
@@ -1269,15 +1645,15 @@ namespace MergeResto.EditorTools
             loop2.startOffset = 0.45f;
 
             // Hedges and flowers right outside the low walls.
-            foreach (float x in IsCafe ? new[] { -8.4f, -4.4f, 7.6f } : new[] { -8.4f, -0.7f, 4.4f })
+            foreach (float x in Pick(new[] { -8.4f, -0.7f, 4.4f }, new[] { -8.4f, -4.4f, 7.6f }, new[] { -8.4f, 8.4f }))
                 Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x * 3) % 7] + "_Color1", new Vector3(x, 0f, -6.75f), x * 40f, 1.0f);
             foreach (float z in new[] { -0.4f, 5.6f })
                 Nature("Bush_2_" + "ABCDEF"[(int)Mathf.Abs(z * 3) % 6] + "_Color1", new Vector3(8.75f, 0f, z), z * 50f, 0.9f);
 
             // Behind the shop: houses peeking over the walls, trees and greenery.
             // A different block of neighbours for each shop.
-            string[] back = IsCafe ? new[] { "building_F", "building_H", "building_B" } : new[] { "building_C", "building_A", "building_E" };
-            string[] side = IsCafe ? new[] { "building_G", "building_E" } : new[] { "building_B", "building_D" };
+            string[] back = Pick(new[] { "building_C", "building_A", "building_E" }, new[] { "building_F", "building_H", "building_B" }, new[] { "building_D", "building_G", "building_C" });
+            string[] side = Pick(new[] { "building_B", "building_D" }, new[] { "building_G", "building_E" }, new[] { "building_H", "building_A" });
             City(back[0], new Vector3(-4f, 0f, 12.5f), 180f);
             City(back[1], new Vector3(4.5f, 0f, 12.5f), 180f);
             City(back[2], new Vector3(13f, 0f, 12.5f), 180f);
@@ -1470,6 +1846,11 @@ namespace MergeResto.EditorTools
             if (IsCafe)
             {
                 BuildCafeDining(world);
+                return;
+            }
+            if (IsPizza)
+            {
+                BuildPizzaDining(world);
                 return;
             }
             var dining = Group("Dining", world);

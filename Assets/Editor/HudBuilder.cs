@@ -207,7 +207,8 @@ namespace MergeResto.EditorTools
             var closeButton = CloseButton(panel);
 
             var cards = new List<MapPanel.Card>();
-            const float cardW = 350f, gap = 20f;
+            const float gap = 20f;
+            float cardW = Mathf.Min(350f, (1480f - gap * (shops.Length - 1)) / shops.Length);
             float startX = -(shops.Length * cardW + (shops.Length - 1) * gap) / 2f + cardW / 2f;
             for (int i = 0; i < shops.Length; i++)
             {
@@ -220,7 +221,7 @@ namespace MergeResto.EditorTools
                 pic.anchorMin = pic.anchorMax = new Vector2(0.5f, 1f);
                 pic.pivot = new Vector2(0.5f, 1f);
                 pic.anchoredPosition = new Vector2(0, -14);
-                pic.sizeDelta = new Vector2(250, 250);
+                pic.sizeDelta = new Vector2(cardW - 70f, cardW - 70f);
                 var picImage = pic.gameObject.AddComponent<UnityEngine.UI.Image>();
                 picImage.preserveAspect = true;
                 picImage.raycastTarget = false;
@@ -240,19 +241,22 @@ namespace MergeResto.EditorTools
                 Fill(hereText.rectTransform, new Vector2(4, 4), Vector2.zero);
 
                 var name = Label("Name", card, "Shop", 34, _display, _shadow, Brown, TextAlignmentOptions.Center);
-                Top(name.rectTransform, new Vector2(0, -270), new Vector2(330, 46), centered: true);
+                name.enableAutoSizing = true;
+                name.fontSizeMin = 24;
+                name.fontSizeMax = 34;
+                Top(name.rectTransform, new Vector2(0, -270), new Vector2(cardW - 20f, 46), centered: true);
                 var blurb = Label("Blurb", card, "", 24, _body, null, SoftBrown, TextAlignmentOptions.Center);
                 blurb.textWrappingMode = TextWrappingModes.Normal;
-                Top(blurb.rectTransform, new Vector2(0, -318), new Vector2(310, 64), centered: true);
+                Top(blurb.rectTransform, new Vector2(0, -318), new Vector2(cardW - 36f, 64), centered: true);
                 var status = Label("Status", card, "", 25, _body, null, Brown, TextAlignmentOptions.Center);
                 status.textWrappingMode = TextWrappingModes.Normal;
-                Top(status.rectTransform, new Vector2(0, -390), new Vector2(310, 66), centered: true);
+                Top(status.rectTransform, new Vector2(0, -390), new Vector2(cardW - 36f, 66), centered: true);
 
                 var btn = Rect("Action", card);
                 btn.anchorMin = btn.anchorMax = new Vector2(0.5f, 0f);
                 btn.pivot = new Vector2(0.5f, 0f);
                 btn.anchoredPosition = new Vector2(0, 20);
-                btn.sizeDelta = new Vector2(250, 70);
+                btn.sizeDelta = new Vector2(Mathf.Min(250f, cardW - 40f), 70);
                 var btnImage = Img(btn, "sl_btn_orange", Color.white, 1.8f);
                 var button = btn.gameObject.AddComponent<UnityEngine.UI.Button>();
                 button.targetGraphic = btnImage;

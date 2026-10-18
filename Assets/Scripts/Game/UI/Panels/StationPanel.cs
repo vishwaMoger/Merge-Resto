@@ -122,7 +122,7 @@ namespace MergeResto.Game.UI
 
             stationName.text = def.displayName;
             stationInfo.text = seller
-                ? $"Level {st.TotalLevels}   ·   {NumberFormat.Short(sim.PricePerItem)} coins each   ·   {sim.Machines(s)} cashier{(sim.Machines(s) > 1 ? "s" : "")}"
+                ? $"{(sim.CurrentRecipe.Length > 0 ? sim.CurrentRecipe + "   ·   " : "")}{NumberFormat.Short(sim.PricePerItem)} coins each   ·   {sim.Machines(s)} cashier{(sim.Machines(s) > 1 ? "s" : "")}"
                 : $"Level {st.TotalLevels}   ·   {sim.Batch(s)} per batch   ·   {sim.CycleSeconds(s):0.0}s each";
 
             foreach (var row in rows)
@@ -173,6 +173,8 @@ namespace MergeResto.Game.UI
                 case UpgradeTrack.Speed:
                     return Arrow($"{sim.CycleSecondsAtLevel(s, level):0.0}s", $"{sim.CycleSecondsAtLevel(s, level + 1):0.0}s");
                 case UpgradeTrack.Output:
+                    if (seller && !isMax && sim.RecipeAtLevel(level + 1) != sim.RecipeAtLevel(level))
+                        return $"<color=#{hex}>New recipe: {sim.RecipeAtLevel(level + 1)}!</color>";
                     return seller
                         ? Arrow($"{NumberFormat.Short(sim.PriceAtLevel(level))} coins", $"{NumberFormat.Short(sim.PriceAtLevel(level + 1))} coins")
                         : Arrow($"{sim.BatchAtLevel(s, level)} per batch", $"{sim.BatchAtLevel(s, level + 1)}");

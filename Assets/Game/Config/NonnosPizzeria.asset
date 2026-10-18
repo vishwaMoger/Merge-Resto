@@ -1,0 +1,372 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2917ff0e61d07f640ae45e5b76ea2065, type: 3}
+  m_Name: NonnosPizzeria
+  m_EditorClassIdentifier: Assembly-CSharp::MergeResto.Game.ShopConfig
+  shop:
+    id: nonnos_pizzeria
+    displayName: Nonno's Pizzeria
+    hasTutorial: 0
+    stations:
+    - id: dough
+      displayName: Dough Station
+      kind: 0
+      baseCycleSeconds: 2.5
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 30
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Quick Kneading
+        maxLevel: 10
+        baseCost: 600
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Batches
+        maxLevel: 10
+        baseCost: 900
+        costGrowth: 1.7
+      - track: 2
+        displayName: Extra Bench
+        maxLevel: 2
+        baseCost: 4800
+        costGrowth: 3
+    - id: toppings
+      displayName: Topping Table
+      kind: 1
+      baseCycleSeconds: 3
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 45
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Swift Hands
+        maxLevel: 10
+        baseCost: 600
+        costGrowth: 1.7
+      - track: 1
+        displayName: Extra Cheese
+        maxLevel: 10
+        baseCost: 900
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Table
+        maxLevel: 2
+        baseCost: 4800
+        costGrowth: 3
+    - id: oven
+      displayName: Wood-fired Oven
+      kind: 1
+      baseCycleSeconds: 4
+      baseBatch: 6
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 60
+      startsAutomated: 0
+      upgrades:
+      - track: 0
+        displayName: Hotter Fire
+        maxLevel: 10
+        baseCost: 600
+        costGrowth: 1.7
+      - track: 1
+        displayName: Bigger Peel
+        maxLevel: 10
+        baseCost: 900
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Oven
+        maxLevel: 2
+        baseCost: 4800
+        costGrowth: 3
+    - id: counter
+      displayName: Pizza Counter
+      kind: 2
+      baseCycleSeconds: 1.2
+      baseBatch: 0
+      outputCapacity: 24
+      inputCapacity: 24
+      managerGemCost: 0
+      startsAutomated: 1
+      upgrades:
+      - track: 0
+        displayName: Friendly Service
+        maxLevel: 10
+        baseCost: 600
+        costGrowth: 1.7
+      - track: 1
+        displayName: New Recipes
+        maxLevel: 10
+        baseCost: 900
+        costGrowth: 1.7
+      - track: 2
+        displayName: Add Cashier
+        maxLevel: 2
+        baseCost: 4800
+        costGrowth: 3
+    couriers:
+    - carry: 6
+      walkSeconds: 1.5833334
+    - carry: 6
+      walkSeconds: 1.4793134
+    - carry: 6
+      walkSeconds: 3.1215255
+    customerIntervalSeconds: 4.2
+    intervalPerShopLevel: 0.94
+    minCustomerIntervalSeconds: 0.8
+    maxQueue: 6
+    itemsPerOrder: 2
+    pricePerItem: 180
+    recipes:
+    - Margherita
+    - Pepperoni
+    - Funghi
+    - Quattro Formaggi
+    - Calzone
+    - Nonno's Special
+    levelsPerRecipe: 2
+    patienceSeconds: 24
+    walkInSeconds: 10.247404
+    stepUpSeconds: 0.65
+    startCoins: 3000
+    startGems: 30
+    pricePerOutputLevel: 0.2
+    gemMilestoneEvery: 5
+    gemMilestoneReward: 10
+    board:
+      columns: 7
+      rows: 5
+      energyMax: 100
+      energyRegenSeconds: 6
+      sellBase: 5
+      chains:
+      - id: sweets
+        displayName: Sweets
+        tiers:
+        - Cookie
+        - Macaron
+        - Cupcake
+        - Donut
+        - Cinnamon Roll
+        - Strawberry Cake
+        - Birthday Cake
+        models:
+        - TinyTreats_BakedGoods/cookie
+        - TinyTreats_BakeryInterior/macaron_pink
+        - TinyTreats_BakedGoods/cupcake
+        - TinyTreats_BakedGoods/donut_pink
+        - TinyTreats_BakedGoods/cinnamon_roll
+        - TinyTreats_BakedGoods/cake_strawberry
+        - TinyTreats_BakedGoods/cake_birthday
+      - id: kitchen
+        displayName: Kitchenware
+        tiers:
+        - Whisk
+        - Mug
+        - Plates
+        - Mixing Bowl
+        - Kitchen Scale
+        - Stand Mixer
+        models:
+        - TinyTreats_BakeryInterior/whisk
+        - TinyTreats_BakeryInterior/mug_A_pink
+        - TinyTreats_BakeryInterior/plate_stacked
+        - TinyTreats_BakeryInterior/mixing_bowl
+        - TinyTreats_BakeryInterior/scale
+        - TinyTreats_BakeryInterior/stand_mixer
+      - id: plants
+        displayName: Plants
+        tiers:
+        - Succulent
+        - Little Cactus
+        - Pothos
+        - ZZ Plant
+        - Snake Plant
+        - Monstera
+        models:
+        - TinyTreats_HousePlants/succulent_plant_pot_small
+        - TinyTreats_HousePlants/cacti_plant_pot_small
+        - TinyTreats_HousePlants/pothos_plant_small_potted
+        - TinyTreats_HousePlants/zzplant_plant_medium_potted
+        - TinyTreats_HousePlants/sansevieria_plant_large_potted
+        - TinyTreats_HousePlants/monstera_plant_large_potted
+      generators:
+      - id: cookie_jar
+        displayName: Cookie Jar
+        chain: 0
+        luckyChance: 0.12
+        model: TinyTreats_BakeryInterior/cookie_jar
+      - id: dish_rack
+        displayName: Dish Rack
+        chain: 1
+        luckyChance: 0.12
+        model: KayKit_RestaurantBits/dishrack_plates
+      - id: watering_can
+        displayName: Watering Can
+        chain: 2
+        luckyChance: 0.12
+        model: TinyTreats_HousePlants/watering_can_A
+      renovations:
+      - id: pastry_stand
+        displayName: Restock the dessert stand
+        needs:
+        - chain: 0
+          tier: 4
+        rewardCoins: 4000
+        coziness: 0.05
+      - id: window_plants
+        displayName: Bring back Nonno's plants
+        needs:
+        - chain: 2
+          tier: 4
+        - chain: 2
+          tier: 3
+        rewardCoins: 6000
+        coziness: 0.06
+      - id: dining
+        displayName: Set the trattoria tables
+        needs:
+        - chain: 1
+          tier: 4
+        - chain: 1
+          tier: 4
+        - chain: 1
+          tier: 3
+        rewardCoins: 9000
+        coziness: 0.08
+      - id: display_case
+        displayName: Polish the counter
+        needs:
+        - chain: 1
+          tier: 5
+        - chain: 0
+          tier: 5
+        rewardCoins: 15000
+        coziness: 0.08
+      - id: corner
+        displayName: Green up the piazza corner
+        needs:
+        - chain: 2
+          tier: 5
+        - chain: 2
+          tier: 4
+        rewardCoins: 25000
+        coziness: 0.08
+      - id: shop_sign
+        displayName: Light Nonno's sign
+        needs:
+        - chain: 0
+          tier: 6
+        - chain: 1
+          tier: 5
+        - chain: 2
+          tier: 5
+        rewardCoins: 60000
+        coziness: 0.15
+      start:
+      - cell: 0
+        generator: 0
+        chain: 0
+        tier: 0
+      - cell: 14
+        generator: 1
+        chain: 0
+        tier: 0
+      - cell: 28
+        generator: 2
+        chain: 0
+        tier: 0
+      - cell: 9
+        generator: -1
+        chain: 0
+        tier: 0
+      - cell: 10
+        generator: -1
+        chain: 0
+        tier: 0
+    goals:
+    - kind: 1
+      station: 0
+      target: 10
+      rewardCoins: 3000
+      rewardGems: 0
+    - kind: 0
+      station: 2
+      target: 2
+      rewardCoins: 0
+      rewardGems: 20
+    - kind: 0
+      station: 3
+      target: 2
+      rewardCoins: 0
+      rewardGems: 20
+    - kind: 2
+      station: 0
+      target: 1
+      rewardCoins: 5000
+      rewardGems: 0
+    - kind: 3
+      station: 0
+      target: 1
+      rewardCoins: 0
+      rewardGems: 25
+    - kind: 2
+      station: 1
+      target: 1
+      rewardCoins: 9000
+      rewardGems: 0
+    - kind: 0
+      station: 3
+      target: 4
+      rewardCoins: 0
+      rewardGems: 30
+    - kind: 4
+      station: 2
+      target: 1
+      rewardCoins: 0
+      rewardGems: 40
+    - kind: 3
+      station: 0
+      target: 3
+      rewardCoins: 0
+      rewardGems: 50
+    - kind: 5
+      station: 0
+      target: 200000
+      rewardCoins: 0
+      rewardGems: 60
+    - kind: 2
+      station: 2
+      target: 1
+      rewardCoins: 30000
+      rewardGems: 0
+    - kind: 1
+      station: 0
+      target: 300
+      rewardCoins: 60000
+      rewardGems: 0
+    - kind: 3
+      station: 0
+      target: 6
+      rewardCoins: 0
+      rewardGems: 100
+    - kind: 6
+      station: 0
+      target: 50
+      rewardCoins: 0
+      rewardGems: 150
+    offlineCapHours: 2
+    offlineEfficiency: 0.5
