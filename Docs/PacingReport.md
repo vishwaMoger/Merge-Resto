@@ -1,0 +1,102 @@
+## Grandma's Bakery
+- 0:03  first upgrade (Flour Storage Speed)
+- 0:06  renovation 1: Restock the pastry stand
+- 0:09  goal 1 claimed
+- 0:12  goal 5 claimed
+- 0:12  renovation 2: Revive the window plants
+- 0:15  goal 2 claimed
+- 0:15  manager hired: Flour Storage
+- 0:27  goal 10 claimed
+- 0:58  goal 3 claimed
+- 1:01  goal 12 claimed
+- 1:05  goal 8 claimed
+- 2:19  goal 17 claimed
+- 2:19  manager hired: Dough Mixer
+- 2:22  goal 6 claimed
+- 3:06  renovation 3: Set the dining tables
+- 3:09  goal 4 claimed
+- 3:24  goal 11 claimed
+- 3:24  manager hired: Bread Oven
+- 3:24  fully automated
+- 3:27  goal 9 claimed
+- 4:57  goal 15 claimed
+- 5:47  goal 14 claimed
+- 6:02  goal 7 claimed
+- 8:34  renovation 4: Polish the display case
+- 8:47  goal 16 claimed
+- 15:33  renovation 5: Green up the cozy corner
+- 24:10  EXPANSION 1: Dining Annex
+- 44:35  renovation 6: Light up the shop sign
+- 44:38  goal 13 claimed
+- 80:25  EXPANSION 2: Grand Interior
+- 90:00  end: shop level 135, served 3376, walked out 0, coins 14.8K
+- **Next shop ready at 24:08**
+- Upgrades per 5 min: 58 19 10 3 8 6 5 4 3 3 4 2 2 2 2 1 1 2
+- Gap between upgrades: first 15 avg 3s, overall max 472s
+- Coins/min: 5m 5.1K, 10m 8.2K, 15m 9.0K, 20m 10.3K, 25m 10.6K, 30m 12.4K, 35m 13.1K, 40m 13.4K, 45m 14.5K, 50m 16.3K, 55m 17.3K, 60m 17.2K, 65m 17.3K, 70m 18.0K, 75m 18.2K, 80m 18.3K, 85m 21.4K
+
+## Corner Café
+- 0:03  first upgrade (Coffee Beans Speed)
+- 0:09  renovation 1: Fill the cake stand
+- 0:12  goal 4 claimed
+- 0:24  goal 2 claimed
+- 0:49  goal 1 claimed
+- 0:52  goal 5 claimed
+- 0:52  manager hired: Coffee Beans
+- 0:55  goal 3 claimed
+- 2:03  renovation 2: Plant the window pots
+- 2:44  goal 12 claimed
+- 2:59  goal 7 claimed
+- 2:59  manager hired: Espresso Machine
+- 3:02  goal 6 claimed
+- 5:56  goal 10 claimed
+- 8:03  renovation 3: Lay the café tables
+- 8:06  goal 9 claimed
+- 10:47  goal 8 claimed
+- 10:47  manager hired: Latte Bar
+- 10:47  fully automated
+- 10:50  goal 11 claimed
+- 12:27  goal 14 claimed
+- 19:16  renovation 4: Shine the display case
+- 30:53  renovation 5: Grow a reading corner
+- 70:23  EXPANSION 1: Dining Annex
+- 77:19  renovation 6: Light the café sign
+- 77:22  goal 13 claimed
+- 120:00  end: shop level 126, served 3450, walked out 0, coins 68.0K
+- **Next shop ready at 70:22**
+- Upgrades per 5 min: 43 17 11 7 5 5 4 4 3 1 0 0 0 0 11 2 2 2
+- Gap between upgrades: first 15 avg 5s, overall max 1511s
+- Coins/min: 5m 8.3K, 10m 13.9K, 15m 15.5K, 20m 16.8K, 25m 18.7K, 30m 20.0K, 35m 23.0K, 40m 23.7K, 45m 24.0K, 50m 23.8K, 55m 23.8K, 60m 23.8K, 65m 23.8K, 70m 23.8K, 75m 28.0K, 80m 34.4K, 85m 35.1K, 90m 35.1K, 95m 35.1K, 100m 36.2K, 105m 37.3K, 110m 37.0K, 115m 37.0K
+
+## Nonno's Pizzeria
+- 0:03  first upgrade (Dough Station Speed)
+- 0:15  renovation 1: Restock the dessert stand
+- 0:18  goal 5 claimed
+- 0:21  goal 2 claimed
+- 0:24  goal 3 claimed
+- 0:24  manager hired: Dough Station
+- 0:27  goal 4 claimed
+- 0:46  goal 1 claimed
+- 0:49  goal 7 claimed
+- 6:24  renovation 2: Bring back Nonno's plants
+- 7:04  goal 14 claimed
+- 7:04  manager hired: Topping Table
+- 7:07  goal 6 claimed
+- 7:10  goal 10 claimed
+- 9:30  manager hired: Wood-fired Oven
+- 9:30  fully automated
+- 9:33  goal 11 claimed
+- 9:39  goal 12 claimed
+- 9:45  goal 8 claimed
+- 18:23  renovation 3: Set the trattoria tables
+- 18:26  goal 9 claimed
+- 37:24  renovation 4: Polish the counter
+- 51:43  renovation 5: Green up the piazza corner
+- 90:27  renovation 6: Light Nonno's sign
+- 90:31  goal 13 claimed
+- 120:00  end: shop level 125, served 4069, walked out 0, coins 456.8K
+- Next shop: not reached / none
+- Upgrades per 5 min: 42 21 9 6 5 5 3 4 3 2 3 3 2 2 2 2 2 1
+- Gap between upgrades: first 15 avg 3s, overall max 292s
+- Coins/min: 5m 23.3K, 10m 55.4K, 15m 40.3K, 20m 47.1K, 25m 51.1K, 30m 54.2K, 35m 54.8K, 40m 64.1K, 45m 65.3K, 50m 65.7K, 55m 74.9K, 60m 76.4K, 65m 77.2K, 70m 76.7K, 75m 78.6K, 80m 81.2K, 85m 81.7K, 90m 81.2K, 95m 107.5K, 100m 99.8K, 105m 102.1K, 110m 102.7K, 115m 102.1K
+

@@ -101,7 +101,7 @@ namespace MergeResto.Game.Views
 
             // Sellers show what is on display (input); others show finished goods (output).
             int stock = def.kind == StationKind.Seller ? st.input : st.output;
-            int capacity = def.kind == StationKind.Seller ? def.inputCapacity : def.outputCapacity;
+            int capacity = def.kind == StationKind.Seller ? _sim.InputCapacity(stationIndex) : _sim.OutputCapacity(stationIndex);
             int shown = stock <= 0 ? 0 : Mathf.CeilToInt(stockVisuals.Length * Mathf.Clamp01(stock / (float)capacity));
             for (int i = 0; i < stockVisuals.Length; i++)
                 if (stockVisuals[i] != null)
