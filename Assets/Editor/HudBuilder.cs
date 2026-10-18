@@ -62,6 +62,7 @@ namespace MergeResto.EditorTools
                 "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
                 "sl_heart" => "Icons/Heart",
                 "sl_ad" => "Icons/Add_Video",
+                "sl_icon_settings" => "Icons/Icon_Settings",
                 "sl_music_on" => "Icons/Icon_Music_On",
                 "sl_music_off" => "Icons/Icon_Music_Off",
                 "sl_frame_honey" => "Frames/250px/Frame_Square_Honey_250px",
@@ -481,6 +482,154 @@ namespace MergeResto.EditorTools
         // ------------------------------------------------------------------ Sound toggle
 
         /// <summary>Round mute button under the shop banner.</summary>
+        const string Credits =
+            "<color=#C24E18>3D art</color>  KayKit by Kay Lousberg (Restaurant Bits, City Builder, Forest, Characters, Animations) and " +
+            "Tiny Treats by Isa Lousberg (Bakery Interior, Baked Goods, House Plants). CC0.\n" +
+            "<color=#C24E18>Interface</color>  Sweet Land GUI by Persefida (Unity Asset Store).\n" +
+            "<color=#C24E18>Fonts</color>  Lilita One by Juan Montoreano, Fredoka by Milena Brandão. SIL Open Font License.\n" +
+            "<color=#C24E18>Music</color>  \"Etirwer\" by Kistol, \"Bossa Shop Theme\" by SpringySpringo (OpenGameArt). CC0.\n" +
+            "<color=#C24E18>Sound effects</color>  Casual Game Sounds by Dustyroom. CC0.\n\n" +
+            "Thank you for visiting Grandma!";
+
+        // A label + On/Off pill row on the settings page.
+        static (UnityEngine.UI.Button button, UnityEngine.UI.Image image, TMP_Text text) SettingRow(RectTransform page, string name, string icon, float y)
+        {
+            var row = Rect(name, page);
+            row.anchorMin = row.anchorMax = new Vector2(0.5f, 1f);
+            row.pivot = new Vector2(0.5f, 1f);
+            row.anchoredPosition = new Vector2(0, y);
+            row.sizeDelta = new Vector2(620, 96);
+            Img(row, "sl_frame_white", Color.white, 1.6f);
+            var ic = Rect("Icon", row);
+            ic.anchorMin = ic.anchorMax = new Vector2(0f, 0.5f);
+            ic.anchoredPosition = new Vector2(56, 0);
+            ic.sizeDelta = new Vector2(70, 70);
+            Img(ic, "sl_btn_orange_circle", Color.white, simple: true);
+            var glyph = Rect("Glyph", ic);
+            glyph.sizeDelta = new Vector2(42, 42);
+            Img(glyph, icon, Color.white);
+            var label = Label("Label", row, name, 38, _display, _shadow, Brown, TextAlignmentOptions.Left);
+            Left(label.rectTransform, new Vector2(110, 0), new Vector2(300, 60));
+            var pill = Rect("Toggle", row);
+            pill.anchorMin = pill.anchorMax = pill.pivot = new Vector2(1f, 0.5f);
+            pill.anchoredPosition = new Vector2(-18, 0);
+            pill.sizeDelta = new Vector2(170, 68);
+            var image = Img(pill, "sl_btn_orange", Color.white, 2.2f);
+            var button = pill.gameObject.AddComponent<UnityEngine.UI.Button>();
+            button.targetGraphic = image;
+            pill.gameObject.AddComponent<ButtonJuice>();
+            var text = Label("Text", pill, "On", 36, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(text.rectTransform, new Vector2(4, 5), Vector2.zero);
+            return (button, image, text);
+        }
+
+        /// <summary>Gear button (top right) and the settings window.</summary>
+        public static void BuildSettings()
+        {
+            var holder = Stretch(Rect("Settings", _root));
+            var settings = holder.gameObject.AddComponent<SettingsPanel>();
+
+            var open = Rect("SettingsButton", holder);
+            open.anchorMin = open.anchorMax = open.pivot = new Vector2(1f, 1f);
+            open.anchoredPosition = new Vector2(-40, -150);
+            open.sizeDelta = new Vector2(76, 76);
+            var openBg = Img(open, "sl_btn_orange_circle", Color.white, simple: true);
+            var openButton = open.gameObject.AddComponent<UnityEngine.UI.Button>();
+            openButton.targetGraphic = openBg;
+            open.gameObject.AddComponent<ButtonJuice>();
+            var gear = Rect("Icon", open);
+            gear.sizeDelta = new Vector2(48, 48);
+            gear.anchoredPosition = new Vector2(0, 2);
+            Img(gear, "sl_icon_settings", Color.white);
+
+            var dim = Stretch(Rect("Dim", holder));
+            var dimImage = Img(dim, null, new Color(0.03f, 0.02f, 0.02f, 0.55f));
+            var dimButton = dim.gameObject.AddComponent<UnityEngine.UI.Button>();
+            dimButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            dimButton.targetGraphic = dimImage;
+            var dimGroup = dim.gameObject.AddComponent<CanvasGroup>();
+
+            var panel = Rect("Panel", holder);
+            panel.sizeDelta = new Vector2(760, 640);
+            var group = panel.gameObject.AddComponent<CanvasGroup>();
+            Window(Stretch(Rect("Background", panel)), 16f).raycastTarget = true;
+            var ribbon = Rect("Ribbon", panel);
+            ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 1f);
+            ribbon.anchoredPosition = new Vector2(0, 12);
+            ribbon.sizeDelta = new Vector2(440, 104);
+            Img(ribbon, "sl_banner", Color.white, BannerSlice(104f));
+            var title = Label("Title", ribbon, "Settings", 50, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            BandText(title.rectTransform, 104f);
+            var closeButton = CloseButton(panel);
+
+            // Main page.
+            var main = Stretch(Rect("Main", panel));
+            var music = SettingRow(main, "Music", "sl_music_on", -96);
+            var sound = SettingRow(main, "Sound", "sl_heart", -206);
+            var credits = Rect("Credits", main);
+            credits.anchorMin = credits.anchorMax = new Vector2(0.5f, 1f);
+            credits.pivot = new Vector2(0.5f, 1f);
+            credits.anchoredPosition = new Vector2(0, -326);
+            credits.sizeDelta = new Vector2(620, 90);
+            var creditsButton = credits.gameObject.AddComponent<UnityEngine.UI.Button>();
+            creditsButton.targetGraphic = Img(credits, "sl_btn_yellow", Color.white, 1.6f);
+            credits.gameObject.AddComponent<ButtonJuice>();
+            var creditsText = Label("Text", credits, "Credits", 40, _display, _shadow, Brown, TextAlignmentOptions.Center);
+            Fill(creditsText.rectTransform, new Vector2(4, 5), Vector2.zero);
+            var reset = Rect("Reset", main);
+            reset.anchorMin = reset.anchorMax = new Vector2(0.5f, 0f);
+            reset.pivot = new Vector2(0.5f, 0f);
+            reset.anchoredPosition = new Vector2(0, 44);
+            reset.sizeDelta = new Vector2(620, 84);
+            var resetImage = Img(reset, "sl_btn_white", Color.white, 1.7f);
+            var resetButton = reset.gameObject.AddComponent<UnityEngine.UI.Button>();
+            resetButton.targetGraphic = resetImage;
+            reset.gameObject.AddComponent<ButtonJuice>();
+            var resetText = Label("Text", reset, "Reset progress", 32, _display, _shadow, new Color(0.62f, 0.25f, 0.18f), TextAlignmentOptions.Center);
+            Fill(resetText.rectTransform, new Vector2(4, 5), Vector2.zero);
+
+            // Credits page.
+            var page = Stretch(Rect("CreditsPage", panel));
+            var body = Label("Body", page, Credits, 24, _body, null, Brown, TextAlignmentOptions.TopLeft);
+            body.textWrappingMode = TextWrappingModes.Normal;
+            body.lineSpacing = 4f;
+            Fill(body.rectTransform, new Vector2(56, 140), new Vector2(-56, -96));
+            var back = Rect("Back", page);
+            back.anchorMin = back.anchorMax = new Vector2(0.5f, 0f);
+            back.pivot = new Vector2(0.5f, 0f);
+            back.anchoredPosition = new Vector2(0, 44);
+            back.sizeDelta = new Vector2(300, 84);
+            var backButton = back.gameObject.AddComponent<UnityEngine.UI.Button>();
+            backButton.targetGraphic = Img(back, "sl_btn_orange", Color.white, 1.7f);
+            back.gameObject.AddComponent<ButtonJuice>();
+            var backText = Label("Text", back, "Back", 40, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(backText.rectTransform, new Vector2(4, 5), Vector2.zero);
+
+            Set(settings, "panel", panel);
+            Set(settings, "group", group);
+            Set(settings, "dim", dimGroup);
+            Set(settings, "dimButton", dimButton);
+            Set(settings, "openButton", openButton);
+            Set(settings, "closeButton", closeButton);
+            Set(settings, "mainPage", main.gameObject);
+            Set(settings, "musicButton", music.button);
+            Set(settings, "musicImage", music.image);
+            Set(settings, "musicText", music.text);
+            Set(settings, "soundButton", sound.button);
+            Set(settings, "soundImage", sound.image);
+            Set(settings, "soundText", sound.text);
+            Set(settings, "creditsButton", creditsButton);
+            Set(settings, "resetButton", resetButton);
+            Set(settings, "resetImage", resetImage);
+            Set(settings, "resetText", resetText);
+            Set(settings, "creditsPage", page.gameObject);
+            Set(settings, "backButton", backButton);
+            Set(settings, "onSprite", Resolve("sl_btn_orange"));
+            Set(settings, "offSprite", Resolve("sl_btn_white"));
+            Set(settings, "resetSprite", Resolve("sl_btn_white"));
+            Set(settings, "confirmSprite", Resolve("sl_btn_pink"));
+        }
+
         public static void BuildSoundToggle()
         {
             var rt = Rect("SoundToggle", _root);
@@ -1441,14 +1590,14 @@ namespace MergeResto.EditorTools
             var buttons = Stretch(Rect("HudButtons", _root));
             var stationPanel = _root.Find("StationPanel");
             buttons.SetSiblingIndex(stationPanel != null ? stationPanel.GetSiblingIndex() + 1 : 0);
-            foreach (var path in new[] { "SoundToggle", "Board/RenovateButton", "Map/ShopsButton", "Daily/DailyButton" })
+            foreach (var path in new[] { "Settings/SettingsButton", "Board/RenovateButton", "Map/ShopsButton", "Daily/DailyButton" })
             {
                 var t = _root.Find(path);
                 if (t != null)
                     t.SetParent(buttons, false);
             }
             // Windows above the buttons, then the tutorial, the welcome-back dialog and flying coins.
-            foreach (var name in new[] { "Board", "Map", "Daily", "Tutorial", "OfflineDialog", "CoinFly" })
+            foreach (var name in new[] { "Board", "Map", "Daily", "Settings", "Tutorial", "OfflineDialog", "CoinFly" })
             {
                 var t = _root.Find(name);
                 if (t != null)

@@ -137,7 +137,7 @@ namespace MergeResto.EditorTools
             BuildRenovationSpots(world, stations);
             BuildShopAge(world);
             BuildAudio(crowd);
-            HudBuilder.BuildSoundToggle();
+            HudBuilder.BuildSettings();
             BuildMap();
             HudBuilder.OrderLayers();
             HudBuilder.EnableButtonTargets();
