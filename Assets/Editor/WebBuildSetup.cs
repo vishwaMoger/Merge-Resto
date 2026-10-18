@@ -19,6 +19,7 @@ namespace MergeResto.EditorTools
         const string GameScenePath = "Assets/Scenes/Bakery.unity";
         const string CafeScenePath = "Assets/Scenes/Cafe.unity";
         const string PizzeriaScenePath = "Assets/Scenes/Pizzeria.unity";
+        const string PatisserieScenePath = "Assets/Scenes/Patisserie.unity";
         const string WebQualityLevel = "PC";
         const string SdkLoadingScenePath = "Assets/CrazySDK/Demo/LoadingScene.unity";
 
@@ -84,8 +85,8 @@ namespace MergeResto.EditorTools
                 EditorSceneManager.MoveGameObjectToScene(go, boot);
                 loader = go.AddComponent<MergeResto.Game.BootLoader>();
             }
-            loader.shopIds = new[] { "grandmas_bakery", "corner_cafe", "nonnos_pizzeria" };
-            loader.sceneNames = new[] { "Bakery", "Cafe", "Pizzeria" };
+            loader.shopIds = new[] { "grandmas_bakery", "corner_cafe", "nonnos_pizzeria", "belles_patisserie" };
+            loader.sceneNames = new[] { "Bakery", "Cafe", "Pizzeria", "Patisserie" };
             EditorUtility.SetDirty(loader);
             EditorSceneManager.MarkSceneDirty(boot);
             EditorSceneManager.SaveScene(boot);
@@ -98,8 +99,9 @@ namespace MergeResto.EditorTools
                 new EditorBuildSettingsScene(GameScenePath, true),
                 new EditorBuildSettingsScene(CafeScenePath, true),
                 new EditorBuildSettingsScene(PizzeriaScenePath, true),
+                new EditorBuildSettingsScene(PatisserieScenePath, true),
             };
-            string gameSceneName = "Bakery, Cafe";
+            string gameSceneName = "Bakery, Cafe, Pizzeria, Patisserie";
             Debug.Log($"[Merge Resto] Build scenes: Boot -> {gameSceneName}.");
         }
 

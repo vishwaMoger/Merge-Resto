@@ -439,9 +439,13 @@ MonoBehaviour:
   shopIds:
   - grandmas_bakery
   - corner_cafe
+  - nonnos_pizzeria
+  - belles_patisserie
   sceneNames:
   - Bakery
   - Cafe
+  - Pizzeria
+  - Patisserie
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
