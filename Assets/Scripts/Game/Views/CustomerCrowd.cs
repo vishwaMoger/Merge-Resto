@@ -8,7 +8,9 @@ namespace MergeResto.Game.Views
     /// <summary>
     /// Spawns a customer character for each customer in the sim's queue. Customers walk in along
     /// the street through the entrance, wait at their queue slot, and leave through the separate
-    /// exit, happy with their order or grumpy when they ran out of patience.
+    /// exit, happy with their order or grumpy when they ran out of patience. In the drive-thru the
+    /// customers are cars: they follow the lane through every queue spot, turn to face where they
+    /// drive, and pull away after the pickup window.
     /// </summary>
     public class CustomerCrowd : MonoBehaviour
     {
@@ -25,6 +27,9 @@ namespace MergeResto.Game.Views
         [Range(0f, 1f)] public float dineInChance = 0.65f;
         public Vector2 eatSeconds = new(7f, 12f);
         public float walkSpeed = 2.6f;
+        [Tooltip("Customers are cars: they drive the lane through the queue spots and turn to face their way.")]
+        public bool vehicles;
+        public float turnSpeed = 7f;
 
         /// <summary>World position where a customer paid, and how much.</summary>
         public event Action<Vector3, double> CustomerPaid;
@@ -151,12 +156,22 @@ namespace MergeResto.Game.Views
             if (atQueue && slot >= 0)
             {
                 go.transform.position = queueSlots[slot].position;
+                if (vehicles)
+                    go.transform.rotation = queueSlots[slot].rotation;
             }
             else
             {
                 go.transform.position = entryPath[0].position;
                 for (int i = 1; i < entryPath.Length; i++)
                     w.route.Enqueue(entryPath[i].position);
+                // Cars drive the whole lane up to their spot instead of cutting across.
+                if (vehicles)
+                {
+                    if (entryPath.Length > 1)
+                        go.transform.rotation = Quaternion.LookRotation(entryPath[1].position - entryPath[0].position);
+                    for (int i = queueSlots.Length - 1; i > Mathf.Max(slot, 0); i--)
+                        w.route.Enqueue(queueSlots[i].position);
+                }
             }
             _active[id] = w;
             if (w.vip && !atQueue)
@@ -299,6 +314,13 @@ namespace MergeResto.Game.Views
         bool Step(Walker w, Vector3 target)
         {
             var t = w.go.transform;
+            if (vehicles)
+            {
+                var dir = target - t.position;
+                dir.y = 0f;
+                if (dir.sqrMagnitude > 0.01f)
+                    t.rotation = Quaternion.Slerp(t.rotation, Quaternion.LookRotation(dir), 1f - Mathf.Exp(-turnSpeed * Time.deltaTime));
+            }
             t.position = Vector3.MoveTowards(t.position, target, walkSpeed * Time.deltaTime);
             return (t.position - target).sqrMagnitude < 0.0025f;
         }

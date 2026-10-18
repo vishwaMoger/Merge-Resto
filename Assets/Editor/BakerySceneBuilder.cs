@@ -69,8 +69,12 @@ namespace MergeResto.EditorTools
         const float PizzaExitX = 1.0f;
         static float EntranceX => Pick(BakeryEntranceX, CafeEntranceX, 7.3f, PatisserieEntranceX, CafeEntranceX);
         static readonly Vector3 BakeryCounter = new(4f, 0f, 0.8f);
-        static Vector3 CounterPos => Pick(BakeryCounter, new Vector3(-4.2f, 0f, 0.6f), new Vector3(3.2f, 0f, 3.6f), PatisserieCounter, new Vector3(-4.2f, 0f, 0.6f));
+        static Vector3 CounterPos => Pick(BakeryCounter, new Vector3(-4.2f, 0f, 0.6f), new Vector3(3.2f, 0f, 3.6f), PatisserieCounter, DriveCounter);
         static Vector3 CounterShift => CounterPos - BakeryCounter;
+        // Every counter faces the front (the drive-thru's looks out of its pickup window).
+        static float CounterYaw => 0f;
+        // A spot laid out for the bakery's counter, moved and turned with this shop's counter.
+        static Vector3 CounterPoint(Vector3 bakeryPos) => CounterPos + Quaternion.Euler(0f, CounterYaw, 0f) * (bakeryPos - BakeryCounter);
         // Customers walk along the front sidewalk on this line.
         static float WalkLaneZ => IsCafe ? -8.85f : -8.2f;
         // Where the window plants (a renovation) stand.
@@ -96,6 +100,7 @@ namespace MergeResto.EditorTools
         [MenuItem("Merge Resto/Game/Build All Shops")]
         public static void BuildAll()
         {
+            BuildShop(ShopKind.DriveThru);
             BuildShop(ShopKind.Patisserie);
             BuildShop(ShopKind.Pizzeria);
             BuildShop(ShopKind.Cafe);
@@ -107,6 +112,9 @@ namespace MergeResto.EditorTools
 
         [MenuItem("Merge Resto/Game/Build Belle's Patisserie Scene")]
         public static void BuildPatisserie() => BuildShop(ShopKind.Patisserie);
+
+        [MenuItem("Merge Resto/Game/Build Drive-Thru Scene")]
+        public static void BuildDriveThru() => BuildShop(ShopKind.DriveThru);
 
         static void BuildShop(ShopKind kind)
         {
@@ -124,14 +132,16 @@ namespace MergeResto.EditorTools
             EnsureRecipes(config);
             EnsureExpansions(config);
             EnsureBalance(config);
-            var cam = LookSetup.CreateLookRig(IsPizza ? new Vector3(-1.3f, 1f, 1.4f) : new Vector3(0.3f, 1f, 0.6f), 7.9f);
+            var cam = LookSetup.CreateLookRig(IsDrive ? new Vector3(0.6f, 1f, -2.2f) : IsPizza ? new Vector3(-1.3f, 1f, 1.4f) : new Vector3(0.3f, 1f, 0.6f), IsDrive ? 8.3f : 7.9f);
             var cameraDirector = cam.gameObject.AddComponent<CameraDirector>();
 
             var world = new GameObject("Bakery").transform;
             BuildRoom(world);
 
             var stations = new StationView[4];
-            if (IsPatisserie)
+            if (IsDrive)
+                BuildDriveStations(world, stations);
+            else if (IsPatisserie)
                 BuildPatisserieStations(world, stations);
             else if (IsPizza)
             {
@@ -146,7 +156,7 @@ namespace MergeResto.EditorTools
                 stations[1] = IsCafe ? MoveStation(BuildEspresso(world), new Vector3(2.8f, 0f, 5f)) : BuildMixer(world);
                 stations[2] = IsCafe ? MoveStation(BuildLatteBar(world), new Vector3(-1.4f, 0f, 5f)) : BuildOven(world);
             }
-            stations[3] = MoveStation(BuildCounter(world), CounterPos);
+            stations[3] = MoveStation(BuildCounter(world), CounterPos, CounterYaw);
             for (int i = 0; i < stations.Length; i++)
                 stations[i].stationIndex = i;
 
@@ -174,6 +184,8 @@ namespace MergeResto.EditorTools
                 StylePizzeria(world, cam);
             if (IsPatisserie)
                 StylePatisserie(world, cam);
+            if (IsDrive)
+                StyleDriveThru(world, cam);
 
             // Grandma guides the Grand Opening in the bakery; her portrait is rendered from the 3D model.
             if (_shop == ShopKind.Bakery)
@@ -232,6 +244,11 @@ namespace MergeResto.EditorTools
             if (IsPatisserie)
             {
                 EnsurePatisserieGoals(config);
+                return;
+            }
+            if (IsDrive)
+            {
+                EnsureDriveGoals(config);
                 return;
             }
             GoalDefinition G(GoalKind kind, double target, int station = 0, double coins = 0, int gems = 0) =>
@@ -411,6 +428,8 @@ namespace MergeResto.EditorTools
                 return CreatePizzaConfig();
             if (IsPatisserie)
                 return CreatePatisserieConfig();
+            if (IsDrive)
+                return CreateDriveConfig();
 
             LookSetup.EnsureFolder("Assets/Game/Config");
             config = ScriptableObject.CreateInstance<ShopConfig>();
@@ -584,7 +603,15 @@ namespace MergeResto.EditorTools
             float length = 0f;
             for (int i = 1; i < crowd.entryPath.Length; i++)
                 length += Vector3.Distance(crowd.entryPath[i - 1].position, crowd.entryPath[i].position);
-            length += Vector3.Distance(crowd.entryPath[^1].position, crowd.queueSlots[0].position);
+            if (crowd.vehicles)
+            {
+                // Cars drive every queue spot on the way to the window.
+                length += Vector3.Distance(crowd.entryPath[^1].position, crowd.queueSlots[^1].position);
+                for (int i = crowd.queueSlots.Length - 1; i > 0; i--)
+                    length += Vector3.Distance(crowd.queueSlots[i].position, crowd.queueSlots[i - 1].position);
+            }
+            else
+                length += Vector3.Distance(crowd.entryPath[^1].position, crowd.queueSlots[0].position);
             float walkIn = length / speed;
             float step = Vector3.Distance(crowd.queueSlots[0].position, crowd.queueSlots[1].position) / speed;
             config.shop.walkInSeconds = walkIn + 0.15f;
@@ -599,7 +626,7 @@ namespace MergeResto.EditorTools
             var room = Group("Room", world);
             for (int x = -7; x <= 7; x += 2)
             for (int z = -5; z <= 5; z += 2)
-                Place(IsPizza ? (x <= -5 ? "floor_tiled" : "floor_wood") : IsPatisserie ? (z >= 3 ? "floor_wood" : "floor_tiled") : z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
+                Place(IsPizza ? (x <= -5 ? "floor_tiled" : "floor_wood") : IsPatisserie ? (z >= 3 ? "floor_wood" : "floor_tiled") : IsDrive ? "floor_tiled" : z >= 2 || IsCafe ? "floor_wood" : "floor_tiled", room, new Vector3(x, 0f, z));
 
             // Back wall along z = 6 (kitchen side), windows behind the counter.
             for (int x = -7; x <= 7; x += 2)
@@ -627,7 +654,8 @@ namespace MergeResto.EditorTools
             // 2 wide with their back face on the pivot; models keep their import scale.
             // The right wall opens up into the annex once the shop expands.
             var rightWall = Group("RightWall", low);
-            rightWall.gameObject.AddComponent<StageGroup>().maxStage = 0;
+            if (!IsDrive) // the drive-thru expands with neon, not an annex
+                rightWall.gameObject.AddComponent<StageGroup>().maxStage = 0;
             void Segment(Vector3 from, Vector3 to, float yaw)
             {
                 var mid = (from + to) * 0.5f;
@@ -643,7 +671,7 @@ namespace MergeResto.EditorTools
             // Wall meshes are single-sided, so the front and right walls face outwards: the
             // camera looks at their outside. They sit just outside the floor edge.
             float[] frontGaps = Pick(new[] { BakeryEntranceX }, new[] { CafeExitX, CafeEntranceX }, new[] { PizzaExitX },
-                new[] { PatisserieExitX, PatisserieEntranceX }, new[] { CafeExitX, CafeEntranceX });
+                new[] { PatisserieExitX, PatisserieEntranceX }, new[] { DriveWindowX });
             float[] sideGaps = Pick(new[] { ExitZ }, new float[0], new[] { PizzaEntranceZ }, new float[0], new float[0]);
             float edge = -8f;
             foreach (float g in frontGaps)
@@ -874,15 +902,18 @@ namespace MergeResto.EditorTools
         static void BuildCouriers(Transform world, StationView[] stations)
         {
             var staff = Group("Staff", world);
-            string[] carryModels = IsPatisserie
+            string[] carryModels = IsDrive
+                ? new[] { "food_ingredient_burger_uncooked", "food_burger", "food_burger" }
+                : IsPatisserie
                 ? new[] { "egg_A", "mixing_bowl", "cake_strawberry" }
                 : IsPizza
                 ? new[] { "dough_ball", "dough_ball", "dough_ball" }
                 : IsCafe
                 ? new[] { "flour_sack_closed", "mug_A_blue", "coffee_cup_takeaway" }
                 : new[] { "flour_sack_closed", "dough_ball", "bread" };
-            string[] carryFolders = IsCafe || IsPizza ? new[] { BakeryArt, BakeryArt, BakeryArt } : new[] { BakeryArt, BakeryArt, GoodsArt };
-            float[] carryScale = IsPatisserie ? new[] { 2.2f, 1.2f, 0.75f } : new[] { 1.1f, 1.5f, 1.5f };
+            string[] carryFolders = IsDrive ? new[] { RestaurantArt, RestaurantArt, RestaurantArt }
+                : IsCafe || IsPizza ? new[] { BakeryArt, BakeryArt, BakeryArt } : new[] { BakeryArt, BakeryArt, GoodsArt };
+            float[] carryScale = IsDrive ? new[] { 1.4f, 1.3f, 1.3f } : IsPatisserie ? new[] { 2.2f, 1.2f, 0.75f } : new[] { 1.1f, 1.5f, 1.5f };
             Vector3[] offsets = { new(0f, 0f, -0.35f), new(0f, 0f, 0.35f), new(0f, 0f, -0.35f) };
             for (int i = 0; i < 3; i++)
             {
@@ -920,6 +951,11 @@ namespace MergeResto.EditorTools
         {
             var root = Group("Customers", world);
             var crowd = root.gameObject.AddComponent<CustomerCrowd>();
+            if (IsDrive)
+            {
+                BuildDriveCustomers(root, crowd);
+                return crowd;
+            }
             // In from the street along the front sidewalk, through the entrance.
             crowd.entryPath = IsPizza
                 ? new[]
@@ -1026,16 +1062,18 @@ namespace MergeResto.EditorTools
             }
             // The café's reading corner is at the back left; the bakery's at the front left.
             Plant("monstera_plant_large_potted", Pick(new Vector3(-7.2f, 0f, -5.2f), new Vector3(-7.2f, 0f, 4.9f), new Vector3(-0.9f, 0f, -5.25f),
-                new Vector3(-7.2f, 0f, -5.2f), new Vector3(-7.2f, 0f, 4.9f)), 30f);
+                new Vector3(-7.2f, 0f, -5.2f), new Vector3(-7.2f, 0f, -5.2f)), 30f);
             Plant("yucca_plant_large_potted", IsCafe ? new Vector3(7.3f, 0f, -1.4f) : new Vector3(7.3f, 0f, 4.9f), -20f);
             Plant("sansevieria_plant_medium_potted", SnakePlantPos, 10f);
             Plant("pothos_plant_small_potted", new Vector3(-7.55f, 2.45f, 1.0f), 90f);
             Plant("succulent_plant_pot_small", new Vector3(-7.55f, 2.45f, 3.0f), 0f);
-            Plant("zzplant_plant_medium_potted", IsCafe || IsPatisserie ? new Vector3(7.3f, 0f, 2.3f) : new Vector3(7.4f, 0f, -5.4f), -40f);
+            Plant("zzplant_plant_medium_potted", IsCafe || IsPatisserie || IsDrive ? new Vector3(7.3f, 0f, 2.3f) : new Vector3(7.4f, 0f, -5.4f), -40f);
             if (_shop == ShopKind.Bakery) // the café's latte bar runs along this wall
                 Plant("monstera_plant_medium_potted", new Vector3(2.2f, 0f, 5.3f), 0f);
 
-            // Mats at the entrance and the exit.
+            // Mats at the entrance and the exit (the drive-thru has neither).
+            if (IsDrive)
+                return;
             var inMat = IsPizza ? Place("rug", decor, new Vector3(7.25f, 0.01f, PizzaEntranceZ), 90f) : Place("rug", decor, new Vector3(EntranceX, 0.01f, -5.3f), 0f);
             inMat.transform.localScale = new Vector3(0.75f, 1f, 0.75f);
             var outMat = IsPatisserie ? Place("rug", decor, new Vector3(PatisserieExitX, 0.01f, -5.3f), 0f) : IsPizza ? Place("rug", decor, new Vector3(PizzaExitX, 0.01f, -5.3f), 0f) : IsCafe ? Place("rug", decor, new Vector3(CafeExitX, 0.01f, -5.3f), 0f) : Place("rug", decor, new Vector3(7.3f, 0.01f, ExitZ), 90f);
@@ -1073,19 +1111,23 @@ namespace MergeResto.EditorTools
             ApplySway(vine2);
 
             // Treats on display at the counter.
-            Place("pastry_stand_B_decorated", dress, new Vector3(6.05f, 1.0f, 0.75f) + CounterShift, 0f);
-            Place("cake_birthday", GoodsArt, dress, new Vector3(5.75f, 1.0f, 1.25f) + CounterShift, 30f).transform.localScale *= 0.55f;
-            Place("cookie_jar", dress, new Vector3(3.95f, 1.0f, 1.15f) + CounterShift);
+            Place("pastry_stand_B_decorated", dress, CounterPoint(new Vector3(6.05f, 1.0f, 0.75f)), CounterYaw);
+            Place("cake_birthday", GoodsArt, dress, CounterPoint(new Vector3(5.75f, 1.0f, 1.25f)), 30f + CounterYaw).transform.localScale *= 0.55f;
+            Place("cookie_jar", dress, CounterPoint(new Vector3(3.95f, 1.0f, 1.15f)));
 
             // Chalkboard menu by the door.
-            var menu = IsPizza
+            var menu = IsDrive
+                ? Place("menu", RestaurantArt, dress, new Vector3(-2.6f, 0f, -5.25f), 200f)
+                : IsPizza
                 ? Place("menu", RestaurantArt, dress, new Vector3(6.9f, 0f, -4.7f), 250f)
                 : Place("menu", RestaurantArt, dress, new Vector3(EntranceX - 1.3f, 0f, -5.25f), 200f);
             menu.transform.localScale *= 1.6f;
 
             // Warm light pools over the counter and the dining tables. The room has no ceiling,
             // so these are bare lights rather than hanging lamps floating in the air.
-            var lights = IsPatisserie
+            var lights = IsDrive
+                ? new[] { CounterPos + new Vector3(0.6f, 0f, 0.6f), new Vector3(3.4f, 0f, 3.4f), new Vector3(-4.6f, 0f, -3.0f) }
+                : IsPatisserie
                 ? new[] { CounterPos + new Vector3(0.2f, 0f, 0.6f), new Vector3(-5f, 0f, -2.8f), new Vector3(5.2f, 0f, -2.2f) }
                 : IsPizza
                 ? new[] { CounterPos + new Vector3(0.6f, 0f, 0.6f), new Vector3(-1.8f, 0f, -1.4f), new Vector3(-1.8f, 0f, -4.4f) }
@@ -1113,6 +1155,7 @@ namespace MergeResto.EditorTools
         public static readonly (int renovations, int level, double cost) CafeUnlock = (8, 90, 80000);
         public static readonly (int renovations, int level, double cost) PizzeriaUnlock = (8, 100, 600000);
         public static readonly (int renovations, int level, double cost) PatisserieUnlock = (8, 100, 2500000);
+        public static readonly (int renovations, int level, double cost) DriveUnlock = (8, 100, 9000000);
 
         const int UpgradeMaxLevel = 25;
         const double UpgradeGrowth = 1.55;
@@ -1179,17 +1222,28 @@ namespace MergeResto.EditorTools
             ExpansionDefinition E(string name, string desc, double cost, int level, float price, float customers) =>
                 new() { displayName = name, description = desc, cost = cost, shopLevelNeeded = level, priceBonus = price, customerBonus = customers };
             var (annexCost, annexLevel, grandCost, grandLevel) = Pick((20000.0, 50, 90000.0, 105), (150000.0, 50, 900000.0, 105), (1500000.0, 50, 9000000.0, 105),
-                (5000000.0, 50, 30000000.0, 105), (16000000.0, 50, 100000000.0, 105));
-            config.shop.expansions = new List<ExpansionDefinition>
-            {
-                E("Dining Annex", "Build on the empty lot next door: a second dining room.", annexCost, annexLevel, 0.15f, 0.25f),
-                E("Grand Interior", "Wall lamps, paintings, rugs and big plants. Everything new and lovely.", grandCost, grandLevel, 0.3f, 0.15f),
-            };
+                (5000000.0, 50, 30000000.0, 105), (6000000.0, 50, 40000000.0, 105));
+            config.shop.expansions = IsDrive
+                ? new List<ExpansionDefinition>
+                {
+                    E("Neon Lane", "Lights along the lane and a big glowing arch: cars come from all over town.", annexCost, annexLevel, 0.15f, 0.25f),
+                    E("Retro Makeover", "Chrome, checkers, neon signs and a shiny new menu board.", grandCost, grandLevel, 0.3f, 0.15f),
+                }
+                : new List<ExpansionDefinition>
+                {
+                    E("Dining Annex", "Build on the empty lot next door: a second dining room.", annexCost, annexLevel, 0.15f, 0.25f),
+                    E("Grand Interior", "Wall lamps, paintings, rugs and big plants. Everything new and lovely.", grandCost, grandLevel, 0.3f, 0.15f),
+                };
             EditorUtility.SetDirty(config);
         }
 
         static void BuildLotAndAnnex(Transform world)
         {
+            if (IsDrive)
+            {
+                BuildDriveLane(world);
+                return;
+            }
             var street = world.Find("Street");
             var lot = Group("LotGarden", world);
             lot.gameObject.AddComponent<StageGroup>().maxStage = 0;
@@ -1374,7 +1428,7 @@ namespace MergeResto.EditorTools
         // A dividing wall that gives some shops a separate kitchen or bar.
         static void BuildPartition(Transform world)
         {
-            if (_shop == ShopKind.Bakery || IsPatisserie)
+            if (_shop == ShopKind.Bakery || IsPatisserie || IsDrive)
                 return;
             var part = Group("Partition", world);
             var trim = LookSetup.Mat("PartitionTop", LookSetup.Hex(IsPizza ? "EADBC4" : "C9A27A"));
@@ -1434,7 +1488,8 @@ namespace MergeResto.EditorTools
                     seats.Add(seat);
                 }
             }
-            crowd.seats = seats.ToArray();
+            // Drive-thru customers stay in their cars; the picnic corner is for the staff.
+            crowd.seats = IsDrive ? new Transform[0] : seats.ToArray();
         }
 
         // An upright post with a little cap where a knee wall ends (doorways, corners).
@@ -1817,9 +1872,10 @@ namespace MergeResto.EditorTools
                 },
                 new MapPanel.Shop
                 {
-                    id = "drive_thru", displayName = "Drive-Thru", comingSoon = true,
-                    blurb = "Coffee and snacks to go, straight to the car window.",
+                    id = "drive_thru", displayName = "Sunny's Drive-Thru", sceneName = DriveThruScene,
+                    blurb = "Burgers and shakes, straight to the car window.",
                     picture = Picture("building_G", "map_drivethru", 210f),
+                    requiresShop = "belles_patisserie", renovationsNeeded = DriveUnlock.renovations, shopLevelNeeded = DriveUnlock.level, unlockCost = DriveUnlock.cost,
                 },
             };
             HudBuilder.BuildMap(shops);
@@ -2044,7 +2100,8 @@ namespace MergeResto.EditorTools
             // The café sits on a paved little square; the bakery on a grassy street.
             var grass = LookSetup.Box("Grass", street, new Vector3(0f, -0.12f, 4f), new Vector3(90f, 0.2f, 70f),
                 Pick(LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f), LookSetup.Mat("Plaza", LookSetup.Hex("D9C7AE"), rim: 0f),
-                    LookSetup.Mat("Piazza", LookSetup.Hex("E2BE98"), rim: 0f)));
+                    LookSetup.Mat("Piazza", LookSetup.Hex("E2BE98"), rim: 0f), LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f),
+                    LookSetup.Mat("Grass", LookSetup.Hex("A9CC8A"), rim: 0f)));
             grass.name = "Grass";
 
             GameObject City(string model, Vector3 pos, float yaw = 0f, float scale = CityScale)
@@ -2099,7 +2156,11 @@ namespace MergeResto.EditorTools
                         LookSetup.Mat($"Petal{i % petals.Length}", LookSetup.Hex(petals[i % petals.Length]), rim: 0.3f, sway: true));
                 }
             }
-            if (IsPizza)
+            if (IsDrive)
+            {
+                // The lane runs where the front beds would be.
+            }
+            else if (IsPizza)
             {
                 FlowerBed(new Vector3(-4.0f, 0f, -6.75f), 7.0f, true);
                 FlowerBed(new Vector3(5.0f, 0f, -6.75f), 5.6f, true);
@@ -2122,16 +2183,16 @@ namespace MergeResto.EditorTools
             FlowerBed(new Vector3(8.75f, 0f, 2.5f), 5f, false);
 
             // Street furniture along the front sidewalk (low, so the view stays clear).
-            foreach (float x in new[] { -14f, -4f, 13f })
+            foreach (float x in IsDrive ? new[] { -19.5f, -4f, 15f } : new[] { -14f, -4f, 13f })
                 City("streetlight", new Vector3(x, 0f, IsCafe ? -9.4f : -9.2f), 180f);
             if (IsCafe)
                 BuildTerrace(street);
-            else
+            else if (!IsDrive)
             {
                 City("bench", new Vector3(-9f, 0f, -8.9f), 180f);
                 City("bench", new Vector3(1f, 0f, -8.9f), 180f);
             }
-            City("firehydrant", new Vector3(11.4f, 0f, -9.2f));
+            City("firehydrant", IsDrive ? new Vector3(8.2f, 0f, -9.25f) : new Vector3(11.4f, 0f, -9.2f));
             City("trash_A", IsCafe ? new Vector3(12.4f, 0f, -9.3f) : new Vector3(3.8f, 0f, -9.2f));
             City("streetlight", new Vector3(LotRight + 2.85f, 0f, 3f), 90f);
             City("streetlight", new Vector3(LotRight + 2.85f, 0f, 14f), 90f);
@@ -2139,8 +2200,11 @@ namespace MergeResto.EditorTools
             // Parked and passing cars. KayKit cars have their origin at the wheel centres, so
             // they are lifted until the tyres rest on the asphalt.
             const float CarLift = 0.175f;
-            City("car_hatchback", new Vector3(-12f, CarLift, -10.6f), 90f);
-            City("car_taxi", new Vector3(18f, CarLift, -10.6f), 90f);
+            if (!IsDrive) // the drive-thru's customers use the curb lane
+            {
+                City("car_hatchback", new Vector3(-12f, CarLift, -10.6f), 90f);
+                City("car_taxi", new Vector3(18f, CarLift, -10.6f), 90f);
+            }
             var mover = City("car_sedan", new Vector3(-20f, CarLift, -14.1f), 90f);
             var loop = mover.AddComponent<MergeResto.Look.LoopMover>();
             loop.from = new Vector3(-30f, CarLift, -14.1f);
@@ -2154,7 +2218,7 @@ namespace MergeResto.EditorTools
             loop2.startOffset = 0.45f;
 
             // Hedges and flowers right outside the low walls.
-            foreach (float x in Pick(new[] { -8.4f, -0.7f, 4.4f }, new[] { -8.4f, -4.4f, 7.6f }, new[] { -8.4f, 8.4f }, new[] { -8.4f, -0.2f, 8.4f }, new[] { -8.4f, 8.4f }))
+            foreach (float x in Pick(new[] { -8.4f, -0.7f, 4.4f }, new[] { -8.4f, -4.4f, 7.6f }, new[] { -8.4f, 8.4f }, new[] { -8.4f, -0.2f, 8.4f }, new float[0]))
                 Nature("Bush_1_" + "ABCDEFG"[(int)Mathf.Abs(x * 3) % 7] + "_Color1", new Vector3(x, 0f, -6.75f), x * 40f, 1.0f);
             foreach (float z in new[] { -0.4f, 5.6f })
                 Nature("Bush_2_" + "ABCDEF"[(int)Mathf.Abs(z * 3) % 6] + "_Color1", new Vector3(8.75f, 0f, z), z * 50f, 0.9f);
@@ -2368,6 +2432,11 @@ namespace MergeResto.EditorTools
             if (IsPatisserie)
             {
                 BuildPatisserieDining(world);
+                return;
+            }
+            if (IsDrive)
+            {
+                BuildDriveDining(world);
                 return;
             }
             var dining = Group("Dining", world);

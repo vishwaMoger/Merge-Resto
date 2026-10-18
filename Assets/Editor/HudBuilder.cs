@@ -1048,9 +1048,9 @@ namespace MergeResto.EditorTools
 
         static string IconFor(StationView s) => s.name switch
         {
-            "FlourStorage" or "PantryFridge" => "icon_output",
-            "Mixer" or "BatterMixer" => "icon_machine",
-            "Oven" or "DecoratingIsland" => "sl_icon_speed",
+            "FlourStorage" or "PantryFridge" or "WalkInFridge" => "icon_output",
+            "Mixer" or "BatterMixer" or "BurgerGrill" => "icon_machine",
+            "Oven" or "DecoratingIsland" or "PackingIsland" => "sl_icon_speed",
             _ => "icon_coin",
         };
 
