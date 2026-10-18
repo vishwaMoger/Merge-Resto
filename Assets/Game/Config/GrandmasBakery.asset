@@ -130,6 +130,13 @@ MonoBehaviour:
     maxQueue: 6
     itemsPerOrder: 2
     pricePerItem: 25
+    recipes:
+    - Country Bread
+    - Croissants
+    - Cinnamon Rolls
+    - Fruit Tarts
+    - Celebration Cakes
+    levelsPerRecipe: 2
     patienceSeconds: 22
     walkInSeconds: 9.239524
     stepUpSeconds: 0.65
@@ -138,6 +145,20 @@ MonoBehaviour:
     pricePerOutputLevel: 0.2
     gemMilestoneEvery: 5
     gemMilestoneReward: 10
+    expansions:
+    - displayName: Dining Annex
+      description: 'Build on the empty lot next door: a second dining room.'
+      cost: 3000
+      shopLevelNeeded: 10
+      priceBonus: 0.15
+      customerBonus: 0.25
+    - displayName: Grand Interior
+      description: Wall lamps, paintings, rugs and big plants. Everything new and
+        lovely.
+      cost: 15000
+      shopLevelNeeded: 22
+      priceBonus: 0.3
+      customerBonus: 0.15
     board:
       columns: 7
       rows: 5

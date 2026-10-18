@@ -503,5 +503,64 @@ namespace MergeResto.Sim.Tests
             Assert.AreEqual("Pepperoni", sim.CurrentRecipe);
             Assert.AreEqual("Calzone", sim.RecipeAtLevel(99), "the last recipe stays");
         }
+
+        // ------------------------------------------------------------------ Expansion
+
+        static ShopDefinition WithExpansions()
+        {
+            var def = Bakery();
+            def.expansions.Add(new ExpansionDefinition { cost = 300, shopLevelNeeded = 1, priceBonus = 0.2f, customerBonus = 0.25f });
+            def.expansions.Add(new ExpansionDefinition { cost = 1000, shopLevelNeeded = 2, priceBonus = 0.3f, customerBonus = 0f });
+            return def;
+        }
+
+        [Test]
+        public void Expansion_NeedsShopLevelAndCoins()
+        {
+            var sim = new ShopSim(WithExpansions());
+            Assert.IsFalse(sim.CanExpand, "shop level 0");
+            sim.BuyUpgrade(0, UpgradeTrack.Speed);
+            Assert.IsTrue(sim.CanExpand);
+            sim.State.coins = 100;
+            Assert.IsFalse(sim.CanExpand, "not enough coins");
+        }
+
+        [Test]
+        public void Expansion_RaisesPricesAndBringsCustomersFaster()
+        {
+            var sim = new ShopSim(WithExpansions());
+            sim.BuyUpgrade(0, UpgradeTrack.Speed);
+            double price = sim.PricePerItem;
+            float interval = sim.CustomerInterval;
+            double coins = sim.State.coins;
+            Assert.IsTrue(sim.Expand());
+            Assert.AreEqual(1, sim.State.expansion);
+            Assert.AreEqual(coins - 300, sim.State.coins);
+            Assert.AreEqual(price * 1.2, sim.PricePerItem, 1e-6);
+            Assert.AreEqual(interval * 0.75f, sim.CustomerInterval, 1e-4);
+        }
+
+        [Test]
+        public void Expansion_StopsAtTheLastStage()
+        {
+            var sim = new ShopSim(WithExpansions());
+            sim.State.coins = 1e6;
+            sim.State.stations[0].speedLevel = 5;
+            Assert.IsTrue(sim.Expand());
+            Assert.IsTrue(sim.Expand());
+            Assert.IsNull(sim.NextExpansion);
+            Assert.IsFalse(sim.Expand());
+        }
+
+        [Test]
+        public void Tips_GrowWithCoziness()
+        {
+            var def = WithBoard();
+            def.board.start.Add(new BoardStartItem { cell = 4, generator = -1, chain = 0, tier = 2 });
+            var sim = new ShopSim(def);
+            Assert.AreEqual(20, sim.TipFor(100));
+            sim.Board.Renovate(0); // +10% coziness
+            Assert.AreEqual(30, sim.TipFor(100));
+        }
     }
 }

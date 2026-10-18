@@ -35,6 +35,17 @@ namespace MergeResto.Game.Views
             _homeSize = _cam.orthographicSize;
         }
 
+        /// <summary>Changes the resting view (a bigger shop needs a wider shot).</summary>
+        public void SetHome(Vector3 target, float size, bool snap)
+        {
+            if (_cam == null)
+                Awake();
+            _homeTarget = target;
+            _homeSize = size;
+            if (snap && !_focused)
+                Apply(1f);
+        }
+
         /// <summary>Follow a moving object at the given zoom (orthographic size).</summary>
         public void Follow(Transform target, float size)
         {

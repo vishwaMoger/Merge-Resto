@@ -20,6 +20,8 @@ namespace MergeResto.Sim
         /// <summary>Grand Opening tutorial progress: index of the current step, or a large value once finished.</summary>
         public int tutorialStep;
         public int customersServed;
+        /// <summary>How many building stages are done (0 = the small starting shop).</summary>
+        public int expansion;
         /// <summary>Indices of goals whose reward has been collected.</summary>
         public List<int> goalsClaimed = new();
         public BoardState board = new();

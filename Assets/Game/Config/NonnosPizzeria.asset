@@ -146,6 +146,20 @@ MonoBehaviour:
     pricePerOutputLevel: 0.2
     gemMilestoneEvery: 5
     gemMilestoneReward: 10
+    expansions:
+    - displayName: Dining Annex
+      description: 'Build on the empty lot next door: a second dining room.'
+      cost: 90000
+      shopLevelNeeded: 16
+      priceBonus: 0.15
+      customerBonus: 0.25
+    - displayName: Grand Interior
+      description: Wall lamps, paintings, rugs and big plants. Everything new and
+        lovely.
+      cost: 400000
+      shopLevelNeeded: 32
+      priceBonus: 0.3
+      customerBonus: 0.15
     board:
       columns: 7
       rows: 5

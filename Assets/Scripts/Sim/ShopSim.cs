@@ -29,6 +29,7 @@ namespace MergeResto.Sim
         public event Action<int> ManagerHired;
         public event Action CoinsChanged;
         public event Action<int> GoalClaimed;                // goal index
+        public event Action<int> Expanded;                   // new expansion stage
 
         int _nextCustomerId = 1;
 
@@ -144,10 +145,64 @@ namespace MergeResto.Sim
         public string CurrentRecipe => RecipeAtLevel(State.stations[^1].outputLevel);
 
         /// <summary>Price multiplier from renovations (1 = no bonus).</summary>
-        public double CozinessMultiplier => 1 + (Board?.Coziness ?? 0f);
+        public double CozinessMultiplier => 1 + (Board?.Coziness ?? 0f) + ExpansionPriceBonus;
+
+        /// <summary>
+        /// Tip from a customer who sat down to eat: a fifth of the order, plus the shop's
+        /// coziness (renovations make diners more generous). Paid by the caller via AddCoins.
+        /// </summary>
+        public double TipFor(double order) => Math.Round(order * (0.2 + (Board?.Coziness ?? 0f)));
+
+        // ------------------------------------------------------------------ Expansion
+
+        double ExpansionPriceBonus
+        {
+            get
+            {
+                double bonus = 0;
+                for (int i = 0; i < State.expansion && i < Def.expansions.Count; i++)
+                    bonus += Def.expansions[i].priceBonus;
+                return bonus;
+            }
+        }
+
+        float ExpansionCustomerFactor
+        {
+            get
+            {
+                float f = 1f;
+                for (int i = 0; i < State.expansion && i < Def.expansions.Count; i++)
+                    f *= 1f - Def.expansions[i].customerBonus;
+                return f;
+            }
+        }
+
+        /// <summary>The next building stage, or null when the shop is fully built.</summary>
+        public ExpansionDefinition NextExpansion =>
+            State.expansion < Def.expansions.Count ? Def.expansions[State.expansion] : null;
+
+        public bool CanExpand
+        {
+            get
+            {
+                var next = NextExpansion;
+                return next != null && ShopLevel >= next.shopLevelNeeded && State.coins >= next.cost;
+            }
+        }
+
+        public bool Expand()
+        {
+            if (!CanExpand)
+                return false;
+            State.coins -= NextExpansion.cost;
+            State.expansion++;
+            Expanded?.Invoke(State.expansion);
+            CoinsChanged?.Invoke();
+            return true;
+        }
 
         public float CustomerInterval =>
-            Math.Max(Def.minCustomerIntervalSeconds, Def.customerIntervalSeconds * (float)Math.Pow(Def.intervalPerShopLevel, ShopLevel));
+            Math.Max(Def.minCustomerIntervalSeconds, Def.customerIntervalSeconds * (float)Math.Pow(Def.intervalPerShopLevel, ShopLevel) * ExpansionCustomerFactor);
 
         public double UpgradeCost(int station, UpgradeTrack track)
         {

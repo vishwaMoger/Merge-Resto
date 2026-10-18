@@ -634,6 +634,140 @@ namespace MergeResto.EditorTools
             Set(settings, "confirmSprite", Resolve("sl_btn_pink"));
         }
 
+        /// <summary>"Grow the shop" button (bottom right row) and its window.</summary>
+        public static void BuildExpand(Sprite icon)
+        {
+            var holder = Stretch(Rect("Expand", _root));
+            var expand = holder.gameObject.AddComponent<ExpandPanel>();
+
+            var open = Rect("ExpandButton", holder);
+            open.anchorMin = open.anchorMax = open.pivot = new Vector2(1f, 0f);
+            open.anchoredPosition = new Vector2(-376, 44);
+            open.sizeDelta = new Vector2(150, 150);
+            var openImage = Img(open, "sl_btn_orange_circle", Color.white, simple: true);
+            var openButton = open.gameObject.AddComponent<UnityEngine.UI.Button>();
+            openButton.targetGraphic = openImage;
+            open.gameObject.AddComponent<ButtonJuice>();
+            var art = Rect("Icon", open);
+            art.anchoredPosition = new Vector2(0, 14);
+            art.sizeDelta = new Vector2(104, 104);
+            var artImage = art.gameObject.AddComponent<UnityEngine.UI.Image>();
+            artImage.sprite = icon;
+            artImage.preserveAspect = true;
+            artImage.raycastTarget = false;
+            var openLabel = Label("Label", open, "Expand", 30, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            openLabel.rectTransform.anchorMin = openLabel.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            openLabel.rectTransform.anchoredPosition = new Vector2(0, 8);
+            openLabel.rectTransform.sizeDelta = new Vector2(200, 44);
+            var alert = Rect("Alert", open);
+            alert.anchorMin = alert.anchorMax = new Vector2(1f, 1f);
+            alert.anchoredPosition = new Vector2(-18, -18);
+            alert.sizeDelta = new Vector2(48, 48);
+            Img(alert, "sl_btn_red_circle", Color.white, simple: true);
+            var bang = Label("Text", alert, "!", 34, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            Fill(bang.rectTransform, new Vector2(0, 4), Vector2.zero);
+
+            var dim = Stretch(Rect("Dim", holder));
+            var dimImage = Img(dim, null, new Color(0.03f, 0.02f, 0.02f, 0.55f));
+            var dimButton = dim.gameObject.AddComponent<UnityEngine.UI.Button>();
+            dimButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            dimButton.targetGraphic = dimImage;
+            var dimGroup = dim.gameObject.AddComponent<CanvasGroup>();
+
+            var panel = Rect("Panel", holder);
+            panel.sizeDelta = new Vector2(980, 700);
+            var group = panel.gameObject.AddComponent<CanvasGroup>();
+            Window(Stretch(Rect("Background", panel)), 16f).raycastTarget = true;
+            var ribbon = Rect("Ribbon", panel);
+            ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 1f);
+            ribbon.anchoredPosition = new Vector2(0, 12);
+            ribbon.sizeDelta = new Vector2(520, 104);
+            Img(ribbon, "sl_banner", Color.white, BannerSlice(104f));
+            var title = Label("Title", ribbon, "Grow the Shop", 48, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+            BandText(title.rectTransform, 104f);
+            var closeButton = CloseButton(panel);
+
+            var stages = new List<ExpandPanel.Stage>();
+            for (int i = 0; i < 3; i++)
+            {
+                var row = Rect($"Stage{i}", panel);
+                row.anchorMin = row.anchorMax = new Vector2(0.5f, 1f);
+                row.pivot = new Vector2(0.5f, 1f);
+                row.anchoredPosition = new Vector2(0, -92 - i * 140);
+                row.sizeDelta = new Vector2(860, 126);
+                var frame = Img(row, "sl_frame_white", Color.white, 1.5f);
+                var num = Rect("Number", row);
+                num.anchorMin = num.anchorMax = new Vector2(0f, 0.5f);
+                num.anchoredPosition = new Vector2(62, 0);
+                num.sizeDelta = new Vector2(84, 84);
+                Img(num, "sl_btn_orange_circle", Color.white, simple: true);
+                var numText = Label("Text", num, (i + 1).ToString(), 44, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                Fill(numText.rectTransform, new Vector2(0, 4), Vector2.zero);
+                var t = Label("Title", row, "Stage", 36, _display, _shadow, Brown, TextAlignmentOptions.Left);
+                Left(t.rectTransform, new Vector2(124, 28), new Vector2(640, 46));
+                var d = Label("Description", row, "", 24, _body, null, SoftBrown, TextAlignmentOptions.Left);
+                d.textWrappingMode = TextWrappingModes.Normal;
+                Left(d.rectTransform, new Vector2(124, -20), new Vector2(600, 60));
+                var check = Rect("Check", row);
+                check.anchorMin = check.anchorMax = new Vector2(1f, 0.5f);
+                check.anchoredPosition = new Vector2(-50, 0);
+                check.sizeDelta = new Vector2(64, 64);
+                Img(check, "sl_green_disc", Color.white);
+                var tick = Label("Tick", check, "OK", 24, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                Fill(tick.rectTransform, new Vector2(0, 2), Vector2.zero);
+                stages.Add(new ExpandPanel.Stage { frame = frame, title = t, description = d, check = check.gameObject });
+            }
+
+            var req = Label("Requirement", panel, "", 28, _body, null, Brown, TextAlignmentOptions.Center);
+            req.textWrappingMode = TextWrappingModes.Normal;
+            req.rectTransform.anchorMin = req.rectTransform.anchorMax = req.rectTransform.pivot = new Vector2(0.5f, 0f);
+            req.rectTransform.anchoredPosition = new Vector2(0, 150);
+            req.rectTransform.sizeDelta = new Vector2(860, 50);
+            var build = Rect("Build", panel);
+            build.anchorMin = build.anchorMax = new Vector2(0.5f, 0f);
+            build.pivot = new Vector2(0.5f, 0f);
+            build.anchoredPosition = new Vector2(0, 40);
+            build.sizeDelta = new Vector2(380, 100);
+            var buildImage = Img(build, "sl_btn_orange", Color.white, 1.3f);
+            var buildButton = build.gameObject.AddComponent<UnityEngine.UI.Button>();
+            buildButton.targetGraphic = buildImage;
+            var colors = buildButton.colors;
+            colors.disabledColor = Color.white;
+            buildButton.colors = colors;
+            build.gameObject.AddComponent<ButtonJuice>();
+            var buildText = Label("Text", build, "Build", 44, _display, _shadow, Color.white, TextAlignmentOptions.Center);
+            Fill(buildText.rectTransform, new Vector2(6, 6), Vector2.zero);
+
+            var so = new SerializedObject(expand);
+            var prop = so.FindProperty("stages");
+            prop.arraySize = stages.Count;
+            for (int i = 0; i < stages.Count; i++)
+            {
+                var e = prop.GetArrayElementAtIndex(i);
+                e.FindPropertyRelative("frame").objectReferenceValue = stages[i].frame;
+                e.FindPropertyRelative("title").objectReferenceValue = stages[i].title;
+                e.FindPropertyRelative("description").objectReferenceValue = stages[i].description;
+                e.FindPropertyRelative("check").objectReferenceValue = stages[i].check;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Set(expand, "panel", panel);
+            Set(expand, "group", group);
+            Set(expand, "dim", dimGroup);
+            Set(expand, "dimButton", dimButton);
+            Set(expand, "openButton", openButton);
+            Set(expand, "openAlert", alert.gameObject);
+            Set(expand, "closeButton", closeButton);
+            Set(expand, "buildButton", buildButton);
+            Set(expand, "buildImage", buildImage);
+            Set(expand, "buildText", buildText);
+            Set(expand, "requirement", req);
+            Set(expand, "readySprite", Resolve("sl_btn_orange"));
+            Set(expand, "lockedSprite", Resolve("sl_btn_white"));
+            Set(expand, "frameDone", Resolve("sl_frame_cream"));
+            Set(expand, "frameNext", Resolve("sl_frame_peach"));
+            Set(expand, "frameLater", Resolve("sl_frame_white"));
+        }
+
         public static void BuildSoundToggle()
         {
             var rt = Rect("SoundToggle", _root);
@@ -1594,14 +1728,14 @@ namespace MergeResto.EditorTools
             var buttons = Stretch(Rect("HudButtons", _root));
             var stationPanel = _root.Find("StationPanel");
             buttons.SetSiblingIndex(stationPanel != null ? stationPanel.GetSiblingIndex() + 1 : 0);
-            foreach (var path in new[] { "Settings/SettingsButton", "Board/RenovateButton", "Map/ShopsButton", "Daily/DailyButton" })
+            foreach (var path in new[] { "Settings/SettingsButton", "Board/RenovateButton", "Map/ShopsButton", "Daily/DailyButton", "Expand/ExpandButton" })
             {
                 var t = _root.Find(path);
                 if (t != null)
                     t.SetParent(buttons, false);
             }
             // Windows above the buttons, then the tutorial, the welcome-back dialog and flying coins.
-            foreach (var name in new[] { "Board", "Map", "Daily", "Settings", "Tutorial", "OfflineDialog", "CoinFly" })
+            foreach (var name in new[] { "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "OfflineDialog", "CoinFly" })
             {
                 var t = _root.Find(name);
                 if (t != null)
