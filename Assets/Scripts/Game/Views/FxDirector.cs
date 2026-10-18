@@ -59,7 +59,18 @@ namespace MergeResto.Game.Views
                 return;
             view.Bounce();
             Emit(sparkleBurst, view.hudAnchor.position, 22);
-            popups.Show(view.hudAnchor.position + Vector3.up * 0.5f, track == UpgradeTrack.Machines ? "New machine!" : "Level up!", levelUpColor);
+            string text = track == UpgradeTrack.Machines ? "New machine!" : "Level up!";
+            // A new dish on the menu gets its own announcement.
+            if (track == UpgradeTrack.Output && _sim.Def.stations[station].kind == StationKind.Seller)
+            {
+                int level = _sim.State.stations[station].outputLevel;
+                if (_sim.RecipeAtLevel(level) != _sim.RecipeAtLevel(level - 1))
+                {
+                    text = $"New recipe: {_sim.CurrentRecipe}!";
+                    Celebrate(view.hudAnchor.position);
+                }
+            }
+            popups.Show(view.hudAnchor.position + Vector3.up * 0.5f, text, levelUpColor);
         }
 
         void OnManager(int station)

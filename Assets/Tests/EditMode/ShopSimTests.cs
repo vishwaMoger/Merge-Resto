@@ -490,5 +490,18 @@ namespace MergeResto.Sim.Tests
             sim.Tick(100f);
             Assert.AreEqual(35, sim.Board.Energy, "no regeneration above the maximum");
         }
+
+        [Test]
+        public void Recipes_UnlockWithCounterOutputLevels()
+        {
+            var def = Bakery();
+            def.recipes.AddRange(new[] { "Margherita", "Pepperoni", "Calzone" });
+            var sim = new ShopSim(def);
+            int counter = def.stations.Count - 1;
+            Assert.AreEqual("Margherita", sim.CurrentRecipe);
+            sim.State.stations[counter].outputLevel = 2;
+            Assert.AreEqual("Pepperoni", sim.CurrentRecipe);
+            Assert.AreEqual("Calzone", sim.RecipeAtLevel(99), "the last recipe stays");
+        }
     }
 }

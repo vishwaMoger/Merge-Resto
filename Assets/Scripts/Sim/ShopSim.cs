@@ -132,6 +132,17 @@ namespace MergeResto.Sim
 
         public double PricePerItem => PriceAtLevel(State.stations[^1].outputLevel);
 
+        /// <summary>The dish sold at a given counter output level ("" when the shop has no recipe list).</summary>
+        public string RecipeAtLevel(int outputLevel)
+        {
+            if (Def.recipes == null || Def.recipes.Count == 0)
+                return "";
+            int index = Math.Min(outputLevel / Math.Max(1, Def.levelsPerRecipe), Def.recipes.Count - 1);
+            return Def.recipes[index];
+        }
+
+        public string CurrentRecipe => RecipeAtLevel(State.stations[^1].outputLevel);
+
         /// <summary>Price multiplier from renovations (1 = no bonus).</summary>
         public double CozinessMultiplier => 1 + (Board?.Coziness ?? 0f);
 

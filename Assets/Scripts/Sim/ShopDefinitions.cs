@@ -127,6 +127,9 @@ namespace MergeResto.Sim
         public int maxQueue = 6;
         public int itemsPerOrder = 2;
         public double pricePerItem = 25;
+        [Tooltip("What the counter sells, unlocked by its output upgrades (one new recipe every few levels).")]
+        public List<string> recipes = new();
+        public int levelsPerRecipe = 2;
         [Tooltip("Seconds a customer waits in line before leaving (counted once they have arrived).")]
         public float patienceSeconds = 20f;
         [Tooltip("Seconds to walk from the door to the counter; nobody is served before arriving.")]
