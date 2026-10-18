@@ -177,6 +177,7 @@ namespace MergeResto.EditorTools
             HudBuilder.BuildExpand(expandIcon);
             HudBuilder.BuildVipBanner(AssetDatabase.LoadAssetAtPath<Sprite>($"{IconRenderer.Folder}/crown.png") ?? RenderCrownIcon());
             BuildMap();
+            HudBuilder.BuildGuide(AssetDatabase.LoadAssetAtPath<Sprite>($"{PortraitRenderer.Folder}/{CharacterLibrary.GrandmaLook}.png"));
             HudBuilder.OrderLayers();
             HudBuilder.BuildScreenFit();
             HudBuilder.EnableButtonTargets();
@@ -1764,6 +1765,11 @@ namespace MergeResto.EditorTools
         {
             var root = Group("Renovations", world);
             var sparkle = GameObject.Find("Bakery/FX/SparkleBurst").GetComponent<ParticleSystem>();
+            var dust = GameObject.Find("Bakery/FX/FlourPuff").GetComponent<ParticleSystem>();
+            string[] captions = Pick(
+                new[] { "Pastry stand restocked!", "The window plants are back!", "The tables are set!", "The display case shines!", "The cozy corner is green again!", "Grandma's sign is lit!" },
+                new[] { "Cake stand filled!", "Fresh plants in the windows!", "Café tables are set!", "The display case shines!", "A reading corner, all green!", "The café sign is lit!" },
+                new[] { "Dessert stand restocked!", "Nonno's plants are back!", "Trattoria tables are set!", "The counter shines!", "The piazza corner is green!", "Nonno's sign is lit!" });
             RenovationSpot Spot(int index, string name, Vector3 pos)
             {
                 var go = new GameObject(name);
@@ -1772,6 +1778,8 @@ namespace MergeResto.EditorTools
                 var spot = go.AddComponent<RenovationSpot>();
                 spot.renovation = index;
                 spot.sparkle = sparkle;
+                spot.dust = dust;
+                spot.doneCaption = captions[index];
                 spot.broken = new GameObject[0];
                 spot.fixedObjects = new GameObject[0];
                 spot.worn = new Renderer[0];

@@ -45,6 +45,8 @@ namespace MergeResto.Game.UI
         [SerializeField] Sprite frameGift;
 
         bool _isOpen;
+
+        public bool IsOpen => _isOpen;
         float _open;
         float _velocity;
         float _autoOpenDelay = 1.2f;

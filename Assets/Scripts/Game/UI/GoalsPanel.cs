@@ -74,6 +74,17 @@ namespace MergeResto.Game.UI
             card.goal = -1; // refilled (and slid in) next frame
         }
 
+        /// <summary>The reward button of the card showing this goal, while the panel is visible.</summary>
+        public RectTransform ClaimRectFor(int goal)
+        {
+            if (group.alpha < 0.9f)
+                return null;
+            foreach (var c in cards)
+                if (c.goal == goal && c.root.gameObject.activeInHierarchy)
+                    return (RectTransform)c.claim.transform;
+            return null;
+        }
+
         void Update()
         {
             float dt = UiTime.Delta;

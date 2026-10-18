@@ -44,6 +44,8 @@ namespace MergeResto.Game.UI
         static readonly string[] SaveKeys = { "shop_grandmas_bakery", "shop_corner_cafe", "shop_nonnos_pizzeria" };
 
         bool _isOpen;
+
+        public bool IsOpen => _isOpen;
         float _open;
         float _velocity;
         float _confirmUntil = -1f;
@@ -97,7 +99,9 @@ namespace MergeResto.Game.UI
                 SaveStore.Delete(key);
             WorldState.Reset();
             DailyRewardStore.Reset();
+            SaveStore.Delete("lessons");
             PlayerPrefs.DeleteKey("board_opened");
+            PlayerPrefs.DeleteKey("board_discovered");
             PlayerPrefs.Save();
             // Start over in Grandma's Bakery without saving this shop again.
             var gc = GameController.Instance;

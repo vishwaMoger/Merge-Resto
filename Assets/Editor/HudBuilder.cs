@@ -62,6 +62,7 @@ namespace MergeResto.EditorTools
                 "sl_disc_white" => "Frames/250px/Frame_Circle_White_250px",
                 "sl_heart" => "Icons/Heart",
                 "sl_ad" => "Icons/Add_Video",
+                "sl_star" => "Icons/Star",
                 "sl_icon_settings" => "Icons/Icon_Settings",
                 "sl_music_on" => "Icons/Icon_Music_On",
                 "sl_music_off" => "Icons/Icon_Music_Off",
@@ -1546,6 +1547,14 @@ namespace MergeResto.EditorTools
             var sellText = Label("Text", sell, "Sell +5", 28, _display, _shadow, Brown, TextAlignmentOptions.Center);
             Fill(sellText.rectTransform, new Vector2(4, 4), Vector2.zero);
 
+            // "New: Cupcake!" / "Combo x3!" banner just above the grid.
+            var discovery = Label("Discovery", panel, "", 46, _display, _outlined, new Color(1f, 0.85f, 0.35f), TextAlignmentOptions.Center);
+            discovery.rectTransform.anchorMin = discovery.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            discovery.rectTransform.anchoredPosition = new Vector2(0, -372);
+            discovery.rectTransform.sizeDelta = new Vector2(700, 64);
+            Set(view, "discoveryText", discovery);
+            Set(view, "sparkSprite", Resolve("sl_star"));
+
             // Effects on top: drag ghost, spawn flyer, merge burst.
             Img(Rect("Burst", panel), "sl_shine", Color.white).rectTransform.sizeDelta = new Vector2(200, 200);
             var burst = (RectTransform)panel.Find("Burst");
@@ -1649,16 +1658,18 @@ namespace MergeResto.EditorTools
         }
 
         /// <summary>The Grand Opening layer: spotlight, pointer, Grandma's speech box, progress bar.</summary>
-        public static void BuildTutorial(StationView[] stations, FxDirector fx, CoinFlyLayer coinFly, ChibiAnimator grandma, Sprite portraitSprite,
-            CustomerCrowd crowd, CameraDirector cameraDirector)
+        class SpeechParts
         {
-            var holder = Stretch(Rect("Tutorial", _root));
-            var dialog = _root.Find("OfflineDialog");
-            if (dialog != null)
-                holder.SetSiblingIndex(dialog.GetSiblingIndex());
-            var group = holder.gameObject.AddComponent<CanvasGroup>();
-            var tutorial = holder.gameObject.AddComponent<GrandOpeningTutorial>();
+            public UnityEngine.UI.Image dim;
+            public UnityEngine.UI.Button dimButton;
+            public RectTransform ping, speech, hint, portrait;
+            public UnityEngine.UI.Button speechButton;
+            public TMP_Text text;
+        }
 
+        // Spotlight dim, ping ring and Grandma's speech box, shared by the tutorial and the lessons.
+        static SpeechParts BuildSpeechLayer(RectTransform holder, Sprite portraitSprite)
+        {
             // Dim with a soft hole over the target.
             var dim = Rect("Spotlight", holder);
             dim.sizeDelta = new Vector2(6000, 6000);
@@ -1723,6 +1734,65 @@ namespace MergeResto.EditorTools
             hintArrow.anchoredPosition = new Vector2(-14, 0);
             hintArrow.sizeDelta = new Vector2(30, 30);
             Img(hintArrow, "sl_play", PinOrange);
+
+            return new SpeechParts
+            {
+                dim = dimImage, dimButton = dimButton, ping = ping, speech = speech, speechButton = speechButton,
+                text = text, hint = hint, portrait = portrait,
+            };
+        }
+
+        /// <summary>Grandma's lesson layer for the features after the tutorial (every shop).</summary>
+        public static void BuildGuide(Sprite portraitSprite)
+        {
+            var holder = Stretch(Rect("Guide", _root));
+            var group = holder.gameObject.AddComponent<CanvasGroup>();
+            var guide = holder.gameObject.AddComponent<GuideOverlay>();
+            var parts = BuildSpeechLayer(holder, portraitSprite);
+            var drag = Rect("DragIcon", holder);
+            drag.sizeDelta = new Vector2(100, 100);
+            var dragImage = drag.gameObject.AddComponent<UnityEngine.UI.Image>();
+            dragImage.preserveAspect = true;
+            dragImage.raycastTarget = false;
+            var pointer = Pin(holder, "Pointer", "TAP!");
+            Set(guide, "group", group);
+            Set(guide, "layer", holder);
+            Set(guide, "dim", parts.dim);
+            Set(guide, "dimButton", parts.dimButton);
+            Set(guide, "pointer", pointer);
+            Set(guide, "ping", parts.ping);
+            Set(guide, "speech", parts.speech);
+            Set(guide, "speechButton", parts.speechButton);
+            Set(guide, "speechText", parts.text);
+            Set(guide, "continueHint", parts.hint.gameObject);
+            Set(guide, "portrait", parts.portrait);
+            Set(guide, "dragIcon", dragImage);
+
+            var lessons = holder.gameObject.AddComponent<FeatureLessons>();
+            Set(lessons, "guide", guide);
+            Set(lessons, "board", _root.GetComponentInChildren<MergeBoardView>(true));
+            Set(lessons, "goals", _root.GetComponentInChildren<GoalsPanel>(true));
+            Set(lessons, "expand", _root.GetComponentInChildren<ExpandPanel>(true));
+            Set(lessons, "map", _root.GetComponentInChildren<MapPanel>(true));
+            Set(lessons, "daily", _root.GetComponentInChildren<DailyRewardsPanel>(true));
+            Set(lessons, "settings", _root.GetComponentInChildren<SettingsPanel>(true));
+            Set(lessons, "vip", _root.GetComponentInChildren<VipBanner>(true));
+            Set(lessons, "boost", _root.GetComponentInChildren<BoostButton>(true));
+        }
+
+        public static void BuildTutorial(StationView[] stations, FxDirector fx, CoinFlyLayer coinFly, ChibiAnimator grandma, Sprite portraitSprite,
+            CustomerCrowd crowd, CameraDirector cameraDirector)
+        {
+            var holder = Stretch(Rect("Tutorial", _root));
+            var dialog = _root.Find("OfflineDialog");
+            if (dialog != null)
+                holder.SetSiblingIndex(dialog.GetSiblingIndex());
+            var group = holder.gameObject.AddComponent<CanvasGroup>();
+            var tutorial = holder.gameObject.AddComponent<GrandOpeningTutorial>();
+
+            var parts = BuildSpeechLayer(holder, portraitSprite);
+            var (dimImage, dimButton, ping, speech, speechButton, text, hint, portrait) =
+                (parts.dim, parts.dimButton, parts.ping, parts.speech, parts.speechButton, parts.text, parts.hint, parts.portrait);
 
             // Progress bar, top centre.
             var bar = Rect("Progress", holder);
@@ -1813,7 +1883,7 @@ namespace MergeResto.EditorTools
                     t.SetParent(buttons, false);
             }
             // Windows above the buttons, then the tutorial, the welcome-back dialog and flying coins.
-            foreach (var name in new[] { "Vip", "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "OfflineDialog", "CoinFly" })
+            foreach (var name in new[] { "Vip", "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "Guide", "OfflineDialog", "CoinFly" })
             {
                 var t = _root.Find(name);
                 if (t != null)
