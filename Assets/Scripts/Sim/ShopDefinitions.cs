@@ -151,6 +151,15 @@ namespace MergeResto.Sim
         [Tooltip("Seconds to step up one place in line when someone ahead leaves.")]
         public float stepUpSeconds = 0.5f;
 
+        [Header("VIP customers")]
+        [Tooltip("Seconds between VIP visits (0 = no VIPs). Only after the tutorial.")]
+        public float vipIntervalSeconds = 150f;
+        public int vipItems = 6;
+        [Tooltip("A VIP pays this many times the normal price per item.")]
+        public double vipPriceMultiplier = 4;
+        public int vipGems = 3;
+        public float vipPatienceSeconds = 45f;
+
         [Header("Economy")]
         public double startCoins = 500;
         public int startGems = 20;

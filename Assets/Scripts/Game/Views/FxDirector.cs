@@ -27,10 +27,12 @@ namespace MergeResto.Game.Views
             _sim.CycleStarted += OnCycleStarted;
             _sim.UpgradePurchased += OnUpgrade;
             _sim.ManagerHired += OnManager;
+            _sim.VipServed += OnVipServed;
             if (crowd != null)
             {
                 crowd.CustomerPaid += OnPaid;
                 crowd.CustomerTipped += OnTipped;
+                crowd.VipArrived += OnVipArrived;
             }
         }
 
@@ -41,11 +43,13 @@ namespace MergeResto.Game.Views
                 _sim.CycleStarted -= OnCycleStarted;
                 _sim.UpgradePurchased -= OnUpgrade;
                 _sim.ManagerHired -= OnManager;
+                _sim.VipServed -= OnVipServed;
             }
             if (crowd != null)
             {
                 crowd.CustomerPaid -= OnPaid;
                 crowd.CustomerTipped -= OnTipped;
+                crowd.VipArrived -= OnVipArrived;
             }
         }
 
@@ -87,6 +91,24 @@ namespace MergeResto.Game.Views
             view.Bounce();
             Emit(sparkleBurst, view.hudAnchor.position, 30);
             popups.Show(view.hudAnchor.position + Vector3.up * 0.5f, "Manager hired!", managerColor);
+        }
+
+        void OnVipArrived(Vector3 position)
+        {
+            popups.Show(position, "VIP!", new Color(1f, 0.8f, 0.2f));
+            Emit(sparkleBurst, position - Vector3.up * 0.5f, 20);
+            AudioDirector.Play(Sfx.Claim, 1.15f);
+        }
+
+        void OnVipServed(CustomerState customer, int gems)
+        {
+            var who = crowd != null ? crowd.VipCharacter : null;
+            var at = who != null ? who.position + Vector3.up * 2.4f : stations[stations.Length - 1].hudAnchor.position;
+            Celebrate(at);
+            popups.Show(at + Vector3.up * 0.6f, $"VIP served!  +{gems} gems", new Color(0.55f, 0.85f, 1f));
+            if (coinFly != null)
+                coinFly.Fly(at, 12);
+            AudioDirector.Play(Sfx.Celebrate);
         }
 
         void OnTipped(Vector3 position, double coins)

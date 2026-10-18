@@ -30,6 +30,8 @@ namespace MergeResto.Game.Views
         public event Action<Vector3, double> CustomerPaid;
         /// <summary>World position where a customer gave up.</summary>
         public event Action<Vector3> CustomerGaveUp;
+        /// <summary>A VIP walked in (world position above them).</summary>
+        public event Action<Vector3> VipArrived;
         /// <summary>A diner finished eating and left a tip (already added to the coins).</summary>
         public event Action<Vector3, double> CustomerTipped;
 
@@ -45,6 +47,7 @@ namespace MergeResto.Game.Views
             public float eatLeft;
             public bool seated;
             public double order;
+            public bool vip;
             public readonly Queue<Vector3> route = new();
         }
 
@@ -94,7 +97,7 @@ namespace MergeResto.Game.Views
             if (w.anim != null) w.anim.Cheer();
             w.leaveDelay = 0.4f; // a quick cheer before walking off
             CustomerPaid?.Invoke(w.go.transform.position + Vector3.up * 2.6f, coins);
-            int seat = UnityEngine.Random.value < dineInChance ? FreeSeat(w.go.transform.position) : -1;
+            int seat = !w.vip && UnityEngine.Random.value < dineInChance ? FreeSeat(w.go.transform.position) : -1;
             if (seat >= 0)
             {
                 // Eat in: walk to the table, sit, enjoy, tip, then leave.
@@ -139,6 +142,11 @@ namespace MergeResto.Game.Views
             };
             if (w.bag != null) w.bag.gameObject.SetActive(false);
             if (w.grump != null) w.grump.gameObject.SetActive(false);
+            var state = _sim.State.queue.Find(c => c.id == id);
+            w.vip = state != null && state.vip;
+            var crown = FindDeep(go.transform, "Crown");
+            if (crown != null)
+                crown.gameObject.SetActive(w.vip);
             int slot = Mathf.Min(_sim.State.queue.FindIndex(c => c.id == id), queueSlots.Length - 1);
             if (atQueue && slot >= 0)
             {
@@ -151,6 +159,20 @@ namespace MergeResto.Game.Views
                     w.route.Enqueue(entryPath[i].position);
             }
             _active[id] = w;
+            if (w.vip && !atQueue)
+                VipArrived?.Invoke(go.transform.position + Vector3.up * 2.6f);
+        }
+
+        /// <summary>The VIP's character while they wait, or null.</summary>
+        public Transform VipCharacter
+        {
+            get
+            {
+                foreach (var kv in _active)
+                    if (kv.Value.vip && kv.Value.go != null)
+                        return kv.Value.go.transform;
+                return null;
+            }
         }
 
         void StartLeaving(Walker w)

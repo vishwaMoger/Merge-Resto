@@ -768,6 +768,48 @@ namespace MergeResto.EditorTools
             Set(expand, "frameLater", Resolve("sl_frame_white"));
         }
 
+        /// <summary>Banner that drops in at the top centre while a VIP waits.</summary>
+        public static void BuildVipBanner(Sprite crown)
+        {
+            var holder = Stretch(Rect("Vip", _root));
+            var banner = holder.gameObject.AddComponent<VipBanner>();
+            var panel = Rect("Panel", holder);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 1f);
+            panel.anchoredPosition = new Vector2(40, -20);
+            panel.sizeDelta = new Vector2(560, 116);
+            Window(panel, 8f, 1.3f);
+            var icon = Rect("Crown", panel);
+            icon.anchorMin = icon.anchorMax = new Vector2(0f, 0.5f);
+            icon.anchoredPosition = new Vector2(62, 4);
+            icon.sizeDelta = new Vector2(96, 96);
+            var iconImage = icon.gameObject.AddComponent<UnityEngine.UI.Image>();
+            iconImage.sprite = crown;
+            iconImage.preserveAspect = true;
+            iconImage.raycastTarget = false;
+            var title = Label("Title", panel, "A VIP is here!", 34, _display, _shadow, new Color(0.76f, 0.31f, 0.1f), TextAlignmentOptions.Left);
+            Left(title.rectTransform, new Vector2(118, 26), new Vector2(420, 42));
+            var detail = Label("Detail", panel, "", 23, _body, null, Brown, TextAlignmentOptions.Left);
+            Left(detail.rectTransform, new Vector2(118, -6), new Vector2(430, 32));
+            var bar = Rect("Bar", panel);
+            bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0f, 0f);
+            bar.anchoredPosition = new Vector2(118, 16);
+            bar.sizeDelta = new Vector2(410, 18);
+            Img(bar, "sl_frame_white", new Color(0.88f, 0.8f, 0.7f), 5f);
+            var area = Rect("FillArea", bar);
+            Fill(area, new Vector2(3, 3), new Vector2(-3, -3));
+            area.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
+            var fill = Rect("Fill", area);
+            fill.anchorMin = Vector2.zero;
+            fill.anchorMax = Vector2.one;
+            fill.offsetMin = fill.offsetMax = Vector2.zero;
+            var fillImage = Img(fill, null, Color.white);
+            Set(banner, "panel", panel);
+            Set(banner, "title", title);
+            Set(banner, "detail", detail);
+            Set(banner, "fill", fill);
+            Set(banner, "fillImage", fillImage);
+        }
+
         public static void BuildSoundToggle()
         {
             var rt = Rect("SoundToggle", _root);
@@ -1771,7 +1813,7 @@ namespace MergeResto.EditorTools
                     t.SetParent(buttons, false);
             }
             // Windows above the buttons, then the tutorial, the welcome-back dialog and flying coins.
-            foreach (var name in new[] { "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "OfflineDialog", "CoinFly" })
+            foreach (var name in new[] { "Vip", "Board", "Map", "Daily", "Expand", "Settings", "Tutorial", "OfflineDialog", "CoinFly" })
             {
                 var t = _root.Find(name);
                 if (t != null)

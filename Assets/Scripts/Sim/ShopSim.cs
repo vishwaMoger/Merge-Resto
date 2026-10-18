@@ -22,6 +22,7 @@ namespace MergeResto.Sim
         public event Action<int, int> CourierPickedUp;       // link, amount
         public event Action<int, int> CourierDelivered;      // link, amount
         public event Action<CustomerState> CustomerArrived;
+        public event Action<CustomerState, int> VipServed;   // customer, gems
         public event Action<CustomerState, double> CustomerServed;
         public event Action<CustomerState> CustomerLeft;
         public event Action<int, int> GemsEarned;            // station, amount
@@ -450,7 +451,10 @@ namespace MergeResto.Sim
                     return amount > 0 && st.output + InProgress(index) + amount <= OutputCapacity(index);
                 }
                 default:
-                    return st.input >= Def.itemsPerOrder && NextWaitingCustomer() != null;
+                {
+                    var next = NextWaitingCustomer();
+                    return next != null && st.input >= next.items;
+                }
             }
         }
 
@@ -497,9 +501,14 @@ namespace MergeResto.Sim
                 {
                     var customer = State.queue[qi];
                     RemoveCustomerAt(qi);
-                    double coins = customer.items * PricePerItem;
+                    double coins = customer.items * PricePerItem * (customer.vip ? Def.vipPriceMultiplier : 1);
                     State.customersServed++;
                     AddCoins(coins);
+                    if (customer.vip && Def.vipGems > 0)
+                    {
+                        State.gems += Def.vipGems;
+                        VipServed?.Invoke(customer, Def.vipGems);
+                    }
                     CustomerServed?.Invoke(customer, coins);
                 }
             }
@@ -556,8 +565,12 @@ namespace MergeResto.Sim
             }
         }
 
+        /// <summary>Seconds until the next VIP may arrive (0 when one is due).</summary>
+        public float NextVipIn => Math.Max(0f, Def.vipIntervalSeconds - State.vipTimer);
+
         void StepCustomers(float dt)
         {
+            StepVip(dt);
             float interval = CustomerInterval;
             State.customerTimer += dt;
             if (State.customerTimer >= interval)
@@ -600,6 +613,29 @@ namespace MergeResto.Sim
                     CustomerLeft?.Invoke(customer);
                 }
             }
+        }
+
+        void StepVip(float dt)
+        {
+            if (Def.vipIntervalSeconds <= 0f || State.tutorialStep < ShopState.TutorialFinished)
+                return;
+            if (State.queue.Exists(c => c.vip))
+                return; // one VIP at a time
+            State.vipTimer += dt;
+            int max = QueueLimit >= 0 ? Math.Min(QueueLimit, Def.maxQueue) : Def.maxQueue;
+            if (State.vipTimer < Def.vipIntervalSeconds || State.queue.Count >= max)
+                return;
+            State.vipTimer = 0f;
+            var vip = new CustomerState
+            {
+                id = _nextCustomerId++,
+                items = Def.vipItems,
+                patienceLeft = Def.vipPatienceSeconds,
+                walkLeft = Def.walkInSeconds,
+                vip = true,
+            };
+            State.queue.Add(vip);
+            CustomerArrived?.Invoke(vip);
         }
 
         // The first customer in line who is not being served yet, once they reach the counter.
