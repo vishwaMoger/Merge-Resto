@@ -41,7 +41,7 @@ namespace MergeResto.Game.UI
         [SerializeField] Sprite confirmSprite;
 
         // Every save key the game writes; a reset clears them all.
-        static readonly string[] SaveKeys = { "shop_grandmas_bakery", "shop_corner_cafe", "shop_nonnos_pizzeria" };
+        static readonly string[] SaveKeys = { "shop_grandmas_bakery", "shop_corner_cafe", "shop_nonnos_pizzeria", "shop_belles_patisserie", "shop_drive_thru" };
 
         bool _isOpen;
 
