@@ -2,6 +2,11 @@
 // Soft 2-band toon lighting with tinted shadows, rim light, emission,
 // optional vertex sway (plants, awnings) and a 0-1 "wear" value that
 // drives the run-down look (Covered/Broken/Worn) without extra textures.
+//
+// Built as a single variant per pass: web browsers compile every keyword combination on first
+// use, and each big lit program takes over a second there, so the lighting setup is fixed to
+// what the game uses (main light with 2 shadow cascades, per-pixel lamps, medium soft shadows,
+// no fog, no instancing) and sway is a material switch rather than a keyword.
 Shader "MergeResto/Toon"
 {
     Properties
@@ -30,7 +35,7 @@ Shader "MergeResto/Toon"
         _GrimeScale ("Grime Scale", Float) = 5
 
         [Header(Sway)]
-        [Toggle(_SWAY)] _Sway ("Enable Sway", Float) = 0
+        [ToggleUI] _Sway ("Enable Sway", Float) = 0
         _SwayStrength ("Sway Strength", Range(0, 0.3)) = 0.05
         _SwaySpeed ("Sway Speed", Range(0, 5)) = 1.5
 
@@ -68,6 +73,7 @@ Shader "MergeResto/Toon"
             half _Wear;
             half4 _DirtColor;
             float _GrimeScale;
+            half _Sway;
             half _SwayStrength;
             half _SwaySpeed;
         CBUFFER_END
@@ -77,13 +83,11 @@ Shader "MergeResto/Toon"
 
         float3 ApplySway(float3 positionOS)
         {
-        #if defined(_SWAY)
             float3 pivotWS = TransformObjectToWorld(float3(0, 0, 0));
             float phase = (pivotWS.x + pivotWS.z) * 1.7;
-            float bend = max(positionOS.y, 0);
+            float bend = max(positionOS.y, 0) * _Sway;
             positionOS.x += sin(_Time.y * _SwaySpeed + phase) * _SwayStrength * bend;
             positionOS.z += cos(_Time.y * _SwaySpeed * 0.8 + phase) * _SwayStrength * 0.5 * bend;
-        #endif
             return positionOS;
         }
         ENDHLSL
@@ -99,16 +103,12 @@ Shader "MergeResto/Toon"
             #pragma vertex Vert
             #pragma fragment Frag
 
-            #pragma shader_feature_local_vertex _SWAY
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
-            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
-            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
-            #pragma multi_compile_fragment _ _SHADOWS_SOFT
-            #pragma multi_compile_fragment _ _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
-            #pragma multi_compile_fog
-            #pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+            // Always on (a single-option multi_compile): one program, matching the render settings.
+            // With no shadows or lamps in view, URP binds an empty shadow map and reports no lamps.
+            #pragma multi_compile _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _SHADOWS_SOFT
+            #pragma multi_compile_fragment _SHADOWS_SOFT_MEDIUM
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -253,10 +253,7 @@ Shader "MergeResto/Toon"
             #pragma target 2.0
             #pragma vertex ShadowVert
             #pragma fragment NullFrag
-            #pragma shader_feature_local_vertex _SWAY
-            #pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            // Only the sun casts shadows (lamp shadows are off), so no punctual-light variant.
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
@@ -300,9 +297,6 @@ Shader "MergeResto/Toon"
             #pragma target 2.0
             #pragma vertex DepthVert
             #pragma fragment DepthFrag
-            #pragma shader_feature_local_vertex _SWAY
-            #pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             struct Attributes
             {
@@ -335,10 +329,6 @@ Shader "MergeResto/Toon"
             #pragma target 2.0
             #pragma vertex NormalsVert
             #pragma fragment NormalsFrag
-            #pragma shader_feature_local_vertex _SWAY
-            #pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
             struct Attributes
             {
