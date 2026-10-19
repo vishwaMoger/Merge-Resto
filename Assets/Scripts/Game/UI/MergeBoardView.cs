@@ -537,6 +537,7 @@ namespace MergeResto.Game.UI
                 return;
             var def = _board.Def.areas[area];
             ShowBanner($"{def.displayName}: all done! +{def.rewardGems} gems");
+            Platform.HappyTime();
             AudioDirector.Play(Sfx.Celebrate);
         }
 

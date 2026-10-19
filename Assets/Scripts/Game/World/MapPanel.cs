@@ -130,6 +130,7 @@ namespace MergeResto.Game.UI
                 return;
             _sim.AddCoins(-s.unlockCost);
             WorldState.Unlock(s.id);
+            Platform.HappyTime();
             AudioDirector.Play(Sfx.Celebrate);
             GameController.Instance.Save();
         }
