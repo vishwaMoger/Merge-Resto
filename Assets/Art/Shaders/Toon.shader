@@ -3,10 +3,10 @@
 // optional vertex sway (plants, awnings) and a 0-1 "wear" value that
 // drives the run-down look (Covered/Broken/Worn) without extra textures.
 //
-// Built as a single variant per pass: web browsers compile every keyword combination on first
-// use, and each big lit program takes over a second there, so the lighting setup is fixed to
-// what the game uses (main light with 2 shadow cascades, per-pixel lamps, medium soft shadows,
-// no fog, no instancing) and sway is a material switch rather than a keyword.
+// Kept to a handful of variants: web browsers compile every keyword combination on first use,
+// and each big lit program takes over a second there. Only the lighting keywords the game uses
+// (cascaded sun shadows, per-pixel lamps, soft shadows), each with an "off" variant so the build
+// always keeps a working fallback; no fog or instancing variants; sway is a material switch.
 Shader "MergeResto/Toon"
 {
     Properties
@@ -103,12 +103,10 @@ Shader "MergeResto/Toon"
             #pragma vertex Vert
             #pragma fragment Frag
 
-            // Always on (a single-option multi_compile): one program, matching the render settings.
-            // With no shadows or lamps in view, URP binds an empty shadow map and reports no lamps.
-            #pragma multi_compile _MAIN_LIGHT_SHADOWS_CASCADE
-            #pragma multi_compile _ADDITIONAL_LIGHTS
-            #pragma multi_compile_fragment _SHADOWS_SOFT
-            #pragma multi_compile_fragment _SHADOWS_SOFT_MEDIUM
+            // Soft shadow quality is picked at runtime (no LOW/MEDIUM/HIGH variants).
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
