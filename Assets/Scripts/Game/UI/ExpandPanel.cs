@@ -74,6 +74,7 @@ namespace MergeResto.Game.UI
         {
             if (!_sim.Expand())
                 return;
+            Platform.HappyTime();
             GameController.Instance.Save();
             SetOpen(false);
         }

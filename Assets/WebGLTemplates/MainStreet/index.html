@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Fredoka:wght@600&display=swap" rel="stylesheet">
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #FFF2E0; }
+      #unity-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #FFF2E0; }
+      #loader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: radial-gradient(circle at 50% 40%, #FFE3B8 0%, #FFF2E0 60%); transition: opacity 0.5s ease; z-index: 2; }
+      #loader.done { opacity: 0; pointer-events: none; }
+      #title { font-family: 'Lilita One', 'Trebuchet MS', sans-serif; font-size: clamp(32px, 6vw, 84px); color: #fff;
+        background: #FF8A3D; border: 6px solid #A8552B; border-radius: 28px; padding: 0.15em 0.7em; margin: 0 16px;
+        text-shadow: 0 4px 0 #A8552B, 0 -2px 0 #A8552B, 3px 0 0 #A8552B, -3px 0 0 #A8552B; box-shadow: 0 8px 0 #A8552B; }
+      #tagline { font-family: 'Fredoka', 'Trebuchet MS', sans-serif; color: #996B4D; font-size: clamp(14px, 2vw, 26px); margin: 22px 16px 28px; text-align: center; }
+      #bar { width: min(560px, 80vw); height: 30px; border-radius: 16px; background: #A8552B; padding: 5px; box-sizing: border-box; }
+      #fill { width: 3%; height: 100%; border-radius: 12px; background: linear-gradient(#8CDB6E, #5FB84A); transition: width 0.2s ease; }
+      #percent { font-family: 'Lilita One', 'Trebuchet MS', sans-serif; color: #A8552B; font-size: 22px; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loader">
+      <div id="title">{{{ PRODUCT_NAME }}}</div>
+      <div id="tagline">Bake, merge and renovate your way down Main Street!</div>
+      <div id="bar"><div id="fill"></div></div>
+      <div id="percent">0%</div>
+    </div>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      var fill = document.getElementById("fill");
+      var percent = document.getElementById("percent");
+      createUnityInstance(document.querySelector("#unity-canvas"), {
+        arguments: [],
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+        workerUrl: "Build/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      }, function (progress) {
+        var p = Math.max(3, Math.round(progress * 100));
+        fill.style.width = p + "%";
+        percent.textContent = p + "%";
+      }).then(function () {
+        document.getElementById("loader").classList.add("done");
+      }).catch(function (message) {
+        percent.textContent = "Could not start the game: " + message;
+      });
+    </script>
+  </body>
+</html>

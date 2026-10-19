@@ -115,3 +115,7 @@ InitTestScene*.unity*
 
 # Generated during builds by Unity's performance testing tooling
 /[Aa]ssets/[Rr]esources/PerformanceTestRun*
+
+# Release videos (large; kept locally for the CrazyGames upload)
+Release/Trailer/*.mp4
+Release/Trailer/*_sheet.png

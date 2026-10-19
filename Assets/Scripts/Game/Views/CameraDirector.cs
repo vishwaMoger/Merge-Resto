@@ -41,7 +41,10 @@ namespace MergeResto.Game.Views
         /// <summary>True while the player is dragging or pinching the view (taps are ignored).</summary>
         public static bool Gesturing { get; private set; }
 
-        float AspectFit => Mathf.Max(1f, designAspect / Mathf.Max(0.1f, _cam.aspect));
+        /// <summary>When set (above 0), replaces the narrow-screen zoom-out (the portrait trailer frames the shop closer).</summary>
+        public static float FitOverride = -1f;
+
+        float AspectFit => FitOverride > 0f ? FitOverride : Mathf.Max(1f, designAspect / Mathf.Max(0.1f, _cam.aspect));
 
         void Awake()
         {
