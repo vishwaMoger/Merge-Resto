@@ -6,7 +6,8 @@ namespace MergeResto.Game.UI
 {
     /// <summary>
     /// Fits the HUD to the device: bigger buttons on touch screens (fingers need more room than a
-    /// mouse) and, in portrait, a friendly "turn your device" screen, since the shop is landscape.
+    /// mouse) and, on a phone or tablet held upright, a friendly "turn your device" screen, since the
+    /// shop is landscape. A tall window on a computer just shows the shop (the camera zooms out to fit).
     /// </summary>
     [RequireComponent(typeof(CanvasScaler))]
     public class ScreenFit : MonoBehaviour
@@ -18,15 +19,22 @@ namespace MergeResto.Game.UI
 
         CanvasScaler _scaler;
         bool _paused;
+        float _match;
 
-        void Awake() => _scaler = GetComponent<CanvasScaler>();
+        void Awake()
+        {
+            _scaler = GetComponent<CanvasScaler>();
+            _match = _scaler.matchWidthOrHeight;
+        }
 
         void Update()
         {
             bool touch = Touchscreen.current != null || Application.isMobilePlatform;
             _scaler.referenceResolution = touch ? touchReference : desktopReference;
+            // Narrower than 16:10 (a tall browser window): scale by width so the whole HUD stays on screen.
+            _scaler.matchWidthOrHeight = Screen.width < Screen.height * 1.6f ? 0f : _match;
 
-            bool portrait = Screen.height > Screen.width * 1.05f;
+            bool portrait = Application.isMobilePlatform && Screen.height > Screen.width * 1.05f;
             if (rotatePrompt != null && rotatePrompt.activeSelf != portrait)
             {
                 rotatePrompt.SetActive(portrait);

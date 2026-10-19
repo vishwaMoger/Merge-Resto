@@ -115,6 +115,31 @@ namespace MergeResto.EditorTools
             return frame;
         }
 
+        /// <summary>A quick local web build for measuring (no compression, faster linking), in Builds/PerfTest.</summary>
+        [MenuItem("Merge Resto/Release/Quick Perf Build")]
+        public static void QuickPerfBuild()
+        {
+            var keepCompression = PlayerSettings.WebGL.compressionFormat;
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            try
+            {
+                var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = scenes,
+                    locationPathName = "Builds/PerfTest",
+                    target = BuildTarget.WebGL,
+                    options = BuildOptions.None,
+                });
+                Debug.Log($"[Merge Resto] Perf build: {report.summary.result} in {report.summary.totalTime.TotalMinutes:0.0} min.");
+            }
+            finally
+            {
+                PlayerSettings.WebGL.compressionFormat = keepCompression;
+                AssetDatabase.SaveAssets();
+            }
+        }
+
         [MenuItem("Merge Resto/Release/Build Boot Screen")]
         public static void BuildBootScreen()
         {
