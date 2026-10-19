@@ -119,3 +119,4 @@ InitTestScene*.unity*
 # Release videos (large; kept locally for the CrazyGames upload)
 Release/Trailer/*.mp4
 Release/Trailer/*_sheet.png
+Release/*.zip
