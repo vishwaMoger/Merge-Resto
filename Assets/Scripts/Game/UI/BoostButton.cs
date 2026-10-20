@@ -22,10 +22,12 @@ namespace MergeResto.Game.UI
 
         ShopSim _sim;
         CanvasGroup _group;
+        float _baseScale = 1f;
 
         void Start()
         {
             _sim = GameController.Instance.Sim;
+            _baseScale = transform.localScale.x;  // the HUD may draw it smaller than its layout
             // Hidden with a canvas group: deactivating this object would stop Update for good.
             if (!TryGetComponent(out _group))
                 _group = gameObject.AddComponent<CanvasGroup>();
@@ -53,7 +55,7 @@ namespace MergeResto.Game.UI
             int s = Mathf.CeilToInt(_sim.State.boostSeconds);
             timer.text = active ? (full ? $"{s / 60}:{s % 60:00} (max)" : $"{s / 60}:{s % 60:00}  +5m") : "Watch ad: 5 min";
             float pulse = active ? 1f + Mathf.Sin(Time.unscaledTime * 4f) * 0.03f : 1f + Mathf.Sin(Time.unscaledTime * 2.5f) * 0.05f;
-            transform.localScale = Vector3.one * pulse;
+            transform.localScale = Vector3.one * (_baseScale * pulse);
             button.interactable = !full && !AdService.Busy;
         }
     }

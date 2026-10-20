@@ -37,6 +37,16 @@ namespace MergeResto.Game.UI
             var button = upgradeBadge.GetComponent<UnityEngine.UI.Button>();
             if (button != null)
                 button.onClick.AddListener(() => GameController.Instance.SelectStation(station.stationIndex));
+
+            // The pin floats above the machine and players click it, so it counts as a click on
+            // the machine (otherwise the click lands on the wall behind it and nothing happens).
+            foreach (var graphic in tapPin.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+                graphic.raycastTarget = true;
+            var pinButton = tapPin.GetComponent<UnityEngine.UI.Button>();
+            if (pinButton == null)
+                pinButton = tapPin.gameObject.AddComponent<UnityEngine.UI.Button>();
+            pinButton.transition = UnityEngine.UI.Selectable.Transition.None;
+            pinButton.onClick.AddListener(() => GameController.Instance.ClickStation(station.stationIndex));
         }
 
         bool ToLocal(Vector3 world, out Vector2 local)

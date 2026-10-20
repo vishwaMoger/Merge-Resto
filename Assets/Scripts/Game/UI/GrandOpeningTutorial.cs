@@ -92,6 +92,7 @@ namespace MergeResto.Game.UI
         string _shownText;
         float _typed;
         float _speechPop;
+        float _speechScale = 1f;
         float _fill;
         float _dimAlpha;
         Vector2 _holeCenter;
@@ -123,6 +124,7 @@ namespace MergeResto.Game.UI
         {
             _sim = GameController.Instance.Sim;
             _cam = Camera.main;
+            _speechScale = speech.localScale.x;  // the HUD may draw it smaller than its layout
             if (Done)
             {
                 gameObject.SetActive(false);
@@ -349,10 +351,10 @@ namespace MergeResto.Game.UI
             bool waitsForTap = step.kind == Kind.Talk || step.kind == Kind.Reward;
             continueHint.SetActive(waitsForTap && !talking);
             _speechPop = Mathf.Max(0f, _speechPop - dt * 4f);
-            speech.localScale = Vector3.one * (1f + Mathf.Sin(_speechPop * Mathf.PI) * 0.05f);
+            speech.localScale = Vector3.one * (_speechScale * (1f + Mathf.Sin(_speechPop * Mathf.PI) * 0.05f));
             // Bottom left, or bottom right while the upgrade card (bottom left) is out.
             bool cardOut = GameController.Instance.SelectedStation >= 0;
-            float rightX = layer.rect.width - speech.rect.width - 36f;
+            float rightX = layer.rect.width - speech.rect.width * _speechScale - 36f;
             float wantX = cardOut ? rightX : 36f;
             var sp = speech.anchoredPosition;
             sp.x = Mathf.Lerp(sp.x, wantX, 1f - Mathf.Exp(-dt * 9f));

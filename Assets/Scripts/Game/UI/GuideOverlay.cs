@@ -59,6 +59,7 @@ namespace MergeResto.Game.UI
         bool _tapped;
         float _typed;
         float _speechPop;
+        float _speechScale = 1f;
         float _dimAlpha;
         float _pointerShown;
         float _show;
@@ -84,6 +85,7 @@ namespace MergeResto.Game.UI
         void Start()
         {
             _cam = Camera.main;
+            _speechScale = speech.localScale.x;  // the HUD may draw it smaller than its layout
             _dimMaterial = new Material(dim.material);
             dim.material = _dimMaterial;
             dim.rectTransform.sizeDelta = new Vector2(DimSize, DimSize);
@@ -157,7 +159,7 @@ namespace MergeResto.Game.UI
             bool talking = _typed < Length();
             continueHint.SetActive(_waitTap && !talking);
             _speechPop = Mathf.Max(0f, _speechPop - dt * 4f);
-            speech.localScale = Vector3.one * (1f + Mathf.Sin(_speechPop * Mathf.PI) * 0.05f);
+            speech.localScale = Vector3.one * (_speechScale * (1f + Mathf.Sin(_speechPop * Mathf.PI) * 0.05f));
             portrait.localRotation = Quaternion.Euler(0f, 0f, talking ? Mathf.Sin(Time.unscaledTime * 14f) * 4f : 0f);
 
             // Spotlight.
