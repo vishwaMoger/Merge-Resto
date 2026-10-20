@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using MergeResto.Sim;
 using TMPro;
 using UnityEngine;
@@ -151,6 +152,10 @@ namespace MergeResto.Game.UI
         float[] _boxOpen;  // 1 -> 0 while a box bursts open
         float _burstT = -1f;
         float _noEnergyShake;
+        RectTransform _energyPill;
+        Vector2 _energyPillPos;
+        Color _energyColor;
+        Color _bannerColor;
         float _idle;
         int _hintA = -1, _hintB = -1;
         int _combo;
@@ -278,7 +283,23 @@ namespace MergeResto.Game.UI
             flyer.gameObject.SetActive(false);
             burst.gameObject.SetActive(false);
             if (discoveryText != null)
+            {
                 discoveryText.gameObject.SetActive(false);
+                _bannerColor = discoveryText.color;
+            }
+            // The round HUD buttons (Expand, Shops, Settings...) would peek out around the open
+            // panel, so they fade away with the shop banner while it is open.
+            var hudButtons = transform.parent != null ? transform.parent.Find("HudButtons") : null;
+            if (hudButtons != null)
+            {
+                var fade = hudButtons.GetComponent<CanvasGroup>();
+                if (fade == null)
+                    fade = hudButtons.gameObject.AddComponent<CanvasGroup>();
+                hideWhileOpen = (hideWhileOpen ?? new CanvasGroup[0]).Append(fade).ToArray();
+            }
+            _energyPill = (RectTransform)energyText.transform.parent;
+            _energyPillPos = _energyPill.anchoredPosition;
+            _energyColor = energyText.color;
 
             _board.ItemsMerged += OnMerged;
             _board.CellOpened += OnCellOpened;
@@ -355,7 +376,10 @@ namespace MergeResto.Game.UI
                 else
                 {
                     if (_board.CheckSpawn(cell) == SpawnFail.NoEnergy)
+                    {
                         _noEnergyShake = 1f;
+                        ShowBanner("Out of energy!", OutOfEnergyRed);
+                    }
                     _pop[cell] = 0.3f;
                     AudioDirector.Play(Sfx.Deny);
                 }
@@ -589,11 +613,14 @@ namespace MergeResto.Game.UI
             return true;
         }
 
-        void ShowBanner(string text)
+        static readonly Color OutOfEnergyRed = new(1f, 0.42f, 0.36f);
+
+        void ShowBanner(string text, Color? color = null)
         {
             if (discoveryText == null)
                 return;
             discoveryText.text = text;
+            discoveryText.color = color ?? _bannerColor;
             discoveryText.gameObject.SetActive(true);
             _discoveryT = 0f;
         }
@@ -829,15 +856,18 @@ namespace MergeResto.Game.UI
             bool low = energy < refillBelow && !AdService.Busy;
             refillButton.gameObject.SetActive(low);
             energyTimer.gameObject.SetActive(!low);
-            if (low)
-                refillButton.transform.localScale = Vector3.one * (1f + Mathf.Sin(Time.unscaledTime * 6f) * 0.05f);
-            float next = _board.NextEnergyIn;
-            energyTimer.text = energy >= _board.Def.energyMax ? "Full" : $"+1 in {Mathf.CeilToInt(next)}s";
+            // Tapping a generator with no energy shakes the energy pill (around where it belongs),
+            // flashes the count red and makes the refill button jump.
             if (_noEnergyShake > 0f)
             {
-                _noEnergyShake = Mathf.Max(0f, _noEnergyShake - UiTime.Delta * 2f);
-                energyText.transform.localPosition = new Vector3(Mathf.Sin(_noEnergyShake * 40f) * 8f * _noEnergyShake, 0f, 0f);
+                _noEnergyShake = Mathf.Max(0f, _noEnergyShake - UiTime.Delta * 1.5f);
+                _energyPill.anchoredPosition = _energyPillPos + new Vector2(Mathf.Sin(_noEnergyShake * 40f) * 10f * _noEnergyShake, 0f);
+                energyText.color = Color.Lerp(_energyColor, OutOfEnergyRed, Mathf.Clamp01(_noEnergyShake * 2f));
             }
+            if (low)
+                refillButton.transform.localScale = Vector3.one * (1f + Mathf.Sin(Time.unscaledTime * 6f) * 0.05f + _noEnergyShake * 0.2f);
+            float next = _board.NextEnergyIn;
+            energyTimer.text = energy >= _board.Def.energyMax ? "Full" : $"+1 in {Mathf.CeilToInt(next)}s";
             cozinessText.text = $"Coziness +{Mathf.RoundToInt(_board.Coziness * 100f)}%";
 
             int shown = _dragFrom >= 0 ? _dragFrom : _selected;
@@ -873,7 +903,9 @@ namespace MergeResto.Game.UI
                     : "";
                 infoText.text = _board.CheckSpawn(shown) switch
                 {
-                    SpawnFail.NoEnergy => $"<b>{def.displayName}</b>  \u00b7  out of energy, it refills over time",
+                    SpawnFail.NoEnergy => refillButton.gameObject.activeSelf
+                        ? $"<b>Out of energy!</b>  +1 every {Mathf.RoundToInt(_board.Def.energyRegenSeconds)}s, or tap <b>+{refillAmount}</b> to refill now"
+                        : $"<b>Out of energy!</b>  +1 in {Mathf.CeilToInt(next)}s",
                     SpawnFail.Recharging => $"<b>{def.displayName}</b>  \u00b7  recharging, next one in {Mathf.CeilToInt(_board.NextChargeIn(g))}s",
                     SpawnFail.BoardFull => $"<b>{def.displayName}</b>  \u00b7  no room! Merge or sell something first",
                     _ => $"<b>{def.displayName}</b>  \u00b7  tap to make {makes}{charges}",

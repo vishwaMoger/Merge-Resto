@@ -10433,7 +10433,7 @@ RectTransform:
   m_GameObject: {fileID: 142133276}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.78, y: 0.78, z: 0.78}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1281651538}
@@ -10557,9 +10557,9 @@ MonoBehaviour:
   m_fontSize: 30
   m_fontSizeBase: 30
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 20
+  m_fontSizeMax: 30
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -10804,8 +10804,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -18, y: 17}
-  m_SizeDelta: {x: -216, y: -46}
+  m_AnchoredPosition: {x: -22, y: 17}
+  m_SizeDelta: {x: -224, y: -46}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1001 &148505489
 PrefabInstance:
@@ -16229,8 +16229,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -18, y: 17}
-  m_SizeDelta: {x: -216, y: -46}
+  m_AnchoredPosition: {x: -22, y: 17}
+  m_SizeDelta: {x: -224, y: -46}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &239650145
 GameObject:
@@ -23931,9 +23931,9 @@ MonoBehaviour:
   m_fontSize: 30
   m_fontSizeBase: 30
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 20
+  m_fontSizeMax: 30
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -32471,7 +32471,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 30, y: -134}
+  m_AnchoredPosition: {x: 30, y: -112}
   m_SizeDelta: {x: 480, y: 320}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &541676776
@@ -44106,8 +44106,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -18, y: 17}
-  m_SizeDelta: {x: -216, y: -46}
+  m_AnchoredPosition: {x: -22, y: 17}
+  m_SizeDelta: {x: -224, y: -46}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &708690535
 GameObject:
@@ -73216,9 +73216,9 @@ MonoBehaviour:
   m_fontSize: 30
   m_fontSizeBase: 30
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 20
+  m_fontSizeMax: 30
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -106604,7 +106604,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 859130a21b8e5d04e867a77653bf7857, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MergeResto.Game.UI.ScreenFit
-  desktopReference: {x: 1920, y: 1080}
+  desktopReference: {x: 2100, y: 1181}
   touchReference: {x: 1640, y: 922}
   rotatePrompt: {fileID: 587455643}
   rotateIcon: {fileID: 1276303547}
