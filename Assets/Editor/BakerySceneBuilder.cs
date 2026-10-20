@@ -215,6 +215,7 @@ namespace MergeResto.EditorTools
             BuildMap();
             HudBuilder.BuildGuide(AssetDatabase.LoadAssetAtPath<Sprite>($"{PortraitRenderer.Folder}/{CharacterLibrary.GrandmaLook}.png"));
             HudBuilder.OrderLayers();
+            HudBuilder.CompactHud(GameObject.Find("HUD").transform);
             HudBuilder.BuildScreenFit();
             HudBuilder.EnableButtonTargets();
 

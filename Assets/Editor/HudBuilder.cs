@@ -2141,6 +2141,35 @@ namespace MergeResto.EditorTools
             }
         }
 
+        /// <summary>
+        /// Draws the corner pieces smaller than their layout so the shop has room on short, wide
+        /// screens (CrazyGames' frame): each shrinks toward its own screen corner, so the gaps to
+        /// the edges shrink with it. Runs once per piece (skips anything already scaled).
+        /// </summary>
+        public static void CompactHud(Transform root)
+        {
+            void Shrink(string path, float k)
+            {
+                var r = root.Find(path) as RectTransform;
+                if (r == null || r.anchorMin != r.anchorMax || !Mathf.Approximately(r.localScale.x, 1f))
+                    return;
+                r.anchoredPosition *= k;
+                r.localScale = Vector3.one * k;
+                EditorUtility.SetDirty(r);
+            }
+            foreach (var path in new[] { "ShopBanner", "Boost", "HudButtons/SettingsButton", "HudButtons/DailyButton",
+                         "HudButtons/RenovateButton", "HudButtons/ShopsButton", "HudButtons/ExpandButton" })
+                Shrink(path, 0.8f);
+            foreach (var path in new[] { "StationPanel/Card", "Tutorial/Speech", "Guide/Speech" })
+                Shrink(path, 0.85f);
+            // The opening's progress strip sits under the (smaller) coin bar, where the goals go later.
+            if (root.Find("Tutorial/Progress") is RectTransform progress)
+            {
+                progress.anchoredPosition = new Vector2(30, -112);
+                EditorUtility.SetDirty(progress);
+            }
+        }
+
         /// <summary>Touch-size HUD and the portrait "turn your device" screen.</summary>
         public static void BuildScreenFit()
         {
