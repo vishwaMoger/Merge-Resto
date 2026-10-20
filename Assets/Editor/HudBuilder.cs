@@ -839,7 +839,7 @@ namespace MergeResto.EditorTools
         {
             var holder = Rect("Goals", root);
             holder.anchorMin = holder.anchorMax = holder.pivot = new Vector2(0f, 1f);
-            holder.anchoredPosition = new Vector2(30, -134);
+            holder.anchoredPosition = new Vector2(30, -112);
             holder.sizeDelta = new Vector2(480, 320);
             var group = holder.gameObject.AddComponent<CanvasGroup>();
             var panel = holder.gameObject.AddComponent<GoalsPanel>();
@@ -868,7 +868,7 @@ namespace MergeResto.EditorTools
                 title.fontSizeMin = 21;
                 title.fontSizeMax = 25;
                 title.enableAutoSizing = true;
-                Fill(title.rectTransform, new Vector2(90, 40), new Vector2(-126, -6));
+                Fill(title.rectTransform, new Vector2(90, 40), new Vector2(-134, -6));
 
                 var barBg = Rect("Bar", card);
                 barBg.anchorMin = barBg.anchorMax = barBg.pivot = new Vector2(0f, 0f);
@@ -906,6 +906,9 @@ namespace MergeResto.EditorTools
                 rewardIcon.sizeDelta = new Vector2(38, 38);
                 var rewardIconImage = Img(rewardIcon, "icon_gem", Color.white);
                 var rewardText = Label("Amount", claim, "+15", 30, _display, _outlined, Color.white, TextAlignmentOptions.Center);
+                rewardText.enableAutoSizing = true;
+                rewardText.fontSizeMin = 20;
+                rewardText.fontSizeMax = 30;
                 Fill(rewardText.rectTransform, new Vector2(44, 6), new Vector2(-6, 0));
 
                 cards.Add(new GoalsPanel.Card
@@ -1056,12 +1059,16 @@ namespace MergeResto.EditorTools
 
         // ------------------------------------------------------------------ Top bar
 
+        const float TopBarScale = 0.78f;
+
         static RectTransform TopBar(RectTransform root, out RectTransform coinTarget, out ButtonJuice coinJuice)
         {
             var bar = Rect("TopBar", root);
             bar.anchorMin = bar.anchorMax = bar.pivot = new Vector2(0f, 1f);
             bar.anchoredPosition = new Vector2(52, -26);
             bar.sizeDelta = new Vector2(720, 100);
+            // Smaller than its layout, so the counters leave the shop room on wide screens.
+            bar.localScale = Vector3.one * TopBarScale;
             var view = bar.gameObject.AddComponent<TopBarView>();
 
             var coins = Counter(bar, "Coins", new Vector2(0, 0), 360, "icon_coin", out var coinsText, out coinTarget);

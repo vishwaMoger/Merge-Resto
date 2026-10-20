@@ -12,27 +12,26 @@ namespace MergeResto.Game.UI
     [RequireComponent(typeof(CanvasScaler))]
     public class ScreenFit : MonoBehaviour
     {
-        [SerializeField] Vector2 desktopReference = new(1920, 1080);
+        [SerializeField] Vector2 desktopReference = new(2100, 1181);
         [SerializeField] Vector2 touchReference = new(1640, 922);
         [SerializeField] GameObject rotatePrompt;
         [SerializeField] RectTransform rotateIcon;
 
         CanvasScaler _scaler;
         bool _paused;
-        float _match;
 
         void Awake()
         {
             _scaler = GetComponent<CanvasScaler>();
-            _match = _scaler.matchWidthOrHeight;
         }
 
         void Update()
         {
             bool touch = Touchscreen.current != null || Application.isMobilePlatform;
             _scaler.referenceResolution = touch ? touchReference : desktopReference;
-            // Narrower than 16:10 (a tall browser window): scale by width so the whole HUD stays on screen.
-            _scaler.matchWidthOrHeight = Screen.width < Screen.height * 1.6f ? 0f : _match;
+            // The whole reference area always fits: a window wider or taller than it just gets more room
+            // around the edges, so tall panels (the renovation board) never run off the screen.
+            _scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
 
             bool portrait = Application.isMobilePlatform && Screen.height > Screen.width * 1.05f;
             if (rotatePrompt != null && rotatePrompt.activeSelf != portrait)
