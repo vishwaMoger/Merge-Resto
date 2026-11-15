@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using MergeResto.Game.Views;
-using CrazyGames;
 using MergeResto.Sim;
 using UnityEngine;
 
@@ -69,8 +68,6 @@ namespace MergeResto.Game
         float _coinStreak;
         int _coinCount;
 
-        // CrazyGames' own mute switch (site settings) silences everything on top of ours.
-        bool _platformMuted;
 
         public bool SoundOn { get; private set; } = true;
         public bool MusicOn { get; private set; } = true;
@@ -95,18 +92,13 @@ namespace MergeResto.Game
                 _music[i].loop = false;
                 _music[i].volume = 0f;
             }
-            SoundOn = PlayerPrefs.GetInt(SoundKey, 1) == 1;
-            MusicOn = PlayerPrefs.GetInt(MusicKey, 1) == 1;
+            SoundOn = SaveStore.Prefs.GetInt(SoundKey, 1) == 1;
+            MusicOn = SaveStore.Prefs.GetInt(MusicKey, 1) == 1;
         }
 
         void Start()
         {
             NextTrack();
-            if (CrazySDK.IsAvailable && CrazySDK.IsInitialized)
-            {
-                _platformMuted = CrazySDK.Game.Settings.muteAudio;
-                CrazySDK.Game.AddSettingsChangeListener(OnPlatformSettings);
-            }
             _sim = GameController.Instance.Sim;
             _sim.UpgradePurchased += OnUpgrade;
             _sim.ManagerHired += OnManager;
@@ -125,14 +117,10 @@ namespace MergeResto.Game
             }
         }
 
-        void OnPlatformSettings(GameSettings settings) => _platformMuted = settings.muteAudio;
-
         void OnDestroy()
         {
             if (Instance == this)
                 Instance = null;
-            if (CrazySDK.IsAvailable && CrazySDK.IsInitialized)
-                CrazySDK.Game.RemoveSettingsChangeListener(OnPlatformSettings);
             if (_sim == null)
                 return;
             _sim.UpgradePurchased -= OnUpgrade;
@@ -190,7 +178,7 @@ namespace MergeResto.Game
                 back = _music[1 - _musicFront];
             }
             _musicFade = Mathf.Min(1f, _musicFade + dt / crossfadeSeconds);
-            bool musicOn = MusicOn && !_platformMuted;
+            bool musicOn = MusicOn && !Portal.Muted;
             float level = musicOn ? musicVolume : 0f;
             // Muting fades quickly; the crossfade itself is slow and smooth.
             float mute = musicOn ? 1f : 0f;
@@ -210,7 +198,7 @@ namespace MergeResto.Game
 
         void PlayInternal(Sfx sfx, float pitch, float volume)
         {
-            if (!SoundOn || _platformMuted || !_map.TryGetValue(sfx, out var e))
+            if (!SoundOn || Portal.Muted || !_map.TryGetValue(sfx, out var e))
                 return;
             float now = Time.unscaledTime;
             if (_last.TryGetValue(sfx, out float last) && now - last < e.minInterval)
@@ -238,13 +226,13 @@ namespace MergeResto.Game
         public void SetSound(bool on)
         {
             SoundOn = on;
-            PlayerPrefs.SetInt(SoundKey, on ? 1 : 0);
+            SaveStore.Prefs.SetInt(SoundKey, on ? 1 : 0);
         }
 
         public void SetMusic(bool on)
         {
             MusicOn = on;
-            PlayerPrefs.SetInt(MusicKey, on ? 1 : 0);
+            SaveStore.Prefs.SetInt(MusicKey, on ? 1 : 0);
         }
 
         // ------------------------------------------------------------------ Events

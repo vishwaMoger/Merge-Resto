@@ -1,0 +1,25 @@
+{
+    "platforms": {
+        "game_distribution": {
+            "gameId": "0be6ef07ce67469cb5d6f84dfecc06d2"
+        }
+    },
+    "advertisement": {
+        "interstitial": {
+            "placementFallback": "break",
+            "placements": [
+                { "id": "board_closed" },
+                { "id": "travel" },
+                { "id": "expanded" },
+                { "id": "welcome_back" },
+                { "id": "break" }
+            ]
+        },
+        "rewarded": {
+            "placementFallback": "reward",
+            "placements": [
+                { "id": "reward" }
+            ]
+        }
+    }
+}

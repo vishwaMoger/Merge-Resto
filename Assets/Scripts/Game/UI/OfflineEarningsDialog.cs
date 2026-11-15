@@ -65,6 +65,7 @@ namespace MergeResto.Game.UI
                 lines.Append($"{name}: about {NumberFormat.Short(waiting)} coins waiting");
             }
             summary.text = lines.ToString();
+            doubleButton.gameObject.SetActive(AdService.Supported);
             root.SetActive(true);
             IsOpen = true;
             AudioDirector.Play(Sfx.Claim, 0.9f, 0.7f);
@@ -80,6 +81,9 @@ namespace MergeResto.Game.UI
             AudioDirector.Play(multiplier > 1 ? Sfx.Celebrate : Sfx.Sale);
             root.SetActive(false);
             IsOpen = false;
+            // A rewarded ad just played for x2; a plain collect is a natural break.
+            if (multiplier == 1)
+                Portal.Break("welcome_back");
         }
     }
 }

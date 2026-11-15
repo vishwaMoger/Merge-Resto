@@ -162,7 +162,7 @@ namespace MergeResto.Game.UI
                 d.icon.color = claimed ? new Color(1f, 1f, 1f, 0.45f) : Color.white;
             }
             claimButton.gameObject.SetActive(canClaim);
-            doubleButton.gameObject.SetActive(canClaim);
+            doubleButton.gameObject.SetActive(canClaim && AdService.Supported);
             footer.gameObject.SetActive(!canClaim);
             footer.text = "Come back tomorrow for the next treat!";
             if (canClaim)

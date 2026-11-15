@@ -98,6 +98,8 @@ namespace MergeResto.Game.UI
         Vector2 _holeCenter;
         Vector2 _holeRadius;
         float _pointerShown;
+        int _pointerStation = -1;
+        Image[] _pointerImages;
         float _closing = -1f;
 
         // Opening shot: the first customer walks in from the street before Grandma speaks.
@@ -113,6 +115,7 @@ namespace MergeResto.Game.UI
             public Vector2 center;     // spotlight centre
             public Vector2 radius;     // spotlight radii
             public int station;        // station to glow, or -1
+            public bool tapsStation;   // the pointer sits on that machine (clicking it taps the machine)
             public bool badge;         // show that station's upgrade badge
             public string helper;      // replaces the step text while redirecting
         }
@@ -135,6 +138,15 @@ namespace MergeResto.Game.UI
             dim.rectTransform.sizeDelta = new Vector2(DimSize, DimSize);
             dimButton.onClick.AddListener(OnContinue);
             speechButton.onClick.AddListener(OnContinue);
+            // Players click the bouncing pointer itself: on a machine, that counts as tapping it.
+            _pointerImages = pointer.GetComponentsInChildren<Image>(true);
+            var pointerButton = pointer.gameObject.AddComponent<Button>();
+            pointerButton.transition = Selectable.Transition.None;
+            pointerButton.onClick.AddListener(() =>
+            {
+                if (_pointerStation >= 0)
+                    GameController.Instance.ClickStation(_pointerStation);
+            });
             _sim.CycleStarted += OnCycleStarted;
             _sim.CustomerServed += OnServed;
             _sim.UpgradePurchased += OnUpgrade;
@@ -376,7 +388,11 @@ namespace MergeResto.Game.UI
             dim.rectTransform.anchoredPosition = _holeCenter;
             _dimMaterial.SetVector(HoleId, new Vector4(0.5f, 0.5f, _holeRadius.x / DimSize, _holeRadius.y / DimSize));
 
-            // Pointer bouncing onto the target, with a ping ring.
+            // Pointer bouncing onto the target, with a ping ring. It only catches clicks when it
+            // sits on a machine; over a button it lets the click through to that button.
+            _pointerStation = target.has && target.tapsStation ? target.station : -1;
+            foreach (var image in _pointerImages)
+                image.raycastTarget = _pointerStation >= 0;
             _pointerShown = Mathf.MoveTowards(_pointerShown, target.has ? 1f : 0f, dt * 5f);
             pointer.gameObject.SetActive(_pointerShown > 0.01f);
             ping.gameObject.SetActive(_pointerShown > 0.01f);
@@ -556,7 +572,7 @@ namespace MergeResto.Game.UI
         Target AtStation(int s, string helper = null)
         {
             var view = stations[s];
-            var t = new Target { has = true, station = s, helper = helper };
+            var t = new Target { has = true, station = s, helper = helper, tapsStation = true };
             var anchor = view.tapAnchor != null ? view.tapAnchor.position : view.hudAnchor.position;
             if (!ToLayer(anchor, out t.tip))
                 return new Target { station = s, helper = helper };

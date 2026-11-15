@@ -1,5 +1,4 @@
 using System;
-using CrazyGames;
 using MergeResto.Sim;
 using UnityEngine;
 
@@ -7,7 +6,7 @@ namespace MergeResto.Game
 {
     /// <summary>
     /// Owns the shop simulation for the open scene: loads and saves it, ticks it every frame,
-    /// pays out offline earnings, and reports gameplay start to CrazyGames.
+    /// pays out offline earnings, and reports gameplay start to the portal.
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public class GameController : MonoBehaviour
@@ -58,8 +57,7 @@ namespace MergeResto.Game
                 OfflineEarningsReady?.Invoke(_pendingOffline, _pendingOfflineSeconds);
 
             WorldState.SetLast(config.shop.id);
-            if (CrazySDK.IsAvailable && CrazySDK.IsInitialized)
-                CrazySDK.Game.GameplayStart();
+            Portal.GameplayStart();
         }
 
         void Update()
@@ -113,6 +111,7 @@ namespace MergeResto.Game
             Sim.AddCoins(_pendingOffline * multiplier);
             _pendingOffline = 0;
             Save();
+            SaveStore.Flush();
         }
 
         // ------------------------------------------------------------------ Saving
@@ -167,9 +166,10 @@ namespace MergeResto.Game
         public void Travel(string sceneName)
         {
             Save();
+            SaveStore.Flush();
             enabled = false;
-            if (CrazySDK.IsAvailable && CrazySDK.IsInitialized)
-                CrazySDK.Game.GameplayStop();
+            Portal.GameplayStop();
+            Portal.Break("travel");
             UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
         }
 

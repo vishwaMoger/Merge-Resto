@@ -1,12 +1,12 @@
 using System.Collections;
-using CrazyGames;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace MergeResto.Game
 {
     /// <summary>
-    /// First scene: starts the CrazyGames SDK (cloud saves come through it), then opens the
+    /// First scene: starts the portal (CrazyGames, or Playgama Bridge; cloud saves come through it
+    /// and are read back before any shop opens), then opens the
     /// shop the player was last in, or Grandma's Bakery on a first visit, filling the boot
     /// screen's progress bar while the shop loads.
     /// </summary>
@@ -21,10 +21,7 @@ namespace MergeResto.Game
         {
             if (screen != null)
                 screen.SetProgress(0.1f);
-            if (CrazySDK.IsAvailable)
-                CrazySDK.Init(LoadShop);
-            else
-                LoadShop();
+            Portal.Init(LoadShop);
         }
 
         void LoadShop()

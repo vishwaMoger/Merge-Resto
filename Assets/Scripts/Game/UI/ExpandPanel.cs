@@ -76,7 +76,9 @@ namespace MergeResto.Game.UI
                 return;
             Platform.HappyTime();
             GameController.Instance.Save();
+            SaveStore.Flush();
             SetOpen(false);
+            Portal.Break("expanded");
         }
 
         void Update()

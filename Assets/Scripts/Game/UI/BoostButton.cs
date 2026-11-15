@@ -45,7 +45,7 @@ namespace MergeResto.Game.UI
         void Update()
         {
             bool tutorial = _sim.State.tutorialStep < ShopState.TutorialFinished;
-            bool show = !tutorial && !TutorialFocus.Active;
+            bool show = !tutorial && !TutorialFocus.Active && AdService.Supported;
             _group.alpha = Mathf.MoveTowards(_group.alpha, show ? 1f : 0f, UiTime.Delta * 4f);
             _group.blocksRaycasts = _group.interactable = show;
             bool active = _sim.BoostActive;

@@ -103,10 +103,17 @@ Shader "MergeResto/Toon"
             #pragma vertex Vert
             #pragma fragment Frag
 
-            // Soft shadow quality is picked at runtime (no LOW/MEDIUM/HIGH variants).
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile _ _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
+
+            // URP on the web only sets _SHADOWS_SOFT and picks the filter at runtime, which puts all
+            // three soft shadow filters (up to 16 taps) into this program; it then takes the browser
+            // most of a second to link while the shop opens. The game uses medium quality (the
+            // pipeline asset), so the filter is fixed to medium here: same look, a far smaller program.
+            #if defined(_SHADOWS_SOFT)
+                #define _SHADOWS_SOFT_MEDIUM
+            #endif
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 

@@ -100,9 +100,8 @@ namespace MergeResto.Game.UI
             WorldState.Reset();
             DailyRewardStore.Reset();
             SaveStore.Delete("lessons");
-            PlayerPrefs.DeleteKey("board_opened");
-            PlayerPrefs.DeleteKey("board_discovered");
-            PlayerPrefs.Save();
+            SaveStore.Prefs.Delete("board_opened");
+            SaveStore.Prefs.Delete("board_discovered");
             // Start over in Grandma's Bakery without saving this shop again.
             var gc = GameController.Instance;
             gc.enabled = false;

@@ -252,7 +252,7 @@ namespace MergeResto.Game.UI
             _pop = new float[cells.Length];
             _hiddenUntilGlide = new float[cells.Length];
             _boxOpen = new float[cells.Length];
-            _everOpened = PlayerPrefs.GetInt("board_opened", 0) == 1;
+            _everOpened = SaveStore.Prefs.GetInt("board_opened", 0) == 1;
             _discovered = LoadDiscovered();
 
             openButton.onClick.AddListener(() => SetOpen(!_isOpen));
@@ -328,6 +328,7 @@ namespace MergeResto.Game.UI
 
         public void SetOpen(bool open)
         {
+            bool wasOpen = _isOpen;
             AnyOpen = open;
             if (open != _isOpen)
                 AudioDirector.Play(Sfx.Whoosh, open ? 1.05f : 0.9f, 0.5f);
@@ -339,13 +340,15 @@ namespace MergeResto.Game.UI
                 if (!_everOpened)
                 {
                     _everOpened = true;
-                    PlayerPrefs.SetInt("board_opened", 1);
+                    SaveStore.Prefs.SetInt("board_opened", 1);
                 }
             }
             else
             {
                 _selected = -1;
                 CancelDrag(snapBack: false);
+                if (wasOpen)
+                    Portal.Break("board_closed");
             }
         }
 
@@ -591,7 +594,7 @@ namespace MergeResto.Game.UI
         HashSet<int> LoadDiscovered()
         {
             var set = new HashSet<int>();
-            foreach (var s in PlayerPrefs.GetString(DiscoveredKey, "").Split(','))
+            foreach (var s in SaveStore.Prefs.GetString(DiscoveredKey, "").Split(','))
                 if (int.TryParse(s, out int code))
                     set.Add(code);
             return set;
@@ -603,7 +606,7 @@ namespace MergeResto.Game.UI
             if (!item.IsItem || _discovered.Contains(item.code))
                 return false;
             _discovered.Add(item.code);
-            PlayerPrefs.SetString(DiscoveredKey, string.Join(",", _discovered));
+            SaveStore.Prefs.SetString(DiscoveredKey, string.Join(",", _discovered));
             if (item.Tier > 0)
             {
                 ShowBanner($"New: {_board.NameOf(item)}!");
@@ -853,7 +856,7 @@ namespace MergeResto.Game.UI
         {
             int energy = _board.Energy;
             energyText.text = $"{energy}/{_board.Def.energyMax}";
-            bool low = energy < refillBelow && !AdService.Busy;
+            bool low = energy < refillBelow && !AdService.Busy && AdService.Supported;
             refillButton.gameObject.SetActive(low);
             energyTimer.gameObject.SetActive(!low);
             // Tapping a generator with no energy shakes the energy pill (around where it belongs),

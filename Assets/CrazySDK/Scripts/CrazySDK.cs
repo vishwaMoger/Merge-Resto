@@ -365,10 +365,12 @@ namespace CrazyGames
             _storeModule = null;
             _debug = false;
             _isOnWhitelistedDomain = false;
+#if !PORTAL_BRIDGE // Merge Resto: the Playgama / GameDistribution build runs on other domains and may not be locked to any
             if (Application.platform == RuntimePlatform.WebGLPlayer)
             {
                 SiteLock.Check();
             }
+#endif
         }
     }
 

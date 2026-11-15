@@ -140,6 +140,55 @@ namespace MergeResto.EditorTools
             }
         }
 
+        public const string BridgeBuildFolder = "Builds/BridgeRelease";
+
+        /// <summary>
+        /// The Playgama Bridge build (Playgama and GameDistribution), in Builds/BridgeRelease:
+        /// PORTAL_BRIDGE define, the Bridge page template with its config,
+        /// Brotli with decompression fallback (Playgama rule 5.1.1), no data caching in IndexedDB.
+        /// The CrazyGames build and the project's own settings are left as they were.
+        /// </summary>
+        [MenuItem("Merge Resto/Release/Bridge Build (Playgama, GameDistribution)")]
+        public static void BridgeBuild()
+        {
+            var keepTemplate = PlayerSettings.WebGL.template;
+            var keepCompression = PlayerSettings.WebGL.compressionFormat;
+            var keepFallback = PlayerSettings.WebGL.decompressionFallback;
+            var keepCaching = PlayerSettings.WebGL.dataCaching;
+            PlayerSettings.WebGL.template = "PROJECT:Bridge";
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.dataCaching = false;
+            try
+            {
+                if (Directory.Exists(BridgeBuildFolder))
+                    Directory.Delete(BridgeBuildFolder, true);
+                var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = scenes,
+                    locationPathName = BridgeBuildFolder,
+                    target = BuildTarget.WebGL,
+                    options = BuildOptions.None,
+                    extraScriptingDefines = new[] { "PORTAL_BRIDGE" },
+                });
+                Debug.Log($"[Merge Resto] Bridge build: {report.summary.result} in {report.summary.totalTime.TotalMinutes:0.0} min, {report.summary.totalSize / 1048576f:0.0} MB.");
+                if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
+                    return;
+                // The template's files come across with their .meta files; the portals do not need them.
+                foreach (var meta in Directory.GetFiles(BridgeBuildFolder, "*.meta", SearchOption.AllDirectories))
+                    File.Delete(meta);
+            }
+            finally
+            {
+                PlayerSettings.WebGL.template = keepTemplate;
+                PlayerSettings.WebGL.compressionFormat = keepCompression;
+                PlayerSettings.WebGL.decompressionFallback = keepFallback;
+                PlayerSettings.WebGL.dataCaching = keepCaching;
+                AssetDatabase.SaveAssets();
+            }
+        }
+
         [MenuItem("Merge Resto/Release/Build Boot Screen")]
         public static void BuildBootScreen()
         {
