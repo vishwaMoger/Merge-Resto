@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:FF9A8B,50:FF6A88,100:FFD86F&height=280&section=header&text=%F0%9F%A5%90%20MERGE%20RESTO&fontSize=72&fontColor=ffffff&fontAlignY=38&stroke=ffffff&strokeWidth=1&desc=Restore%20Grandma%27s%20Bakery%20%E2%80%A2%20Build%20a%20Cozy%20Food%20Empire&descSize=22&descAlignY=60&animation=twinkling" alt="Merge Resto" />
+  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:FF9A8B,50:FF6A88,100:FFD86F&height=280&section=header&text=%F0%9F%A5%90%20GRANDMA%27S%20MAIN%20STREET&fontSize=52&fontColor=ffffff&fontAlignY=38&stroke=ffffff&strokeWidth=1&desc=Restore%20Grandma%27s%20Bakery%20%E2%80%A2%20Build%20a%20Cozy%20Food%20Empire&descSize=22&descAlignY=60&animation=twinkling" alt="Grandma's Main Street" />
 </p>
 
 <p align="center">
@@ -12,7 +12,31 @@
   <img src="https://img.shields.io/badge/C%23-Gameplay-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
   <img src="https://img.shields.io/badge/Platform-Web%20%7C%20PC%20%7C%20Mobile-FF9A8B?style=for-the-badge&logo=webgl&logoColor=white" />
   <img src="https://img.shields.io/badge/Genre-Merge%20%2B%20Idle%20Tycoon-FFD86F?style=for-the-badge&logoColor=black" />
-  <img src="https://img.shields.io/badge/Status-In%20Development-2ea44f?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Version-1.0.0-2ea44f?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Portals-Playgama%20%7C%20GameDistribution%20%7C%20CrazyGames-7C3AED?style=for-the-badge" />
+</p>
+
+<p align="center"><sub>Repo codename: <b>Merge Resto</b> · released as <b>Grandma's Main Street</b></sub></p>
+
+---
+
+<h2 align="center">📸 SCREENSHOTS</h2>
+
+<p align="center">
+  <img width="100%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/itch_cover_1260x1000.jpg" alt="Grandma's Main Street cover" />
+</p>
+
+<p align="center">
+  <img width="49%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/screenshot_1_renovation.jpg" alt="Renovating a run-down shop" />
+  <img width="49%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/screenshot_6_bakery.jpg" alt="Grandma's bakery" />
+</p>
+<p align="center">
+  <img width="49%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/screenshot_2_corner_cafe.jpg" alt="The Corner Café" />
+  <img width="49%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/screenshot_4_patisserie.jpg" alt="The patisserie" />
+</p>
+<p align="center">
+  <img width="49%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/screenshot_3_pizzeria.jpg" alt="Nonno's pizzeria" />
+  <img width="49%" src="https://media.githubusercontent.com/media/vishwaMoger/Merge-Resto/main/Release/Covers/itch/screenshot_5_drive_thru.jpg" alt="The drive-thru" />
 </p>
 
 ---
@@ -205,11 +229,13 @@ flowchart TB
 - [x] 🌐 Project setup: web target, platform SDK, build-size settings
 - [x] 🎨 The look: isometric camera, toon shader, outlines, polished room
 - [x] 🍞 Core idle loop: stations, workers, customers, coins, saves, offline earnings
-- [ ] 🏚️ Run-down system: object states, wear shader, repair animation
-- [ ] 🔀 Merge board: grid, chains, generators, energy, repair tasks
-- [ ] 🎓 Grand Opening tutorial
-- [ ] 🗺️ Progression: quests, managers, shops 2–3, world map
-- [ ] 🍕 Nonno's Pizzeria and beyond
+- [x] 🏚️ Run-down system: object states, wear shader, repair animation
+- [x] 🔀 Merge board: grid, chains, generators, energy, repair tasks
+- [x] 🎓 Grand Opening tutorial
+- [x] 🗺️ Progression: quests, managers, shops 2–3, world map
+- [x] 🍕 Nonno's Pizzeria and beyond
+- [x] 📦 Web portal builds: Playgama Bridge, GameDistribution and CrazyGames SDKs
+- [x] 🚀 **v1.0.0 released as Grandma's Main Street**
 
 ---
 
